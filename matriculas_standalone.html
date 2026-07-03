@@ -127,6 +127,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="cursos">Cursos</button>
       <button class="tab" data-tab="matricular">Matricular</button>
+      <button class="tab" data-tab="solicitudes">Solicitudes <span id="badge_solicitudes"></span></button>
       <button class="tab" data-tab="cobrar">Cuentas por Cobrar</button>
       <button class="tab" data-tab="reporte">Reporte Mensual</button>
     </div>
@@ -173,6 +174,7 @@
           <div class="field"><label>Correo</label><input id="m_correo" type="email" placeholder="correo@ejemplo.com"></div>
           <div class="field"><label>Teléfono</label><input id="m_telefono" placeholder="+593 ..."></div>
           <div class="field"><label>Profesión</label><input id="m_profesion" placeholder="Profesión"></div>
+          <div class="field"><label>Usuario de Instagram</label><input id="m_instagram" placeholder="@usuario"></div>
           <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
           <div class="field"><label>País</label><input id="m_pais" placeholder="País"></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
@@ -188,12 +190,37 @@
         </div>
 
         <div class="grid" style="margin-top:16px;">
+          <div class="field"><label>Método de Pago</label>
+            <select id="m_metodo_pago">
+              <option>Transferencia Bancaria</option>
+              <option>Depósito</option>
+              <option>Efectivo</option>
+              <option>PayPal</option>
+              <option>Zelle</option>
+              <option>Binance</option>
+              <option>Pago Móvil</option>
+              <option>Western Union/Zoom</option>
+              <option>Tarjeta de Crédito</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field"><label>N° de Referencia del Pago</label><input id="m_referencia_pago" placeholder="Número de comprobante o transacción"></div>
           <div class="field"><label>Comprobante de Pago (requerido)</label><input id="m_file_comprobante" type="file" accept="image/*,.pdf"></div>
           <div class="field"><label>Título / Constancia de Estudios (opcional)</label><input id="m_file_titulo" type="file" accept="image/*,.pdf"></div>
           <div class="field"><label>Cédula Escaneada (opcional)</label><input id="m_file_cedula" type="file" accept="image/*,.pdf"></div>
         </div>
 
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_matricula">Guardar Matrícula</button></div>
+      </div>
+    </div>
+
+    <!-- SOLICITUDES -->
+    <div id="tab-solicitudes" style="display:none;">
+      <div class="panel">
+        <h2>Solicitudes Pendientes de Revisión</h2>
+        <p class="hint">Lo que el cliente llenó en el formulario público. Revisa, corrige lo que haga falta, y confirma para convertirla en matrícula real.</p>
+        <div id="lista_solicitudes"></div>
+        <div class="empty" id="solicitudes_empty" style="display:none;">No hay solicitudes pendientes.</div>
       </div>
     </div>
 
@@ -248,7 +275,7 @@
 
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
-let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [];
+let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
 const CONCEPTO_LIBRE = '__PENALIDAD_OTRO__';
 
 function fmt(n){ return '$' + (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -293,6 +320,15 @@ async function apiMatricular(data){
   if(json.error) throw new Error(json.error);
   return json;
 }
+async function apiConfirmarSolicitud(data){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'confirmarSolicitud', data})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
 function normNum(v){ return Number(v)||0; }
 function normBool(v){ return v===true || v==='TRUE' || v==='true' || v===1 || v==='1'; }
 function fileToBase64(file){
@@ -305,13 +341,14 @@ function fileToBase64(file){
 }
 
 async function loadAll(){
-  const [nom, mod, pag, mat] = await Promise.all([
-    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas')
+  const [nom, mod, pag, mat, sol] = await Promise.all([
+    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes')
   ]);
   NOMINA = nom;
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
   PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado)}));
   MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
+  SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
 }
 
 async function initApp(){
@@ -338,6 +375,7 @@ function renderAll(){
   renderTicker();
   renderTablaCursos();
   renderSelectsCurso();
+  renderSolicitudes();
   renderCXC();
   renderReporteMensual();
 }
@@ -402,6 +440,119 @@ function renderTablaCursos(){
     return `<tr><td>${c}</td><td>${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td></tr>`;
   }).join('');
 }
+
+// ---------- SOLICITUDES: revisión y confirmación de pre-registros del cliente ----------
+function renderSolicitudes(){
+  const badge = document.getElementById('badge_solicitudes');
+  badge.textContent = SOLICITUDES.length>0 ? `(${SOLICITUDES.length})` : '';
+
+  const box = document.getElementById('lista_solicitudes');
+  const empty = document.getElementById('solicitudes_empty');
+  if(SOLICITUDES.length===0){ box.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  const cursos = cursosUnicos();
+  box.innerHTML = SOLICITUDES.map(s=>{
+    const opcionesCurso = cursos.map(c=>`<option value="${c}" ${c===s.curso?'selected':''}>${c}</option>`).join('');
+    const opcionesItems = itemsDe(s.curso || cursos[0] || '').map(it=>`<option value="${it.modulo}" data-precio="${it.precio}">${it.modulo}</option>`).join('');
+    return `
+    <div class="panel" style="background:var(--panel-2);" id="sol_${s.id}">
+      <div class="grid cols3">
+        <div class="field"><label>Curso</label><select class="sol-curso" onchange="actualizarItemsSolicitud('${s.id}')">${opcionesCurso || `<option value="${s.curso}">${s.curso} (no configurado)</option>`}</select></div>
+        <div class="field"><label>Estudiante</label><input class="sol-estudiante" value="${s.estudiante||''}"></div>
+        <div class="field"><label>Cédula</label><input class="sol-cedula" value="${s.cedula||''}"></div>
+        <div class="field"><label>Correo</label><input class="sol-correo" value="${s.correo||''}"></div>
+        <div class="field"><label>Teléfono</label><input class="sol-telefono" value="${s.telefono||''}"></div>
+        <div class="field"><label>País</label><input class="sol-pais" value="${s.pais||''}"></div>
+        <div class="field"><label>Ciudad</label><input class="sol-ciudad" value="${s.ciudad||''}"></div>
+        <div class="field"><label>Profesión</label><input class="sol-profesion" value="${s.profesion||''}"></div>
+        <div class="field"><label>Usuario de Instagram</label><input class="sol-instagram" value="${s.instagram||''}"></div>
+        <div class="field"><label>Certificado a Nombre de</label><input class="sol-certificado" value="${s.certificado||''}"></div>
+        <div class="field"><label>¿Quién le atendió? (dice el cliente)</label>
+          <select class="sol-asesor">
+            <option value="Jose" ${s.asesorMencionado==='Jose'?'selected':''}>Jose</option>
+            <option value="Sara" ${s.asesorMencionado==='Sara'?'selected':''}>Sara</option>
+            <option value="Directo" ${(s.asesorMencionado!=='Jose'&&s.asesorMencionado!=='Sara')?'selected':''}>Otro / Directo</option>
+          </select>
+        </div>
+        <div class="field"><label>Concepto que está pagando</label><select class="sol-modulo" id="sol_modulo_${s.id}">${opcionesItems}</select></div>
+        <div class="field"><label>Monto Pagado ($)</label><input class="sol-monto" type="number" step="0.01" placeholder="Revisa el comprobante"></div>
+        <div class="field"><label>Método de Pago</label>
+          <select class="sol-metodo-pago">
+            ${['Transferencia Bancaria','Depósito','Efectivo','PayPal','Zelle','Binance','Pago Móvil','Western Union/Zoom','Tarjeta de Crédito','Otro'].map(m=>`<option ${m===s.metodoPago?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>N° de Referencia del Pago</label><input class="sol-referencia-pago" value="${s.referenciaPago||''}"></div>
+      </div>
+      <div class="actions" style="margin-top:14px;">
+        ${s.comprobanteUrl ? `<a href="${s.comprobanteUrl}" target="_blank" class="btn btn-ghost btn-sm">Ver Comprobante</a>` : ''}
+        ${s.tituloUrl ? `<a href="${s.tituloUrl}" target="_blank" class="btn btn-ghost btn-sm">Ver Título</a>` : ''}
+        ${s.cedulaUrl ? `<a href="${s.cedulaUrl}" target="_blank" class="btn btn-ghost btn-sm">Ver Cédula</a>` : ''}
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="confirmarSolicitud('${s.id}')">Confirmar Matrícula</button>
+        <button class="btn btn-ghost" onclick="rechazarSolicitud('${s.id}')">Rechazar / Eliminar</button>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+window.actualizarItemsSolicitud = function(solId){
+  const card = document.getElementById('sol_'+solId);
+  const curso = card.querySelector('.sol-curso').value;
+  const selModulo = document.getElementById('sol_modulo_'+solId);
+  selModulo.innerHTML = itemsDe(curso).map(it=>`<option value="${it.modulo}" data-precio="${it.precio}">${it.modulo}</option>`).join('');
+};
+
+window.confirmarSolicitud = async function(solId){
+  const s = SOLICITUDES.find(x=>x.id===solId);
+  const card = document.getElementById('sol_'+solId);
+  const curso = card.querySelector('.sol-curso').value;
+  const estudiante = card.querySelector('.sol-estudiante').value.trim();
+  const cedula = card.querySelector('.sol-cedula').value.trim();
+  const correo = card.querySelector('.sol-correo').value.trim();
+  const telefono = card.querySelector('.sol-telefono').value.trim();
+  const pais = card.querySelector('.sol-pais').value.trim();
+  const ciudad = card.querySelector('.sol-ciudad').value.trim();
+  const profesion = card.querySelector('.sol-profesion').value.trim();
+  const instagram = card.querySelector('.sol-instagram').value.trim();
+  const certificado = card.querySelector('.sol-certificado').value.trim();
+  const asesor = card.querySelector('.sol-asesor').value;
+  const modulo = card.querySelector('.sol-modulo').value;
+  const monto = Number(card.querySelector('.sol-monto').value)||0;
+  const metodoPago = card.querySelector('.sol-metodo-pago').value;
+  const referenciaPago = card.querySelector('.sol-referencia-pago').value.trim();
+
+  if(!curso){ showToast('Selecciona un curso válido.'); return; }
+  if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+  if(monto<=0){ showToast('Ingresa el monto pagado (revisa el comprobante adjunto).'); return; }
+
+  const archivosExistentes = {};
+  if(s.comprobanteFileId) archivosExistentes.comprobante = s.comprobanteFileId;
+  if(s.tituloFileId) archivosExistentes.titulo = s.tituloFileId;
+  if(s.cedulaFileId) archivosExistentes.cedulaDoc = s.cedulaFileId;
+
+  try{
+    await apiConfirmarSolicitud({
+      solicitudId: solId, fecha: new Date().toISOString().slice(0,10),
+      curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, asesor, metodoPago, referenciaPago,
+      modulosPagados: [{modulo, monto, esAbono:false}],
+      archivosExistentes
+    });
+    showToast('Matrícula confirmada — carpeta creada en Drive.');
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error al confirmar: '+e.message); }
+};
+
+window.rechazarSolicitud = async function(solId){
+  if(!confirm('¿Eliminar esta solicitud? El cliente tendría que volver a llenarla si fue un error.')) return;
+  await apiPost('Solicitudes','delete',{id:solId});
+  showToast('Solicitud eliminada.');
+  await loadAll();
+  renderAll();
+};
 
 function renderSelectsCurso(){
   const cursos = cursosUnicos();
@@ -551,10 +702,13 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   const correo = document.getElementById('m_correo').value.trim();
   const telefono = document.getElementById('m_telefono').value.trim();
   const profesion = document.getElementById('m_profesion').value.trim();
+  const instagram = document.getElementById('m_instagram').value.trim();
   const ciudad = document.getElementById('m_ciudad').value.trim();
   const pais = document.getElementById('m_pais').value.trim();
   const certificado = document.getElementById('m_certificado').value.trim();
   const montoMensual = Number(document.getElementById('m_monto_mensual').value)||0;
+  const metodoPago = document.getElementById('m_metodo_pago').value;
+  const referenciaPago = document.getElementById('m_referencia_pago').value.trim();
 
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
@@ -588,14 +742,14 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     if(fileCedula) archivos.cedulaDoc = {data: await fileToBase64(fileCedula), name: fileCedula.name, mimeType: fileCedula.type||'application/octet-stream'};
 
     await apiMatricular({
-      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, ciudad, pais, certificado, montoMensual, asesor,
+      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, instagram, ciudad, pais, certificado, montoMensual, metodoPago, referenciaPago, asesor,
       modulosPagados, archivos
     });
 
     showToast('¡Matrícula guardada! Carpeta creada en Drive.');
     document.getElementById('m_estudiante').value=''; document.getElementById('m_cedula').value='';
     document.getElementById('m_correo').value=''; document.getElementById('m_telefono').value='';
-    document.getElementById('m_profesion').value=''; document.getElementById('m_ciudad').value='';
+    document.getElementById('m_profesion').value=''; document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value='';
     document.getElementById('m_pais').value=''; document.getElementById('m_certificado').value='';
     document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value='';
     document.getElementById('m_file_cedula').value='';
@@ -659,6 +813,7 @@ window.registrarPagoAdicional = function(curso, estudiante){
     document.getElementById('m_correo').value = registro.correo||'';
     document.getElementById('m_telefono').value = registro.telefono||'';
     document.getElementById('m_profesion').value = registro.profesion||'';
+    document.getElementById('m_instagram').value = registro.instagram||'';
     document.getElementById('m_ciudad').value = registro.ciudad||'';
     document.getElementById('m_pais').value = registro.pais||'';
     document.getElementById('m_certificado').value = registro.certificado||'';
@@ -669,7 +824,7 @@ window.registrarPagoAdicional = function(curso, estudiante){
 
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.tab[data-tab="matricular"]').classList.add('active');
-  ['cursos','matricular','cobrar','reporte'].forEach(t=>{
+  ['cursos','matricular','solicitudes','cobrar','reporte'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = (t==='matricular') ? 'block' : 'none';
   });
   showToast('Datos de ' + estudiante + ' cargados — solo agrega el nuevo pago y el comprobante.');
@@ -915,7 +1070,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    ['cursos','matricular','cobrar','reporte'].forEach(t=>{
+    ['cursos','matricular','solicitudes','cobrar','reporte'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
   });
