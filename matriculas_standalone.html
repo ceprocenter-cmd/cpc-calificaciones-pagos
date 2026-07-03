@@ -572,7 +572,7 @@ function renderCXC(){
   const items = itemsDe(curso);
   const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
 
-  head.innerHTML = '<th>Estudiante</th>' + items.map(m=>`<th>${m.modulo}</th>`).join('') + '<th class="num">Saldo Pendiente</th>';
+  head.innerHTML = '<th>Estudiante</th>' + items.map(m=>`<th>${m.modulo}</th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
 
   body.innerHTML = estudiantes.map(est=>{
     let saldoTotal = 0;
@@ -586,9 +586,36 @@ function renderCXC(){
       if(saldo>0) return `<td><span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span></td>`;
       return `<td><span class="pill ok">Pagado</span></td>`;
     }).join('');
-    return `<tr><td>${est}</td>${cells}<td class="num">${fmt(saldoTotal)}</td></tr>`;
+    const btnPago = `<td><button class="btn btn-ghost btn-sm" onclick="registrarPagoAdicional('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">+ Pago</button></td>`;
+    return `<tr><td>${est}</td>${cells}<td class="num">${fmt(saldoTotal)}</td>${btnPago}</tr>`;
   }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 }
+
+window.registrarPagoAdicional = function(curso, estudiante){
+  document.getElementById('m_curso').value = curso;
+  document.getElementById('m_curso').dispatchEvent(new Event('change'));
+  document.getElementById('m_estudiante').value = estudiante;
+
+  const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0];
+  if(registro){
+    document.getElementById('m_cedula').value = registro.cedula||'';
+    document.getElementById('m_correo').value = registro.correo||'';
+    document.getElementById('m_telefono').value = registro.telefono||'';
+    document.getElementById('m_profesion').value = registro.profesion||'';
+    document.getElementById('m_ciudad').value = registro.ciudad||'';
+    document.getElementById('m_pais').value = registro.pais||'';
+    document.getElementById('m_certificado').value = registro.certificado||'';
+    if(registro.asesor) document.getElementById('m_asesor').value = registro.asesor;
+  }
+  document.getElementById('m_estudiante').dispatchEvent(new Event('input'));
+
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector('.tab[data-tab="matricular"]').classList.add('active');
+  ['cursos','matricular','cobrar','reporte'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = (t==='matricular') ? 'block' : 'none';
+  });
+  showToast('Datos de ' + estudiante + ' cargados — solo agrega el nuevo pago y el comprobante.');
+};
 
 // ---------- REPORTE MENSUAL ----------
 document.getElementById('rep_mes').addEventListener('change', renderReporteMensual);
