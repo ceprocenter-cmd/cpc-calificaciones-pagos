@@ -475,7 +475,7 @@ function renderSolicitudes(){
             <option value="Directo" ${(s.asesorMencionado!=='Jose'&&s.asesorMencionado!=='Sara')?'selected':''}>Otro / Directo</option>
           </select>
         </div>
-        <div class="field"><label>Concepto (Inscripción, Módulo...)</label><select class="sol-modulo" id="sol_modulo_${s.id}" onchange="actualizarMontoAcordadoSolicitud('${s.id}')">${opcionesItems}</select></div>
+        <div class="field"><label>Concepto (Inscripción, Módulo...)</label><input class="sol-modulo" id="sol_modulo_${s.id}" list="sol_modulo_dl_${s.id}" value="${itemsDe(s.curso||'')[0]?itemsDe(s.curso||'')[0].modulo:''}" oninput="actualizarMontoAcordadoSolicitud('${s.id}')"><datalist id="sol_modulo_dl_${s.id}">${opcionesItems}</datalist></div>
         <div class="field"><label>Monto Acordado ($)</label><input class="sol-monto-acordado" id="sol_monto_acordado_${s.id}" type="number" step="0.01" placeholder="Precio de referencia"></div>
         <div class="field"><label>Monto Pagado ($)</label><input class="sol-monto" type="number" step="0.01" placeholder="Revisa el comprobante"></div>
         <div class="field"><label>Método de Pago</label>
@@ -504,8 +504,10 @@ function renderSolicitudes(){
 window.actualizarItemsSolicitud = function(solId){
   const card = document.getElementById('sol_'+solId);
   const curso = card.querySelector('.sol-curso').value;
-  const selModulo = document.getElementById('sol_modulo_'+solId);
-  selModulo.innerHTML = itemsDe(curso).map(it=>`<option value="${it.modulo}" data-precio="${it.precio}">${it.modulo}</option>`).join('');
+  const items = itemsDe(curso);
+  document.getElementById('sol_modulo_dl_'+solId).innerHTML = items.map(it=>`<option value="${it.modulo}">`).join('');
+  const inputModulo = card.querySelector('.sol-modulo');
+  if(!inputModulo.value.trim() && items.length>0) inputModulo.value = items[0].modulo;
   actualizarMontoAcordadoSolicitud(solId);
 };
 
@@ -513,8 +515,15 @@ window.actualizarMontoAcordadoSolicitud = function(solId){
   const card = document.getElementById('sol_'+solId);
   const curso = card.querySelector('.sol-curso').value;
   const estudiante = card.querySelector('.sol-estudiante').value.trim();
-  const modulo = card.querySelector('.sol-modulo').value;
-  const sugerido = estudiante ? precioEsperado(curso, estudiante, modulo) : (card.querySelector('.sol-modulo').selectedOptions[0]?.dataset.precio || 0);
+  const modulo = card.querySelector('.sol-modulo').value.trim();
+  if(!modulo){ return; }
+  let sugerido = 0;
+  if(estudiante){
+    sugerido = precioEsperado(curso, estudiante, modulo);
+  }else{
+    const item = itemsDe(curso).find(i=>i.modulo===modulo);
+    sugerido = item ? item.precio : 0;
+  }
   document.getElementById('sol_monto_acordado_'+solId).value = sugerido || '';
 };
 
