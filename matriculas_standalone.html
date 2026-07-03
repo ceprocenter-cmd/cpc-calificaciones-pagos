@@ -82,6 +82,14 @@
   .doc-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
   .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
   .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);}
+  .deudor-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;break-inside:avoid;page-break-inside:avoid;}
+  .deudor-nombre{display:flex;justify-content:space-between;align-items:center;font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  .deudor-nombre .saldo{color:var(--danger);font-size:14px;}
+  .deudor-modulos{width:100%;border-collapse:collapse;font-size:13px;}
+  .deudor-modulos td{padding:5px 0;border:none;}
+  .deudor-modulos td:first-child{color:var(--text-dim);}
+  .deudor-modulos td:last-child{text-align:right;}
+  @page{ size: portrait; margin: 15mm; }
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,39,58,0.55);z-index:300;align-items:center;justify-content:center;padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal-box{background:#fff;border-radius:14px;max-width:750px;width:100%;max-height:90vh;overflow-y:auto;}
@@ -168,7 +176,7 @@
           <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
           <div class="field"><label>País</label><input id="m_pais" placeholder="País"></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
-          <div class="field"><label>Descuento General (%) — aplica a todos los módulos</label><input id="m_descuento" type="number" step="0.1" min="0" max="100" placeholder="0"></div>
+          <div class="field"><label>Monto Mensual Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
         </div>
         <datalist id="lista_est_curso"></datalist>
 
@@ -303,7 +311,7 @@ async function loadAll(){
   NOMINA = nom;
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
   PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado)}));
-  MATRICULAS = mat.map(m=>({...m, descuentoPct: normNum(m.descuentoPct)}));
+  MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
 }
 
 async function initApp(){
@@ -489,8 +497,8 @@ function precioEsperado(curso, estudiante, concepto){
   const item = itemsDe(curso).find(i=>i.modulo===concepto);
   const precioRef = item ? item.precio : 0;
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0];
-  const descuento = registro && registro.descuentoPct ? Number(registro.descuentoPct) : 0;
-  if(descuento>0) return Math.round((precioRef * (1 - descuento/100)) * 100) / 100;
+  const montoMensual = registro && registro.montoMensual ? Number(registro.montoMensual) : 0;
+  if(montoMensual>0) return montoMensual;
   return precioRef;
 }
 
@@ -546,7 +554,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   const ciudad = document.getElementById('m_ciudad').value.trim();
   const pais = document.getElementById('m_pais').value.trim();
   const certificado = document.getElementById('m_certificado').value.trim();
-  const descuentoPct = Number(document.getElementById('m_descuento').value)||0;
+  const montoMensual = Number(document.getElementById('m_monto_mensual').value)||0;
 
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
@@ -580,7 +588,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     if(fileCedula) archivos.cedulaDoc = {data: await fileToBase64(fileCedula), name: fileCedula.name, mimeType: fileCedula.type||'application/octet-stream'};
 
     await apiMatricular({
-      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, ciudad, pais, certificado, descuentoPct, asesor,
+      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, ciudad, pais, certificado, montoMensual, asesor,
       modulosPagados, archivos
     });
 
@@ -612,7 +620,7 @@ function renderCXC(){
   const items = itemsDe(curso);
   const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
 
-  head.innerHTML = '<th>Estudiante</th><th></th>' + items.map(m=>`<th>${m.modulo}</th>`).join('') + '<th class="num">Saldo Pendiente</th>';
+  head.innerHTML = '<th>Estudiante</th><th></th>' + items.map(m=>`<th>${m.modulo}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
 
   let filasDeuda = [];
   body.innerHTML = estudiantes.map(est=>{
@@ -632,8 +640,9 @@ function renderCXC(){
       return celda;
     }).join('');
     const btnPago = `<td><button class="btn btn-ghost btn-sm" onclick="registrarPagoAdicional('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">+ Pago</button></td>`;
+    const btnReporte = `<td><button class="btn btn-ghost btn-sm" onclick="pdfEstudianteIndividual('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">📄 Reporte</button></td>`;
     if(saldoTotal>0) filasDeuda.push([est].concat(estados).concat([saldoTotal]));
-    return `<tr><td>${est}</td>${btnPago}${cells}<td class="num">${fmt(saldoTotal)}</td></tr>`;
+    return `<tr><td>${est}</td>${btnPago}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}</tr>`;
   }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
@@ -653,7 +662,7 @@ window.registrarPagoAdicional = function(curso, estudiante){
     document.getElementById('m_ciudad').value = registro.ciudad||'';
     document.getElementById('m_pais').value = registro.pais||'';
     document.getElementById('m_certificado').value = registro.certificado||'';
-    document.getElementById('m_descuento').value = registro.descuentoPct||'';
+    document.getElementById('m_monto_mensual').value = registro.montoMensual||'';
     if(registro.asesor) document.getElementById('m_asesor').value = registro.asesor;
   }
   document.getElementById('m_estudiante').dispatchEvent(new Event('input'));
@@ -707,20 +716,104 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
 });
 window.onafterprint = function(){ document.body.classList.remove('printing-doc'); };
 
+window.pdfEstudianteIndividual = function(curso, estudiante){
+  const items = itemsDe(curso);
+  let saldoTotal = 0;
+  const filasModulo = items.map(it=>{
+    const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===it.modulo);
+    const pagado = pagos.reduce((s,p)=>s+p.monto,0);
+    const esperado = precioEsperado(curso, estudiante, it.modulo);
+    const saldo = Math.max(0, esperado - pagado);
+    saldoTotal += saldo;
+    let estado;
+    if(pagado===0) estado = `<span class="pill fail">Debe ${fmt(esperado)}</span>`;
+    else if(saldo>0) estado = `<span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span>`;
+    else estado = `<span class="pill ok">Pagado</span>`;
+    return `<tr><td>${it.modulo}</td><td>${estado}</td></tr>`;
+  }).join('');
+
+  const historial = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  const totalPagado = historial.reduce((s,p)=>s+p.monto,0);
+  const filasHistorial = historial.map(p=>`<tr><td>${p.fecha}</td><td>${p.modulo}</td><td style="text-align:right;">${fmt(p.monto)}</td><td>${p.esAbono?'Abono':'Completo'}</td></tr>`).join('') || '<tr><td colspan="4">Sin pagos registrados</td></tr>';
+
+  const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
+
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Reporte Individual de Pagos</div>
+    </div>
+    <div class="doc-meta">
+      Estudiante: <b>${estudiante}</b> — Curso: <b>${curso}</b><br>
+      ${registro.cedula ? 'Cédula: '+registro.cedula+' — ' : ''}${registro.correo ? 'Correo: '+registro.correo : ''}<br>
+      Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+    <table class="doc-table"><thead><tr><th>Módulo</th><th>Estado</th></tr></thead><tbody>${filasModulo}</tbody></table>
+    <div class="deudor-nombre" style="border:none;padding:0;margin-bottom:20px;">
+      <span>Total Pagado: ${fmt(totalPagado)}</span>
+      <span class="saldo">Saldo Pendiente: ${fmt(saldoTotal)}</span>
+    </div>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 10px;">Historial de Pagos</h3>
+    <table class="doc-table"><thead><tr><th>Fecha</th><th>Concepto</th><th style="text-align:right;">Monto</th><th>Tipo</th></tr></thead><tbody>${filasHistorial}</tbody></table>
+  `;
+  abrirModalDoc(html);
+};
+
+window.pdfDeudoresModulo = function(curso, modulo){
+  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  const deudores = [];
+  let totalGeneral = 0;
+  estudiantes.forEach(est=>{
+    const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===modulo);
+    const pagado = pagos.reduce((s,p)=>s+p.monto,0);
+    const esperado = precioEsperado(curso, est, modulo);
+    const saldo = Math.max(0, esperado - pagado);
+    if(saldo>0){
+      totalGeneral += saldo;
+      const estado = pagado===0 ? `Debe ${fmt(esperado)}` : `Abonó ${fmt(pagado)}, debe ${fmt(saldo)}`;
+      deudores.push({est, estado, saldo});
+    }
+  });
+  if(deudores.length===0){ showToast('Nadie debe el módulo "'+modulo+'" — todos están al día.'); return; }
+
+  const filas = deudores.sort((a,b)=>b.saldo-a.saldo).map(d=>`<tr><td>${d.est}</td><td>${d.estado}</td></tr>`).join('');
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Deudores — ${modulo}</div>
+    </div>
+    <div class="doc-meta">Curso: <b>${curso}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b></div>
+    <table class="doc-table"><thead><tr><th>Estudiante</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>
+  `;
+  abrirModalDoc(html);
+};
+
 document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
-  const headers = ['Estudiante'].concat(data.items).concat(['Saldo Pendiente']);
-  const filas = data.filas.map(f=>`<tr>${f.map((c,i)=>`<td${i===f.length-1?' style="text-align:right;font-weight:700;"':''}>${i===f.length-1?fmt(c):c}</td>`).join('')}</tr>`).join('');
   const totalGeneral = data.filas.reduce((s,f)=>s+Number(f[f.length-1]),0);
+
+  const tarjetas = data.filas.map(f=>{
+    const estudiante = f[0];
+    const saldo = f[f.length-1];
+    const estadosModulos = f.slice(1, f.length-1);
+    const filasModulo = data.items.map((modulo,i)=>`<tr><td>${modulo}</td><td>${estadosModulos[i]}</td></tr>`).join('');
+    return `
+      <div class="deudor-card">
+        <div class="deudor-nombre"><span>${estudiante}</span><span class="saldo">${fmt(saldo)}</span></div>
+        <table class="deudor-modulos">${filasModulo}</table>
+      </div>
+    `;
+  }).join('');
+
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
       <div class="title">Reporte de Deudores</div>
     </div>
     <div class="doc-meta">Curso: <b>${data.curso}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
-    <table class="doc-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table>
+    ${tarjetas}
   `;
   abrirModalDoc(html);
 });
