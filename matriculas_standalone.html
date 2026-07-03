@@ -257,6 +257,19 @@
           <button class="btn btn-ghost btn-sm" id="btn_pdf_reporte_mensual">Descargar Reporte (PDF)</button>
         </div>
       </div>
+
+      <div class="panel">
+        <h2>Conciliación Bancaria</h2>
+        <p class="hint">Finanzas confirma aquí, pago por pago, que el dinero efectivamente cayó en la cuenta.</p>
+        <div id="conciliacion_resumen"></div>
+        <div class="table-scroll" style="margin-top:12px;">
+          <table>
+            <thead><tr><th>Fecha</th><th>Estudiante</th><th>Curso</th><th>Concepto</th><th class="num">Monto</th><th>Cuenta / Método</th><th>Referencia</th><th>Estado</th></tr></thead>
+            <tbody id="tabla_conciliacion"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="conciliacion_empty" style="display:none;">No hay pagos en este periodo.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -346,7 +359,7 @@ async function loadAll(){
   ]);
   NOMINA = nom;
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
-  PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado)}));
+  PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado), confirmadoBanco:normBool(p.confirmadoBanco)}));
   MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
   SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
 }
@@ -475,15 +488,18 @@ function renderSolicitudes(){
             <option value="Directo" ${(s.asesorMencionado!=='Jose'&&s.asesorMencionado!=='Sara')?'selected':''}>Otro / Directo</option>
           </select>
         </div>
-        <div class="field"><label>Concepto (Inscripción, Módulo...)</label><input class="sol-modulo" id="sol_modulo_${s.id}" list="sol_modulo_dl_${s.id}" value="${itemsDe(s.curso||'')[0]?itemsDe(s.curso||'')[0].modulo:''}" oninput="actualizarMontoAcordadoSolicitud('${s.id}')"><datalist id="sol_modulo_dl_${s.id}">${opcionesItems}</datalist></div>
-        <div class="field"><label>Monto Acordado ($)</label><input class="sol-monto-acordado" id="sol_monto_acordado_${s.id}" type="number" step="0.01" placeholder="Precio de referencia"></div>
-        <div class="field"><label>Monto Pagado ($)</label><input class="sol-monto" type="number" step="0.01" placeholder="Revisa el comprobante"></div>
         <div class="field"><label>Método de Pago</label>
           <select class="sol-metodo-pago">
             ${['Transferencia Bancaria','Depósito','Efectivo','PayPal','Zelle','Binance','Pago Móvil','Western Union/Zoom','Tarjeta de Crédito','Otro'].map(m=>`<option ${m===s.metodoPago?'selected':''}>${m}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>N° de Referencia del Pago</label><input class="sol-referencia-pago" value="${s.referenciaPago||''}"></div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Conceptos que Cubre este Pago</label>
+        <div id="sol_pago_lines_${s.id}"></div>
+        <button class="btn btn-ghost btn-sm" onclick="agregarLineaPagoSolicitud('${s.id}')">+ Agregar Concepto</button>
       </div>
       <div class="actions" style="margin-top:14px;">
         ${s.comprobanteUrl ? `<a href="${s.comprobanteUrl}" target="_blank" class="btn btn-ghost btn-sm">Ver Comprobante</a>` : ''}
@@ -498,34 +514,52 @@ function renderSolicitudes(){
     `;
   }).join('');
 
-  SOLICITUDES.forEach(s=>actualizarMontoAcordadoSolicitud(s.id));
+  SOLICITUDES.forEach(s=>{
+    document.getElementById('sol_pago_lines_'+s.id).innerHTML = '';
+    agregarLineaPagoSolicitud(s.id);
+  });
 }
 
 window.actualizarItemsSolicitud = function(solId){
   const card = document.getElementById('sol_'+solId);
   const curso = card.querySelector('.sol-curso').value;
-  const items = itemsDe(curso);
-  document.getElementById('sol_modulo_dl_'+solId).innerHTML = items.map(it=>`<option value="${it.modulo}">`).join('');
-  const inputModulo = card.querySelector('.sol-modulo');
-  if(!inputModulo.value.trim() && items.length>0) inputModulo.value = items[0].modulo;
-  actualizarMontoAcordadoSolicitud(solId);
+  card.querySelectorAll('.sol-pl-modulo').forEach(inp=>{
+    const dl = document.getElementById(inp.dataset.dl);
+    dl.innerHTML = itemsDe(curso).map(it=>`<option value="${it.modulo}">`).join('');
+  });
 };
 
-window.actualizarMontoAcordadoSolicitud = function(solId){
+function agregarLineaPagoSolicitud(solId){
   const card = document.getElementById('sol_'+solId);
   const curso = card.querySelector('.sol-curso').value;
-  const estudiante = card.querySelector('.sol-estudiante').value.trim();
-  const modulo = card.querySelector('.sol-modulo').value.trim();
-  if(!modulo){ return; }
-  let sugerido = 0;
-  if(estudiante){
-    sugerido = precioEsperado(curso, estudiante, modulo);
-  }else{
-    const item = itemsDe(curso).find(i=>i.modulo===modulo);
-    sugerido = item ? item.precio : 0;
-  }
-  document.getElementById('sol_monto_acordado_'+solId).value = sugerido || '';
-};
+  const items = itemsDe(curso);
+  const lineId = solId + '_' + uid();
+  const dlId = 'dl_' + lineId;
+  const primerItem = items.length>0 ? items[0].modulo : '';
+
+  const row = document.createElement('div');
+  row.className = 'pago-line';
+  row.innerHTML = `
+    <div class="pago-line-row">
+      <div class="field"><label>Concepto</label><input class="sol-pl-modulo" data-dl="${dlId}" list="${dlId}" value="${primerItem}"><datalist id="${dlId}">${items.map(it=>`<option value="${it.modulo}">`).join('')}</datalist></div>
+      <div class="field small"><label>Monto Acordado ($)</label><input class="sol-pl-acordado" type="number" step="0.01" value="${items.length>0?items[0].precio:''}"></div>
+      <div class="field small"><label>Monto Pagado ($)</label><input class="sol-pl-monto" type="number" step="0.01" placeholder="0.00"></div>
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.pago-line').remove();">✕</button>
+    </div>
+  `;
+  document.getElementById('sol_pago_lines_'+solId).appendChild(row);
+
+  const inputModulo = row.querySelector('.sol-pl-modulo');
+  const inputAcordado = row.querySelector('.sol-pl-acordado');
+  inputModulo.addEventListener('input', ()=>{
+    const estudiante = card.querySelector('.sol-estudiante').value.trim();
+    const modulo = inputModulo.value.trim();
+    if(!modulo) return;
+    const sugerido = estudiante ? precioEsperado(curso, estudiante, modulo) : (items.find(i=>i.modulo===modulo)?.precio || 0);
+    if(sugerido) inputAcordado.value = sugerido;
+  });
+}
+window.agregarLineaPagoSolicitud = agregarLineaPagoSolicitud;
 
 window.confirmarSolicitud = async function(solId){
   const s = SOLICITUDES.find(x=>x.id===solId);
@@ -541,17 +575,27 @@ window.confirmarSolicitud = async function(solId){
   const instagram = card.querySelector('.sol-instagram').value.trim();
   const certificado = card.querySelector('.sol-certificado').value.trim();
   const asesor = card.querySelector('.sol-asesor').value;
-  const modulo = card.querySelector('.sol-modulo').value;
-  const montoAcordado = Number(card.querySelector('.sol-monto-acordado').value)||0;
-  const monto = Number(card.querySelector('.sol-monto').value)||0;
   const metodoPago = card.querySelector('.sol-metodo-pago').value;
   const referenciaPago = card.querySelector('.sol-referencia-pago').value.trim();
 
   if(!curso){ showToast('Selecciona un curso válido.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
-  if(monto<=0){ showToast('Ingresa el monto pagado (revisa el comprobante adjunto).'); return; }
 
-  const esAbono = montoAcordado>0 && monto < (montoAcordado - 0.009);
+  const modulosPagados = [];
+  let error = null;
+  card.querySelectorAll('.pago-line').forEach(row=>{
+    const modulo = row.querySelector('.sol-pl-modulo').value.trim();
+    const montoAcordado = Number(row.querySelector('.sol-pl-acordado').value)||0;
+    const monto = Number(row.querySelector('.sol-pl-monto').value)||0;
+    if(!modulo){ error = 'Cada línea necesita un concepto.'; return; }
+    if(monto<=0){ error = 'Cada línea necesita un monto pagado mayor a 0.'; return; }
+    const itemCoincide = itemsDe(curso).find(i=>i.modulo.trim().toLowerCase()===modulo.toLowerCase());
+    const moduloFinal = itemCoincide ? itemCoincide.modulo : modulo;
+    const esAbono = montoAcordado>0 && monto < (montoAcordado - 0.009);
+    modulosPagados.push({modulo: moduloFinal, monto, esAbono, precioAcordado: montoAcordado});
+  });
+  if(error){ showToast(error); return; }
+  if(modulosPagados.length===0){ showToast('Agrega al menos un concepto pagado.'); return; }
 
   const archivosExistentes = {};
   if(s.comprobanteFileId) archivosExistentes.comprobante = s.comprobanteFileId;
@@ -562,7 +606,7 @@ window.confirmarSolicitud = async function(solId){
     await apiConfirmarSolicitud({
       solicitudId: solId, fecha: new Date().toISOString().slice(0,10),
       curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, asesor, metodoPago, referenciaPago,
-      modulosPagados: [{modulo, monto, esAbono, precioAcordado: montoAcordado}],
+      modulosPagados,
       archivosExistentes
     });
     showToast('Matrícula confirmada — carpeta creada en Drive.');
@@ -881,7 +925,50 @@ function renderReporteMensual(){
   document.getElementById('tabla_reporte_curso').innerHTML = Object.entries(porCurso).map(([curso,v])=>
     `<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
+
+  renderConciliacion(pagos);
 }
+
+function renderConciliacion(pagos){
+  const body = document.getElementById('tabla_conciliacion');
+  const empty = document.getElementById('conciliacion_empty');
+  if(pagos.length===0){ body.innerHTML=''; empty.style.display='block'; document.getElementById('conciliacion_resumen').innerHTML=''; return; }
+  empty.style.display='none';
+
+  const confirmados = pagos.filter(p=>p.confirmadoBanco);
+  const pendientes = pagos.filter(p=>!p.confirmadoBanco);
+  const totalConfirmado = confirmados.reduce((s,p)=>s+p.monto,0);
+  const totalPendiente = pendientes.reduce((s,p)=>s+p.monto,0);
+  document.getElementById('conciliacion_resumen').innerHTML = `<p class="hint" style="margin:0;">
+    <span style="color:var(--accent-dark);font-weight:700;">${fmt(totalConfirmado)} confirmado</span> en banco
+    — <span style="color:var(--danger);font-weight:700;">${fmt(totalPendiente)} pendiente</span> de confirmar (${pendientes.length} pago${pendientes.length!==1?'s':''})</p>`;
+
+  const ordenados = pagos.slice().sort((a,b)=>{
+    if(!!a.confirmadoBanco === !!b.confirmadoBanco) return new Date(b.fecha)-new Date(a.fecha);
+    return a.confirmadoBanco ? 1 : -1;
+  });
+
+  body.innerHTML = ordenados.map(p=>`
+    <tr>
+      <td>${p.fecha}</td><td>${p.estudiante}</td><td>${p.curso}</td><td>${p.modulo}</td>
+      <td class="num">${fmt(p.monto)}</td>
+      <td>${p.metodoPago||'—'}</td>
+      <td>${p.referenciaPago||'—'}</td>
+      <td>${p.confirmadoBanco
+        ? '<span class="pill ok">Confirmado</span>'
+        : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Marcar Confirmado</button>`}</td>
+    </tr>
+  `).join('');
+}
+
+window.confirmarPagoBanco = async function(pagoId){
+  try{
+    await apiPost('Pagos','update',{id:pagoId, data:{confirmadoBanco:true}});
+    showToast('Pago confirmado en banco.');
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error al confirmar: '+e.message); }
+};
 // ---------- DOCUMENTOS PDF (VIA IMPRESIÓN) ----------
 function abrirModalDoc(html){
   document.getElementById('print_doc_content').innerHTML = html;
@@ -1044,9 +1131,9 @@ document.getElementById('btn_export_pagos_csv').addEventListener('click', ()=>{
   const mesVal = document.getElementById('rep_mes').value;
   const pagos = mesVal ? PAGOS.filter(p=>p.fecha && p.fecha.slice(0,7)===mesVal) : PAGOS.slice();
   if(pagos.length===0){ showToast('No hay pagos para exportar en este periodo.'); return; }
-  const headers = ['Fecha','Curso','Estudiante','Concepto','Monto','EsAbono','PrecioAcordado'];
+  const headers = ['Fecha','Curso','Estudiante','Concepto','Monto','EsAbono','PrecioAcordado','MetodoPago','ReferenciaPago','ConfirmadoBanco'];
   const rows = [headers.join(',')];
-  pagos.forEach(p=>rows.push([p.fecha,p.curso,p.estudiante,p.modulo,p.monto,p.esAbono?'Si':'No',p.precioAcordado||''].map(csvEscape).join(',')));
+  pagos.forEach(p=>rows.push([p.fecha,p.curso,p.estudiante,p.modulo,p.monto,p.esAbono?'Si':'No',p.precioAcordado||'',p.metodoPago||'',p.referenciaPago||'',p.confirmadoBanco?'Si':'No'].map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'pagos_ceprocenter');
 });
 
