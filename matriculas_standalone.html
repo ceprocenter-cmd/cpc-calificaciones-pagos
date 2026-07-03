@@ -73,6 +73,25 @@
   .pago-line-row .field.small{max-width:130px;flex:none;}
   .abono-check{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;padding-bottom:10px;}
   .abono-check input{width:16px;height:16px;}
+
+  #print_doc_content{padding:32px 32px 8px;}
+  .doc-header{border-bottom:3px solid var(--accent-dark);padding-bottom:16px;margin-bottom:24px;}
+  .doc-header .brand{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;color:var(--accent-dark);}
+  .doc-header .title{font-size:15px;color:var(--text-dim);margin-top:4px;}
+  .doc-meta{font-size:14px;color:var(--text-dim);margin-bottom:20px;}
+  .doc-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
+  .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
+  .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,39,58,0.55);z-index:300;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal-box{background:#fff;border-radius:14px;max-width:750px;width:100%;max-height:90vh;overflow-y:auto;}
+  .modal-actions{padding:16px 32px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;}
+  @media print{
+    body.printing-doc > .wrap, body.printing-doc .toast{display:none !important;}
+    body.printing-doc .modal-overlay{position:static !important;background:none !important;padding:0 !important;display:block !important;}
+    body.printing-doc .modal-box{max-height:none !important;overflow:visible !important;box-shadow:none !important;max-width:100% !important;}
+    body.printing-doc .modal-actions{display:none !important;}
+  }
 </style>
 </head>
 <body>
@@ -176,7 +195,10 @@
         <h2>Cuentas por Cobrar</h2>
         <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
         <div class="field" style="max-width:400px;margin-bottom:16px;"><label>Curso</label><select id="cxc_curso"></select></div>
-        <div class="actions" style="margin-top:0;margin-bottom:16px;"><button class="btn btn-ghost btn-sm" id="btn_export_deudores">Descargar Deudores (CSV)</button></div>
+        <div class="actions" style="margin-top:0;margin-bottom:16px;">
+          <button class="btn btn-ghost btn-sm" id="btn_export_deudores">Descargar Deudores (CSV)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_deudores">Descargar Deudores (PDF)</button>
+        </div>
         <div class="table-scroll">
           <table><thead><tr id="cxc_head"></tr></thead><tbody id="cxc_body"></tbody></table>
         </div>
@@ -197,8 +219,19 @@
           <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte_mat">Copiar Reporte</button>
           <button class="btn btn-ghost btn-sm" id="btn_export_pagos_csv">Descargar Pagos (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_export_matriculas_csv">Descargar Matrículas (CSV)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_reporte_mensual">Descargar Reporte (PDF)</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_overlay">
+  <div class="modal-box">
+    <div id="print_doc_content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn_cerrar_modal">Cerrar</button>
+      <button class="btn btn-primary" id="btn_imprimir_modal">Imprimir / Guardar PDF</button>
     </div>
   </div>
 </div>
@@ -660,6 +693,61 @@ function renderReporteMensual(){
     `<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
 }
+// ---------- DOCUMENTOS PDF (VIA IMPRESIÓN) ----------
+function abrirModalDoc(html){
+  document.getElementById('print_doc_content').innerHTML = html;
+  document.getElementById('modal_overlay').classList.add('show');
+}
+document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
+  document.getElementById('modal_overlay').classList.remove('show');
+});
+document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
+  document.body.classList.add('printing-doc');
+  window.print();
+});
+window.onafterprint = function(){ document.body.classList.remove('printing-doc'); };
+
+document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
+  const data = window._cxcDeudoresActual;
+  if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
+  if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
+  const headers = ['Estudiante'].concat(data.items).concat(['Saldo Pendiente']);
+  const filas = data.filas.map(f=>`<tr>${f.map((c,i)=>`<td${i===f.length-1?' style="text-align:right;font-weight:700;"':''}>${i===f.length-1?fmt(c):c}</td>`).join('')}</tr>`).join('');
+  const totalGeneral = data.filas.reduce((s,f)=>s+Number(f[f.length-1]),0);
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Reporte de Deudores</div>
+    </div>
+    <div class="doc-meta">Curso: <b>${data.curso}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
+    <table class="doc-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${filas}</tbody></table>
+  `;
+  abrirModalDoc(html);
+});
+
+document.getElementById('btn_pdf_reporte_mensual').addEventListener('click', ()=>{
+  const mesVal = document.getElementById('rep_mes').value;
+  const mesLabel = mesVal ? new Date(mesVal+'-01').toLocaleDateString('es-EC',{month:'long',year:'numeric'}) : 'Histórico completo';
+  const pagos = mesVal ? PAGOS.filter(p=>p.fecha && p.fecha.slice(0,7)===mesVal) : PAGOS.slice();
+  const total = pagos.reduce((s,p)=>s+p.monto,0);
+  const matriculasEnMes = mesVal ? MATRICULAS.filter(m=>m.fecha && m.fecha.slice(0,7)===mesVal) : MATRICULAS.slice();
+  const porCurso = {};
+  pagos.forEach(p=>{ if(!porCurso[p.curso]) porCurso[p.curso]={count:0,total:0}; porCurso[p.curso].count++; porCurso[p.curso].total+=p.monto; });
+  const filasCurso = Object.entries(porCurso).map(([c,v])=>`<tr><td>${c}</td><td style="text-align:right;">${v.count}</td><td style="text-align:right;">${fmt(v.total)}</td></tr>`).join('') || '<tr><td colspan="3">Sin pagos en este periodo</td></tr>';
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Reporte Mensual de Pagos</div>
+    </div>
+    <div class="doc-meta">
+      Periodo: <b>${mesLabel}</b><br>
+      Matrículas procesadas: <b>${matriculasEnMes.length}</b> — Pagos registrados: <b>${pagos.length}</b> — Total recibido: <b>${fmt(total)}</b>
+    </div>
+    <table class="doc-table"><thead><tr><th>Curso</th><th style="text-align:right;">N° Pagos</th><th style="text-align:right;">Total Recibido</th></tr></thead><tbody>${filasCurso}</tbody></table>
+  `;
+  abrirModalDoc(html);
+});
+
 document.getElementById('btn_copiar_reporte_mat').addEventListener('click', async ()=>{
   const mesVal = document.getElementById('rep_mes').value;
   const mesLabel = mesVal || 'Histórico completo';
