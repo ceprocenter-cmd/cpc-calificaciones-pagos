@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Matriculas Cepro">
+<title>Ceprocenter · Matrículas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF0F5; --panel: #FFFFFF; --panel-2: #F5F6FA; --line: #DEE2EA;
+    --accent: #7A9A1E; --accent-soft: rgba(122,154,30,0.14); --accent-dark: #62801A;
+    --text: #24273A; --text-dim: #767C93;
+    --warn: #C98A3C; --warn-soft: rgba(201,138,60,0.12);
+    --danger: #D9614F; --danger-soft: rgba(217,97,79,0.10);
+    --radius: 12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Quicksand',sans-serif;letter-spacing:0.01em;}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 60px;}
+  .top{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:18px;}
+  .top h1{font-size:27px;font-weight:700;margin:0;color:var(--text);}
+  .top .sub{color:var(--text-dim);font-size:13.5px;margin-top:4px;}
+  .accent{color:var(--accent-dark);}
+  .ticker{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px;}
+  .tick{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:0 1px 2px rgba(36,39,58,0.04);}
+  .tick .n{font-family:'Quicksand',sans-serif;font-size:23px;font-weight:700;color:var(--accent-dark);}
+  .tick .n.neg{color:var(--danger);} .tick .n.warn{color:var(--warn);}
+  .tick .l{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-top:2px;}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .tab{background:none;border:none;color:var(--text-dim);font-family:'Quicksand',sans-serif;font-size:15.5px;font-weight:600;padding:10px 6px;cursor:pointer;border-bottom:2px solid transparent;margin-right:22px;}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent-dark);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:18px;box-shadow:0 1px 2px rgba(36,39,58,0.03);}
+  .panel h2{font-size:19px;margin:0 0 4px;color:var(--text);}
+  .panel .hint{color:var(--text-dim);font-size:12.5px;margin:0 0 18px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid.cols3{grid-template-columns:1fr 1fr 1fr;}
+  @media(max-width:640px){.grid,.grid.cols3{grid-template-columns:1fr;}}
+  .field label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
+  .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;}
+  .field input:focus, .field select:focus{outline:none;border-color:var(--accent-dark);}
+  .btn{font-family:'Quicksand',sans-serif;font-size:14.5px;font-weight:700;border-radius:9px;padding:11px 20px;border:1px solid transparent;cursor:pointer;}
+  .btn-primary{background:var(--accent);color:#fff;} .btn-primary:hover{background:var(--accent-dark);}
+  .btn-ghost{background:transparent;border-color:var(--line);color:var(--text);} .btn-ghost:hover{border-color:var(--accent-dark);color:var(--accent-dark);}
+  .btn-sm{padding:7px 13px;font-size:13px;}
+  .actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;font-family:'Quicksand',sans-serif;text-transform:uppercase;letter-spacing:0.04em;font-size:11.5px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  tr:hover td{background:var(--panel-2);}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .table-scroll{overflow-x:auto;}
+  .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13.5px;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;max-width:88%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;text-transform:uppercase;font-weight:700;}
+  .pill.ok{background:var(--accent-soft);color:var(--accent-dark);}
+  .pill.fail{background:var(--danger-soft);color:var(--danger);}
+  .pill.abono{background:var(--warn-soft);color:var(--warn);}
+  .setup-banner{background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;}
+  .setup-banner h3{margin:0 0 8px;color:var(--warn);font-size:16px;}
+  .setup-banner input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);margin:8px 0;font-family:'Nunito',sans-serif;font-size:13px;}
+  .item-row{display:flex;gap:10px;margin-bottom:8px;align-items:center;}
+  .item-row input{flex:1;}
+  .item-row input.precio-input{max-width:120px;flex:none;}
+  .pago-line{border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:10px;}
+  .pago-line-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+  .pago-line-row .field{flex:1;min-width:160px;margin-bottom:0;}
+  .pago-line-row .field.small{max-width:130px;flex:none;}
+  .abono-check{display:flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;padding-bottom:10px;}
+  .abono-check input{width:16px;height:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <h1>Matrículas <span class="accent">/ Ceprocenter</span></h1>
+      <div class="sub">Registro de estudiantes, documentos y pagos flexibles por concepto.</div>
+    </div>
+    <button class="btn btn-ghost btn-sm" id="btn_config">⚙ Configuración</button>
+  </div>
+
+  <div class="setup-banner" id="setup_banner" style="display:none;">
+    <h3>Configura tu conexión</h3>
+    <p class="hint" style="margin:0 0 6px;">Pega la URL de tu Apps Script (termina en /exec) — la misma que usan tus otras herramientas.</p>
+    <input id="api_url_input" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+    <button class="btn btn-primary btn-sm" id="btn_guardar_config" style="margin-top:6px;">Guardar y Conectar</button>
+    <button class="btn btn-ghost btn-sm" id="btn_demo" style="margin-top:6px;">Ver con datos de ejemplo (sin conexión)</button>
+  </div>
+
+  <div id="app_content" style="display:none;">
+    <div class="ticker" id="ticker"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="cursos">Cursos</button>
+      <button class="tab" data-tab="matricular">Matricular</button>
+      <button class="tab" data-tab="cobrar">Cuentas por Cobrar</button>
+      <button class="tab" data-tab="reporte">Reporte Mensual</button>
+    </div>
+
+    <!-- CURSOS -->
+    <div id="tab-cursos">
+      <div class="panel">
+        <h2>Nuevo Curso</h2>
+        <p class="hint">Define los ítems de pago de este curso — pueden ser varios (Inscripción, Módulo 1, Módulo 2...) o solo uno (Pago Único, para seminarios o masterclass). El precio aquí es solo de referencia: al matricular puedes cobrar otro monto por promoción o abono.</p>
+        <div class="field" style="margin-bottom:14px;"><label>Nombre del Curso</label><input id="nc_nombre" placeholder="Ej. Diplomado de TDAH"></div>
+        <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Ítems de Pago y Precio de Referencia</label>
+        <div id="items_rows"></div>
+        <button class="btn btn-ghost btn-sm" id="btn_add_item_row">+ Agregar Ítem</button>
+        <div class="actions"><button class="btn btn-primary" id="btn_guardar_curso">Guardar Curso</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Cursos Configurados</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Curso</th><th>Ítems de Pago</th><th class="num">Total de Referencia</th></tr></thead>
+            <tbody id="tabla_cursos"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="cursos_empty" style="display:none;">Aún no has configurado ningún curso.</div>
+      </div>
+    </div>
+
+    <!-- MATRICULAR -->
+    <div id="tab-matricular" style="display:none;">
+      <div class="panel">
+        <h2>Registrar Matrícula y Pago</h2>
+        <p class="hint">Si el estudiante ya existe en este curso, escribe su nombre exacto para ver qué ha pagado.</p>
+
+        <div class="grid cols3">
+          <div class="field"><label>Fecha</label><input id="m_fecha" type="date"></div>
+          <div class="field"><label>Curso</label><select id="m_curso"></select></div>
+          <div class="field"><label>Asesor</label><select id="m_asesor"><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
+        </div>
+
+        <div class="grid cols3" style="margin-top:14px;">
+          <div class="field"><label>Nombre del Estudiante</label><input id="m_estudiante" list="lista_est_curso" placeholder="Nombre completo"></div>
+          <div class="field"><label>Cédula</label><input id="m_cedula" placeholder="N° de cédula"></div>
+          <div class="field"><label>Correo</label><input id="m_correo" type="email" placeholder="correo@ejemplo.com"></div>
+          <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
+          <div class="field"><label>País</label><input id="m_pais" placeholder="País"></div>
+          <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
+        </div>
+        <datalist id="lista_est_curso"></datalist>
+
+        <div style="margin-top:20px;">
+          <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">¿Qué está pagando ahora?</label>
+          <div id="pago_lines"></div>
+          <button class="btn btn-ghost btn-sm" id="btn_add_pago_line">+ Agregar Concepto de Pago</button>
+          <div class="hint" id="total_pago_preview" style="margin-top:10px;font-size:14px;color:var(--text);">Total de este pago: $0.00</div>
+        </div>
+
+        <div class="grid" style="margin-top:16px;">
+          <div class="field"><label>Comprobante de Pago (requerido)</label><input id="m_file_comprobante" type="file" accept="image/*,.pdf"></div>
+          <div class="field"><label>Título / Constancia de Estudios (opcional)</label><input id="m_file_titulo" type="file" accept="image/*,.pdf"></div>
+          <div class="field"><label>Cédula Escaneada (opcional)</label><input id="m_file_cedula" type="file" accept="image/*,.pdf"></div>
+        </div>
+
+        <div class="actions"><button class="btn btn-primary" id="btn_guardar_matricula">Guardar Matrícula</button></div>
+      </div>
+    </div>
+
+    <!-- CUENTAS POR COBRAR -->
+    <div id="tab-cobrar" style="display:none;">
+      <div class="panel">
+        <h2>Cuentas por Cobrar</h2>
+        <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
+        <div class="field" style="max-width:400px;margin-bottom:16px;"><label>Curso</label><select id="cxc_curso"></select></div>
+        <div class="table-scroll">
+          <table><thead><tr id="cxc_head"></tr></thead><tbody id="cxc_body"></tbody></table>
+        </div>
+        <div class="empty" id="cxc_empty" style="display:none;">Selecciona un curso con estudiantes matriculados.</div>
+      </div>
+    </div>
+
+    <!-- REPORTE MENSUAL -->
+    <div id="tab-reporte" style="display:none;">
+      <div class="panel">
+        <h2>Reporte Mensual de Pagos</h2>
+        <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
+        <div id="reporte_resumen"></div>
+        <div class="table-scroll" style="margin-top:16px;">
+          <table><thead><tr><th>Curso</th><th class="num">N° Pagos</th><th class="num">Total Recibido</th></tr></thead><tbody id="tabla_reporte_curso"></tbody></table>
+        </div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_copiar_reporte_mat">Copiar Reporte</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
+let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [];
+const CONCEPTO_LIBRE = '__PENALIDAD_OTRO__';
+
+function fmt(n){ return '$' + (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3600); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+document.getElementById('btn_config').addEventListener('click', ()=>{
+  const b = document.getElementById('setup_banner');
+  b.style.display = b.style.display==='none' ? 'block' : 'none';
+  document.getElementById('api_url_input').value = API_URL;
+});
+document.getElementById('btn_guardar_config').addEventListener('click', async ()=>{
+  const val = document.getElementById('api_url_input').value.trim();
+  if(!val.startsWith('https://script.google.com/')){ showToast('Esa URL no parece de Apps Script.'); return; }
+  API_URL = val;
+  localStorage.setItem('cepro_api_url_academico', API_URL);
+  showToast('Conectando...');
+  await initApp();
+});
+
+async function apiGet(sheet){
+  const res = await fetch(`${API_URL}?sheet=${sheet}`);
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+async function apiPost(sheet, action, extra){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({sheet, action, ...extra})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+async function apiMatricular(data){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'matricular', data})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+function normNum(v){ return Number(v)||0; }
+function normBool(v){ return v===true || v==='TRUE' || v==='true' || v===1 || v==='1'; }
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadAll(){
+  const [nom, mod, pag, mat] = await Promise.all([
+    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas')
+  ]);
+  NOMINA = nom;
+  MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
+  PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado)}));
+  MATRICULAS = mat;
+}
+
+async function initApp(){
+  if(!API_URL){
+    document.getElementById('setup_banner').style.display='block';
+    document.getElementById('app_content').style.display='none';
+    return;
+  }
+  try{
+    await loadAll();
+    document.getElementById('setup_banner').style.display='none';
+    document.getElementById('app_content').style.display='block';
+    renderAll();
+  }catch(e){
+    showToast('No se pudo conectar: ' + e.message);
+    document.getElementById('setup_banner').style.display='block';
+  }
+}
+
+function cursosUnicos(){ return [...new Set(MODULOS.map(m=>m.curso).filter(Boolean))].sort(); }
+function itemsDe(curso){ return MODULOS.filter(m=>m.curso===curso); }
+
+function renderAll(){
+  renderTicker();
+  renderTablaCursos();
+  renderSelectsCurso();
+  renderCXC();
+  renderReporteMensual();
+}
+
+function renderTicker(){
+  const cursos = cursosUnicos().length;
+  const estudiantes = NOMINA.length;
+  const totalRecibido = PAGOS.reduce((s,p)=>s+p.monto,0);
+  const now = new Date();
+  const recibidoMes = PAGOS.filter(p=>{const d=new Date(p.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,p)=>s+p.monto,0);
+  document.getElementById('ticker').innerHTML = `
+    <div class="tick"><div class="n">${cursos}</div><div class="l">Cursos Configurados</div></div>
+    <div class="tick"><div class="n">${estudiantes}</div><div class="l">Estudiantes Matriculados</div></div>
+    <div class="tick"><div class="n">${fmt(recibidoMes)}</div><div class="l">Recibido Este Mes</div></div>
+    <div class="tick"><div class="n">${fmt(totalRecibido)}</div><div class="l">Total Histórico</div></div>
+  `;
+}
+
+// ---------- CURSOS ----------
+function agregarFilaItem(nombre='', precio=''){
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.innerHTML = `<input placeholder="Ej. Inscripción, Módulo 1, Pago Único..." class="in" value="${nombre}">
+    <input type="number" step="0.01" placeholder="Precio ref." class="ip precio-input" value="${precio}">
+    <button class="btn btn-ghost btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('items_rows').appendChild(row);
+}
+document.getElementById('btn_add_item_row').addEventListener('click', ()=>agregarFilaItem());
+agregarFilaItem();
+
+document.getElementById('btn_guardar_curso').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('nc_nombre').value.trim();
+  if(!nombre){ showToast('Falta el nombre del curso.'); return; }
+  const items = [];
+  document.querySelectorAll('#items_rows .item-row').forEach(row=>{
+    const n = row.querySelector('.in').value.trim();
+    const p = Number(row.querySelector('.ip').value)||0;
+    if(n) items.push({item:n, precio:p});
+  });
+  if(items.length===0){ showToast('Agrega al menos un ítem de pago.'); return; }
+  try{
+    for(const it of items){
+      await apiPost('Modulos','add',{data:{id:uid(), curso:nombre, modulo:it.item, precio:it.precio}});
+    }
+    showToast('Curso guardado.');
+    document.getElementById('nc_nombre').value='';
+    document.getElementById('items_rows').innerHTML=''; agregarFilaItem();
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+function renderTablaCursos(){
+  const cursos = cursosUnicos();
+  const body = document.getElementById('tabla_cursos');
+  const empty = document.getElementById('cursos_empty');
+  if(cursos.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = cursos.map(c=>{
+    const items = itemsDe(c);
+    const total = items.reduce((s,m)=>s+m.precio,0);
+    return `<tr><td>${c}</td><td>${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td></tr>`;
+  }).join('');
+}
+
+function renderSelectsCurso(){
+  const cursos = cursosUnicos();
+  const opts = cursos.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const mCurso = document.getElementById('m_curso');
+  const prevM = mCurso.value;
+  mCurso.innerHTML = opts;
+  if(cursos.includes(prevM)) mCurso.value = prevM;
+  const cxcCurso = document.getElementById('cxc_curso');
+  const prevC = cxcCurso.value;
+  cxcCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
+  if(cursos.includes(prevC)) cxcCurso.value = prevC;
+}
+
+// ---------- MATRICULAR: LÍNEAS DE PAGO DINÁMICAS ----------
+document.getElementById('m_curso').addEventListener('change', ()=>{
+  actualizarDatalistEstudiantes();
+  document.getElementById('pago_lines').innerHTML = '';
+  agregarLineaPago();
+});
+document.getElementById('m_estudiante').addEventListener('input', refrescarEstadosLineas);
+
+function actualizarDatalistEstudiantes(){
+  const curso = document.getElementById('m_curso').value;
+  const datalist = document.getElementById('lista_est_curso');
+  datalist.innerHTML = NOMINA.filter(n=>n.curso===curso).map(n=>`<option value="${n.estudiante}">`).join('');
+}
+
+function agregarLineaPago(){
+  const curso = document.getElementById('m_curso').value;
+  const items = itemsDe(curso);
+  const row = document.createElement('div');
+  row.className = 'pago-line';
+  const opciones = items.map(it=>`<option value="${it.modulo}" data-precio="${it.precio}">${it.modulo}</option>`).join('');
+  row.innerHTML = `
+    <div class="pago-line-row">
+      <div class="field">
+        <label>Concepto</label>
+        <select class="pl-concepto">
+          ${opciones}
+          <option value="${CONCEPTO_LIBRE}">Penalidad / Otro (especificar)</option>
+        </select>
+      </div>
+      <div class="field pl-otro-wrap" style="display:none;">
+        <label>Especificar</label>
+        <input class="pl-otro" placeholder="Ej. Penalidad por atraso">
+      </div>
+      <div class="field small">
+        <label>Precio Total del Ítem (para este estudiante)</label>
+        <input type="number" step="0.01" class="pl-precio-acordado" placeholder="0.00">
+      </div>
+      <div class="field small">
+        <label>Monto que Paga Ahora</label>
+        <input type="number" step="0.01" class="pl-monto" placeholder="0.00">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.pago-line').remove(); actualizarTotalPago();">✕</button>
+    </div>
+    <div class="pl-estado hint" style="margin-top:6px;"></div>
+  `;
+  document.getElementById('pago_lines').appendChild(row);
+
+  const selConcepto = row.querySelector('.pl-concepto');
+  const inputMonto = row.querySelector('.pl-monto');
+  const inputPrecio = row.querySelector('.pl-precio-acordado');
+  const otroWrap = row.querySelector('.pl-otro-wrap');
+
+  selConcepto.addEventListener('change', ()=>{
+    const curso = document.getElementById('m_curso').value;
+    const estudiante = document.getElementById('m_estudiante').value.trim();
+    if(selConcepto.value === CONCEPTO_LIBRE){
+      otroWrap.style.display = 'block';
+      inputMonto.value = '';
+      inputPrecio.value = '';
+    }else{
+      otroWrap.style.display = 'none';
+      const opt = selConcepto.selectedOptions[0];
+      const sugerido = estudiante ? precioEsperado(curso, estudiante, selConcepto.value) : Number(opt.dataset.precio)||0;
+      inputPrecio.value = sugerido || opt.dataset.precio || '';
+      inputMonto.value = inputPrecio.value;
+    }
+    actualizarEstadoLinea(row);
+    actualizarTotalPago();
+  });
+  inputMonto.addEventListener('input', ()=>{ actualizarEstadoLinea(row); actualizarTotalPago(); });
+  inputPrecio.addEventListener('input', ()=>{ actualizarEstadoLinea(row); });
+  selConcepto.dispatchEvent(new Event('change'));
+}
+document.getElementById('btn_add_pago_line').addEventListener('click', agregarLineaPago);
+
+function precioEsperado(curso, estudiante, concepto){
+  const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto && p.precioAcordado);
+  if(pagos.length>0) return pagos[pagos.length-1].precioAcordado;
+  const item = itemsDe(curso).find(i=>i.modulo===concepto);
+  return item ? item.precio : 0;
+}
+
+function actualizarEstadoLinea(row){
+  const curso = document.getElementById('m_curso').value;
+  const estudiante = document.getElementById('m_estudiante').value.trim();
+  const concepto = row.querySelector('.pl-concepto').value;
+  const estadoBox = row.querySelector('.pl-estado');
+  if(concepto === CONCEPTO_LIBRE){ estadoBox.textContent=''; return; }
+
+  const precioTotal = Number(row.querySelector('.pl-precio-acordado').value)||0;
+  const montoAhora = Number(row.querySelector('.pl-monto').value)||0;
+
+  let mensaje = '';
+  if(estudiante){
+    const pagosPrevios = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
+    if(pagosPrevios.length>0){
+      const totalPagadoAntes = pagosPrevios.reduce((s,p)=>s+p.monto,0);
+      mensaje += `Ya había pagado ${fmt(totalPagadoAntes)} de este ítem antes. `;
+    }
+  }
+
+  if(precioTotal>0 && montoAhora>0){
+    const saldoDespues = precioTotal - montoAhora;
+    if(saldoDespues > 0.009){
+      mensaje += `Con este pago queda como ABONO — le faltarían ${fmt(saldoDespues)} de ${fmt(precioTotal)}.`;
+    }else{
+      mensaje += `Con este pago queda completo (${fmt(precioTotal)}).`;
+    }
+  }
+  estadoBox.textContent = mensaje;
+}
+function refrescarEstadosLineas(){
+  document.querySelectorAll('#pago_lines .pago-line').forEach(actualizarEstadoLinea);
+}
+
+function actualizarTotalPago(){
+  let total = 0;
+  document.querySelectorAll('.pl-monto').forEach(i=>total+=Number(i.value)||0);
+  document.getElementById('total_pago_preview').textContent = 'Total de este pago: ' + fmt(total);
+}
+
+document.getElementById('btn_guardar_matricula').addEventListener('click', async ()=>{
+  if(!API_URL){ showToast('El modo demo no puede subir archivos ni crear carpetas en Drive — conecta tu Apps Script real para guardar matrículas de verdad.'); return; }
+  const fecha = document.getElementById('m_fecha').value || new Date().toISOString().slice(0,10);
+  const curso = document.getElementById('m_curso').value;
+  const asesor = document.getElementById('m_asesor').value;
+  const estudiante = document.getElementById('m_estudiante').value.trim();
+  const cedula = document.getElementById('m_cedula').value.trim();
+  const correo = document.getElementById('m_correo').value.trim();
+  const ciudad = document.getElementById('m_ciudad').value.trim();
+  const pais = document.getElementById('m_pais').value.trim();
+  const certificado = document.getElementById('m_certificado').value.trim();
+
+  if(!curso){ showToast('Selecciona un curso.'); return; }
+  if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+
+  const modulosPagados = [];
+  let error = null;
+  document.querySelectorAll('#pago_lines .pago-line').forEach(row=>{
+    const concepto = row.querySelector('.pl-concepto').value;
+    const otro = row.querySelector('.pl-otro').value.trim();
+    const monto = Number(row.querySelector('.pl-monto').value)||0;
+    const precioAcordado = Number(row.querySelector('.pl-precio-acordado').value)||0;
+    const esAbono = precioAcordado>0 && monto < (precioAcordado - 0.009);
+    const nombreFinal = concepto === CONCEPTO_LIBRE ? otro : concepto;
+    if(concepto === CONCEPTO_LIBRE && !otro){ error = 'Especifica el concepto de penalidad/otro.'; return; }
+    if(monto <= 0){ error = 'Cada línea de pago debe tener un monto mayor a 0.'; return; }
+    modulosPagados.push({modulo: nombreFinal, monto, esAbono, precioAcordado});
+  });
+  if(error){ showToast(error); return; }
+  if(modulosPagados.length===0){ showToast('Agrega al menos un concepto de pago.'); return; }
+
+  const fileComprobante = document.getElementById('m_file_comprobante').files[0];
+  const fileTitulo = document.getElementById('m_file_titulo').files[0];
+  const fileCedula = document.getElementById('m_file_cedula').files[0];
+  if(!fileComprobante){ showToast('El comprobante de pago es obligatorio.'); return; }
+
+  showToast('Subiendo documentos, espera un momento...');
+  try{
+    const archivos = {};
+    archivos.comprobante = {data: await fileToBase64(fileComprobante), name: fileComprobante.name, mimeType: fileComprobante.type||'application/octet-stream'};
+    if(fileTitulo) archivos.titulo = {data: await fileToBase64(fileTitulo), name: fileTitulo.name, mimeType: fileTitulo.type||'application/octet-stream'};
+    if(fileCedula) archivos.cedulaDoc = {data: await fileToBase64(fileCedula), name: fileCedula.name, mimeType: fileCedula.type||'application/octet-stream'};
+
+    await apiMatricular({
+      fecha, curso, tipo:'', estudiante, cedula, correo, ciudad, pais, certificado, asesor,
+      modulosPagados, archivos
+    });
+
+    showToast('¡Matrícula guardada! Carpeta creada en Drive.');
+    document.getElementById('m_estudiante').value=''; document.getElementById('m_cedula').value='';
+    document.getElementById('m_correo').value=''; document.getElementById('m_ciudad').value='';
+    document.getElementById('m_pais').value=''; document.getElementById('m_certificado').value='';
+    document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value='';
+    document.getElementById('m_file_cedula').value='';
+    document.getElementById('pago_lines').innerHTML=''; agregarLineaPago();
+
+    await loadAll();
+    renderAll();
+    actualizarDatalistEstudiantes();
+  }catch(e){ showToast('Error al matricular: '+e.message); }
+});
+
+// ---------- CUENTAS POR COBRAR ----------
+document.getElementById('cxc_curso').addEventListener('change', renderCXC);
+function renderCXC(){
+  const curso = document.getElementById('cxc_curso').value;
+  const head = document.getElementById('cxc_head');
+  const body = document.getElementById('cxc_body');
+  const empty = document.getElementById('cxc_empty');
+  if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  const items = itemsDe(curso);
+  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+
+  head.innerHTML = '<th>Estudiante</th>' + items.map(m=>`<th>${m.modulo}</th>`).join('') + '<th class="num">Saldo Pendiente</th>';
+
+  body.innerHTML = estudiantes.map(est=>{
+    let saldoTotal = 0;
+    const cells = items.map(it=>{
+      const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo);
+      const pagado = pagos.reduce((s,p)=>s+p.monto,0);
+      const esperado = precioEsperado(curso, est, it.modulo);
+      const saldo = Math.max(0, esperado - pagado);
+      saldoTotal += saldo;
+      if(pagado===0) return `<td><span class="pill fail">Debe ${fmt(esperado)}</span></td>`;
+      if(saldo>0) return `<td><span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span></td>`;
+      return `<td><span class="pill ok">Pagado</span></td>`;
+    }).join('');
+    return `<tr><td>${est}</td>${cells}<td class="num">${fmt(saldoTotal)}</td></tr>`;
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+}
+
+// ---------- REPORTE MENSUAL ----------
+document.getElementById('rep_mes').addEventListener('change', renderReporteMensual);
+function renderReporteMensual(){
+  const mes = document.getElementById('rep_mes').value;
+  const pagos = mes ? PAGOS.filter(p=>p.fecha && p.fecha.slice(0,7)===mes) : PAGOS.slice();
+  const total = pagos.reduce((s,p)=>s+p.monto,0);
+  const matriculasEnMes = mes ? MATRICULAS.filter(m=>m.fecha && m.fecha.slice(0,7)===mes) : MATRICULAS.slice();
+
+  document.getElementById('reporte_resumen').innerHTML = `<p class="hint" style="margin:0;">
+    ${matriculasEnMes.length} matrícula(s) procesadas — ${pagos.length} pagos registrados — total recibido: <b style="color:var(--text);">${fmt(total)}</b></p>`;
+
+  const porCurso = {};
+  pagos.forEach(p=>{ if(!porCurso[p.curso]) porCurso[p.curso]={count:0,total:0}; porCurso[p.curso].count++; porCurso[p.curso].total+=p.monto; });
+  document.getElementById('tabla_reporte_curso').innerHTML = Object.entries(porCurso).map(([curso,v])=>
+    `<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`
+  ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
+}
+document.getElementById('btn_copiar_reporte_mat').addEventListener('click', async ()=>{
+  const mesVal = document.getElementById('rep_mes').value;
+  const mesLabel = mesVal || 'Histórico completo';
+  const pagos = mesVal ? PAGOS.filter(p=>p.fecha.slice(0,7)===mesVal) : PAGOS.slice();
+  const total = pagos.reduce((s,p)=>s+p.monto,0);
+  const txt = `REPORTE DE MATRÍCULAS Y PAGOS — CEPROCENTER\nPeriodo: ${mesLabel}\nTotal recibido: ${fmt(total)}\nPagos registrados: ${pagos.length}`;
+  try{ await navigator.clipboard.writeText(txt); showToast('Reporte copiado.'); }catch(e){ showToast('No se pudo copiar.'); }
+});
+
+// ---------- MODO DEMO (sin conexión, solo para previsualizar diseño) ----------
+document.getElementById('btn_demo').addEventListener('click', ()=>{
+  MODULOS = [
+    {id:'m1', curso:'Diplomado de TDAH', modulo:'Inscripción', precio:50},
+    {id:'m2', curso:'Diplomado de TDAH', modulo:'Módulo 1 - Fundamentos', precio:150},
+    {id:'m3', curso:'Diplomado de TDAH', modulo:'Módulo 2 - Evaluación', precio:150},
+    {id:'m4', curso:'Diplomado de TDAH', modulo:'Módulo 3 - Intervención', precio:150},
+    {id:'m5', curso:'Seminario de Interpretación', modulo:'Pago Único', precio:87},
+  ];
+  NOMINA = [
+    {id:'n1', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', identificador:'0912345678'},
+    {id:'n2', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', identificador:'0987654321'},
+  ];
+  PAGOS = [
+    {id:'p1', fecha:'2026-05-10', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', modulo:'Inscripción', monto:50, comprobanteUrl:'', esAbono:false, precioAcordado:0},
+    {id:'p2', fecha:'2026-05-10', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', modulo:'Módulo 1 - Fundamentos', monto:150, comprobanteUrl:'', esAbono:false, precioAcordado:0},
+    {id:'p3', fecha:'2026-05-15', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', modulo:'Inscripción', monto:30, comprobanteUrl:'', esAbono:false, precioAcordado:30},
+    {id:'p4', fecha:'2026-06-02', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', modulo:'Módulo 1 - Fundamentos', monto:80, comprobanteUrl:'', esAbono:true, precioAcordado:120},
+  ];
+  MATRICULAS = [
+    {id:'mt1', fecha:'2026-05-10', curso:'Diplomado de TDAH', estudiante:'María Fernanda López'},
+    {id:'mt2', fecha:'2026-05-15', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade'},
+  ];
+  document.getElementById('setup_banner').style.display='none';
+  document.getElementById('app_content').style.display='block';
+  renderAll();
+  document.getElementById('m_curso').dispatchEvent(new Event('change'));
+  showToast('Datos de ejemplo cargados. Carlos entró con promo: Inscripción a $30 (no $50) y Módulo 1 acordado en $120 (no $150) — mira "Cuentas por Cobrar" para ver cómo se respeta su precio real.');
+});
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    ['cursos','matricular','cobrar','reporte'].forEach(t=>{
+      document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
+    });
+  });
+});
+
+document.getElementById('m_fecha').valueAsDate = new Date();
+initApp();
+</script>
+</body>
+</html>
