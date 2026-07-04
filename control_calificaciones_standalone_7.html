@@ -64,6 +64,8 @@
   .pill.fail{background:var(--danger-soft);color:var(--danger);}
   .pill.recup{background:var(--warn-soft);color:var(--warn);}
   .pill.na{background:var(--panel-2);color:var(--text-dim);}
+  .check-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;}
+  .check-row .modname{flex:1;font-weight:600;}
   .setup-banner{background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;}
   .setup-banner h3{margin:0 0 8px;color:var(--warn);font-size:16px;}
   .setup-banner input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);margin:8px 0;font-family:'Nunito',sans-serif;font-size:13px;}
@@ -192,6 +194,7 @@
 
     <div class="tabs">
       <button class="tab active" data-tab="registrar">Registrar</button>
+      <button class="tab" data-tab="asistencia">Asistencia</button>
       <button class="tab" data-tab="reporte">Reporte</button>
       <button class="tab" data-tab="historial">Historial</button>
     </div>
@@ -221,7 +224,10 @@
             <tbody id="tabla_resumen_curso"></tbody>
           </table>
         </div>
-        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
+          <button class="btn btn-ghost btn-sm" id="btn_export_certificados">Descargar Datos para Certificados (Canva)</button>
+        </div>
 
         <h2 style="margin-top:26px;">Detalle por Módulo</h2>
         <div class="table-scroll">
@@ -230,6 +236,37 @@
             <tbody id="tabla_detalle_curso"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div id="tab-asistencia" style="display:none;">
+      <div class="panel">
+        <h2>Tomar Asistencia</h2>
+        <p class="hint">Elige la fecha de la sesión — si ya tomaste asistencia ese día, se carga lo que registraste para que lo corrijas.</p>
+        <div class="grid" style="max-width:300px;">
+          <div class="field"><label>Fecha de la Sesión</label><input id="as_fecha" type="date"></div>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Pegar Chat de Zoom (opcional)</label>
+          <textarea id="as_zoom_chat" placeholder="Pega aquí el chat exportado de Zoom. El sistema detecta quién escribió 'presente'." style="min-height:100px;"></textarea>
+          <div class="actions" style="margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" id="btn_detectar_zoom">Detectar Presentes del Chat</button>
+          </div>
+        </div>
+        <div id="as_lista_estudiantes" style="margin-top:16px;"></div>
+        <div class="actions"><button class="btn btn-primary" id="btn_guardar_asistencia">Guardar Asistencia del Día</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Resumen de Asistencia</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr id="as_resumen_head"></tr></thead>
+            <tbody id="as_resumen_body"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="as_resumen_empty" style="display:none;">Aún no hay asistencia registrada en este curso.</div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_asistencia">Descargar Asistencia (CSV)</button></div>
       </div>
     </div>
 
@@ -266,6 +303,8 @@ let NOTA_MINIMA = Number(localStorage.getItem('cepro_nota_minima')) || 7;
 let NOMINA = [];
 let MODULOS = [];
 let CALIFICACIONES = [];
+let MATRICULAS = [];
+let ASISTENCIA = [];
 let CURSO_ACTUAL = null;
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
@@ -306,10 +345,19 @@ async function apiPost(sheet, action, extra){
 function normNum(v){ return Number(v)||0; }
 
 async function loadAll(){
-  const [nom, mod, cal] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones')]);
+  const [nom, mod, cal, mat, asi] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia')]);
   NOMINA = nom;
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
+  MATRICULAS = mat;
+  ASISTENCIA = asi;
+}
+
+function nombreParaCertificado(curso, estudiante){
+  const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante);
+  const conCertificado = registros.filter(m=>m.certificado && m.certificado.trim());
+  if(conCertificado.length>0) return conCertificado[conCertificado.length-1].certificado.trim();
+  return estudiante;
 }
 
 async function initApp(){
@@ -399,7 +447,7 @@ window.abrirCurso = function(curso){
   renderAllCurso();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.tab[data-tab="registrar"]').classList.add('active');
-  ['registrar','reporte','historial'].forEach(t=>{
+  ['registrar','asistencia','reporte','historial'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t==='registrar' ? 'block':'none';
   });
 };
@@ -482,6 +530,8 @@ function renderAllCurso(){
   renderTickerCurso();
   renderReporteCurso();
   renderHistorialCurso();
+  renderTomaAsistencia();
+  renderResumenAsistencia();
 }
 
 function renderTickerCurso(){
@@ -677,10 +727,164 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    ['registrar','reporte','historial'].forEach(t=>{
+    ['registrar','asistencia','reporte','historial'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
   });
+});
+
+// ---------- ASISTENCIA ----------
+function asistenciaDelCurso(){
+  return ASISTENCIA.filter(a=>a.curso===CURSO_ACTUAL);
+}
+
+function renderTomaAsistencia(){
+  const fechaInput = document.getElementById('as_fecha');
+  if(!fechaInput.value) fechaInput.valueAsDate = new Date();
+  const fecha = fechaInput.value;
+  const estudiantes = estudiantesDelCurso();
+  const registrosDia = asistenciaDelCurso().filter(a=>a.fecha===fecha);
+
+  const box = document.getElementById('as_lista_estudiantes');
+  if(estudiantes.length===0){ box.innerHTML = '<p class="hint">Sin estudiantes en este curso.</p>'; return; }
+
+  box.innerHTML = estudiantes.map(est=>{
+    const previo = registrosDia.find(r=>r.estudiante===est);
+    const estadoActual = previo ? previo.estado : 'Presente';
+    return `
+      <div class="check-row">
+        <div class="modname">${est}</div>
+        <select class="as-estado" data-estudiante="${est.replace(/"/g,'&quot;')}" style="max-width:180px;">
+          <option ${estadoActual==='Presente'?'selected':''}>Presente</option>
+          <option ${estadoActual==='Ausente'?'selected':''}>Ausente</option>
+          <option ${estadoActual==='Justificado'?'selected':''}>Justificado</option>
+        </select>
+      </div>
+    `;
+  }).join('');
+}
+function normalizarTexto(t){
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+
+function detectarPresentesEnChat(textoChat){
+  const lineas = textoChat.split('\n');
+  const presentesZoom = new Set();
+  lineas.forEach(linea=>{
+    const match = linea.match(/from\s+(.+?)(?:\s+to\s+everyone)?\s*:\s*(.*)/i);
+    if(!match) return;
+    const nombre = match[1].trim();
+    const mensaje = normalizarTexto(match[2]||'');
+    if(mensaje.includes('presente')){
+      presentesZoom.add(nombre);
+    }
+  });
+  return [...presentesZoom];
+}
+
+function coincideNombre(nombreZoom, nombreEstudiante){
+  const a = normalizarTexto(nombreZoom);
+  const b = normalizarTexto(nombreEstudiante);
+  if(a===b) return true;
+  const partesA = a.split(/\s+/).filter(p=>p.length>2);
+  const partesB = b.split(/\s+/).filter(p=>p.length>2);
+  return partesA.some(pa=>partesB.some(pb=>pa===pb));
+}
+
+document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
+  const texto = document.getElementById('as_zoom_chat').value.trim();
+  if(!texto){ showToast('Pega el chat de Zoom primero.'); return; }
+  const nombresZoom = detectarPresentesEnChat(texto);
+  if(nombresZoom.length===0){ showToast('No se encontró a nadie escribiendo "presente" en ese texto.'); return; }
+
+  const estudiantes = estudiantesDelCurso();
+  const sinMatch = [];
+  let coincidencias = 0;
+
+  document.querySelectorAll('.as-estado').forEach(sel=>{ sel.value = 'Ausente'; });
+
+  nombresZoom.forEach(nz=>{
+    const estMatch = estudiantes.find(est=>coincideNombre(nz, est));
+    if(estMatch){
+      const sel = document.querySelector(`.as-estado[data-estudiante="${CSS.escape(estMatch)}"]`);
+      if(sel){ sel.value = 'Presente'; coincidencias++; }
+    }else{
+      sinMatch.push(nz);
+    }
+  });
+
+  let mensaje = `${coincidencias} de ${nombresZoom.length} detectados y marcados como Presente.`;
+  if(sinMatch.length>0) mensaje += ` Sin coincidencia: ${sinMatch.join(', ')} — revísalos a mano.`;
+  showToast(mensaje);
+});
+
+document.getElementById('as_fecha').addEventListener('change', renderTomaAsistencia);
+
+document.getElementById('btn_guardar_asistencia').addEventListener('click', async ()=>{
+  const fecha = document.getElementById('as_fecha').value;
+  if(!fecha){ showToast('Selecciona la fecha de la sesión.'); return; }
+  const registrosDia = asistenciaDelCurso().filter(a=>a.fecha===fecha);
+  const selects = document.querySelectorAll('.as-estado');
+  try{
+    for(const sel of selects){
+      const estudiante = sel.dataset.estudiante;
+      const estado = sel.value;
+      const previo = registrosDia.find(r=>r.estudiante===estudiante);
+      if(previo){
+        await apiPost('Asistencia','update',{id:previo.id, data:{estado}});
+      }else{
+        await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, fecha, estudiante, estado}});
+      }
+    }
+    showToast('Asistencia guardada.');
+    await loadAll();
+    renderAllCurso();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+function renderResumenAsistencia(){
+  const registros = asistenciaDelCurso();
+  const estudiantes = estudiantesDelCurso();
+  const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
+
+  const head = document.getElementById('as_resumen_head');
+  const body = document.getElementById('as_resumen_body');
+  const empty = document.getElementById('as_resumen_empty');
+
+  if(fechas.length===0){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  head.innerHTML = '<th>Estudiante</th>' + fechas.map(f=>`<th>${f}</th>`).join('') + '<th class="num">% Asistencia</th>';
+
+  body.innerHTML = estudiantes.map(est=>{
+    let presentes=0, total=0;
+    const celdas = fechas.map(f=>{
+      const r = registros.find(x=>x.estudiante===est && x.fecha===f);
+      if(!r) return '<td>—</td>';
+      total++;
+      if(r.estado==='Presente'){ presentes++; return '<td><span class="pill ok">P</span></td>'; }
+      if(r.estado==='Justificado'){ return '<td><span class="pill recup">J</span></td>'; }
+      return '<td><span class="pill fail">A</span></td>';
+    }).join('');
+    const pct = total>0 ? Math.round((presentes/total)*100) : 0;
+    return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
+  }).join('');
+}
+
+document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
+  const registros = asistenciaDelCurso();
+  if(registros.length===0){ showToast('No hay asistencia registrada en este curso.'); return; }
+  const headers = ['Fecha','Estudiante','Estado'];
+  const rows = [headers.join(',')];
+  registros.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(r=>{
+    rows.push([r.fecha,r.estudiante,r.estado].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `asistencia_${CURSO_ACTUAL.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV descargado.');
 });
 
 document.getElementById('c_fecha').valueAsDate = new Date();
