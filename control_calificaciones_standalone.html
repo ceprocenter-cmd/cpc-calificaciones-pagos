@@ -197,6 +197,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="registrar">Registrar</button>
       <button class="tab" data-tab="asistencia">Asistencia</button>
+      <button class="tab" data-tab="facilitadores">Facilitadores</button>
       <button class="tab" data-tab="reporte">Reporte</button>
       <button class="tab" data-tab="historial">Historial</button>
     </div>
@@ -217,6 +218,29 @@
           <textarea id="c_retro" placeholder="Comentario sobre el desempeño del estudiante en esta evaluación..." style="min-height:80px;"></textarea>
         </div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_nota">Guardar Calificación</button></div>
+      </div>
+    </div>
+
+    <div id="tab-facilitadores" style="display:none;">
+      <div class="panel">
+        <h2>Asignar Tutor a un Módulo</h2>
+        <p class="hint">Esto queda registrado para saber quién dicta cada módulo, y hace que la página pública de calificar le muestre al tutor solo lo que le corresponde.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Módulo</label><select id="fac_modulo"></select></div>
+          <div class="field"><label>Nombre del Tutor</label><input id="fac_tutor" list="fac_tutores_dl" placeholder="Nombre completo"><datalist id="fac_tutores_dl"></datalist></div>
+        </div>
+        <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_facilitador">Asignar</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Tutores Asignados en este Curso</h2>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Módulo</th><th>Tutor</th><th></th></tr></thead>
+            <tbody id="tabla_facilitadores"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="facilitadores_empty" style="display:none;">Aún no has asignado tutores en este curso.</div>
       </div>
     </div>
 
@@ -379,6 +403,7 @@ let CALIFICACIONES = [];
 let MATRICULAS = [];
 let ASISTENCIA = [];
 let CURSOS_INFO = [];
+let FACILITADORES = [];
 let CURSO_ACTUAL = null;
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
@@ -419,13 +444,14 @@ async function apiPost(sheet, action, extra){
 function normNum(v){ return Number(v)||0; }
 
 async function loadAll(){
-  const [nom, mod, cal, mat, asi, cinfo] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo')]);
+  const [nom, mod, cal, mat, asi, cinfo, fac] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores')]);
   NOMINA = nom;
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
   MATRICULAS = mat;
   ASISTENCIA = asi;
   CURSOS_INFO = cinfo;
+  FACILITADORES = fac;
 }
 
 function getCursoInfo(curso){
@@ -526,7 +552,7 @@ window.abrirCurso = function(curso){
   renderAllCurso();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.tab[data-tab="registrar"]').classList.add('active');
-  ['registrar','asistencia','reporte','historial'].forEach(t=>{
+  ['registrar','asistencia','facilitadores','reporte','historial'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t==='registrar' ? 'block':'none';
   });
 };
@@ -613,6 +639,7 @@ function renderAllCurso(){
   renderHistorialCurso();
   renderTomaAsistencia();
   renderResumenAsistencia();
+  renderFacilitadores();
 }
 
 function renderTickerCurso(){
@@ -907,7 +934,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    ['registrar','asistencia','reporte','historial'].forEach(t=>{
+    ['registrar','asistencia','facilitadores','reporte','historial'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
   });
@@ -1005,6 +1032,52 @@ function actualizarPreviewHonor(){
     ? top3.map((t,i)=>`${i+1}° ${t.estudiante} (${t.promedio.toFixed(1)})`).join(' — ')
     : 'Aún no hay estudiantes aprobados para calcular el top 3.';
 }
+
+// ---------- FACILITADORES ----------
+function facilitadoresDelCurso(){
+  return FACILITADORES.filter(f=>f.curso===CURSO_ACTUAL);
+}
+
+function renderFacilitadores(){
+  const selModulo = document.getElementById('fac_modulo');
+  const modulos = modulosDelCurso();
+  selModulo.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
+
+  const tutoresConocidos = [...new Set(FACILITADORES.map(f=>f.tutor).filter(Boolean))].sort();
+  document.getElementById('fac_tutores_dl').innerHTML = tutoresConocidos.map(t=>`<option value="${t}">`).join('');
+
+  const asignaciones = facilitadoresDelCurso();
+  const body = document.getElementById('tabla_facilitadores');
+  const empty = document.getElementById('facilitadores_empty');
+  if(asignaciones.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = asignaciones.map(f=>`
+    <tr><td>${f.modulo}</td><td>${f.tutor}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="eliminarFacilitador('${f.id}')">Eliminar</button></td></tr>
+  `).join('');
+}
+
+document.getElementById('btn_guardar_facilitador').addEventListener('click', async ()=>{
+  const modulo = document.getElementById('fac_modulo').value;
+  const tutor = document.getElementById('fac_tutor').value.trim();
+  if(!modulo){ showToast('Selecciona un módulo.'); return; }
+  if(!tutor){ showToast('Escribe el nombre del tutor.'); return; }
+  try{
+    await apiPost('Facilitadores','add',{data:{id:uid(), tutor, curso:CURSO_ACTUAL, modulo}});
+    showToast('Tutor asignado.');
+    document.getElementById('fac_tutor').value='';
+    await loadAll();
+    renderFacilitadores();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+window.eliminarFacilitador = async function(id){
+  if(!confirm('¿Eliminar esta asignación?')) return;
+  await apiPost('Facilitadores','delete',{id});
+  showToast('Asignación eliminada.');
+  await loadAll();
+  renderFacilitadores();
+};
 
 // ---------- ASISTENCIA ----------
 function asistenciaDelCurso(){
