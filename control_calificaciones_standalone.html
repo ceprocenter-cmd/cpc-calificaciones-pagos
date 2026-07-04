@@ -86,7 +86,8 @@
   .doc-meta b{color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;display:block;}
   .doc-table{width:100%;border-collapse:collapse;margin-bottom:24px;}
   .doc-table th{background:var(--panel-2);text-align:left;padding:10px;font-size:12px;text-transform:uppercase;color:var(--text-dim);}
-  .doc-table td{padding:10px;border-bottom:1px solid var(--line);font-size:14px;}
+  .doc-table td{padding:10px;border-bottom:1px solid var(--line);font-size:14px;white-space:normal;word-wrap:break-word;overflow-wrap:break-word;}
+  @page{ size: portrait; margin: 15mm; }
   .doc-footer{border-top:2px solid var(--line);padding-top:16px;display:flex;justify-content:space-between;align-items:center;}
   .doc-footer .prom{font-family:'Quicksand',sans-serif;font-size:28px;font-weight:700;}
   .doc-footer .lbl{font-size:11px;text-transform:uppercase;color:var(--text-dim);letter-spacing:0.05em;}
@@ -102,6 +103,7 @@
     body.printing-individual .modal-actions{display:none !important;}
   }
 </style>
+<style id="print_orientation_override"></style>
 </head>
 <body>
 <div class="wrap">
@@ -208,13 +210,52 @@
           <div class="field"><label>Estudiante</label><select id="c_estudiante"></select></div>
           <div class="field"><label>Módulo / Evaluación</label><select id="c_modulo"></select></div>
           <div class="field"><label>Tipo</label><select id="c_tipo"><option>Regular</option><option>Recuperativa</option></select></div>
-          <div class="field"><label>Nota (sobre 10)</label><input id="c_nota" type="number" step="0.1" min="0" max="10" placeholder="0.0"></div>
+          <div class="field"><label id="lbl_c_nota">Nota (sobre 10)</label><input id="c_nota" type="number" step="0.1" min="0" max="10" placeholder="0.0"></div>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Retroalimentación (opcional)</label>
+          <textarea id="c_retro" placeholder="Comentario sobre el desempeño del estudiante en esta evaluación..." style="min-height:80px;"></textarea>
         </div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_nota">Guardar Calificación</button></div>
       </div>
     </div>
 
     <div id="tab-reporte" style="display:none;">
+      <div class="panel">
+        <h2>Configuración del Certificado</h2>
+        <p class="hint">Estos datos son propios de este curso y se usan al generar los certificados.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Horas Académicas</label><input id="ci_horas" type="number" step="1" placeholder="Ej. 120"></div>
+          <div class="field"><label>Modalidad</label>
+            <select id="ci_modalidad">
+              <option>Virtual</option><option>Presencial</option><option>Semipresencial</option><option>Otro</option>
+            </select>
+          </div>
+          <div class="field"><label>Se certifica por</label>
+            <select id="ci_tipo_certificacion">
+              <option value="Asistencia">Por su asistencia al</option>
+              <option value="Asistencia y Aprobación" selected>Por su asistencia y aprobación del</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:10px;">La lista de quién se certifica siempre se decide por la nota mínima — esto solo cambia el texto de la frase del certificado.</p>
+        <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_curso_info">Guardar Configuración</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Generar Certificados de un Módulo</h2>
+        <p class="hint">El certificado se emite por módulo. Elige cuál y escribe el rango de fechas de esa sesión antes de generar.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Módulo a Certificar</label><select id="cert_modulo"></select></div>
+          <div class="field"><label>Rango de Fechas</label><input id="cert_fecha_rango" placeholder='Ej. del 01 al 05 de Junio de 2026'></div>
+        </div>
+        <div id="cert_preview" class="hint" style="margin-top:10px;"></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_export_certificados">Descargar Datos (CSV para Canva)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_certificados">Descargar Lista (PDF)</button>
+        </div>
+      </div>
+
       <div class="panel">
         <h2>Reporte del Curso</h2>
         <div id="reporte_resumen"></div>
@@ -226,15 +267,47 @@
         </div>
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
-          <button class="btn btn-ghost btn-sm" id="btn_export_certificados">Descargar Datos para Certificados (Canva)</button>
         </div>
 
-        <h2 style="margin-top:26px;">Detalle por Módulo</h2>
-        <div class="table-scroll">
-          <table>
-            <thead><tr><th>Estudiante</th><th>Módulo</th><th class="num">Nota</th><th>Tipo</th><th>Fecha</th></tr></thead>
-            <tbody id="tabla_detalle_curso"></tbody>
-          </table>
+        <h2 style="margin-top:26px;">Módulos del Curso</h2>
+        <p class="hint">Da clic en un módulo para ver el detalle de notas, tipo, retroalimentación y estado.</p>
+        <div id="lista_modulos_reporte" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+        <div id="detalle_modulo_seleccionado" style="display:none;">
+          <h3 id="titulo_modulo_seleccionado" style="font-family:'Quicksand',sans-serif;font-size:16px;margin-bottom:10px;"></h3>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Estudiante</th><th class="num">Nota</th><th>Tipo</th><th>Retroalimentación</th><th>Estado</th></tr></thead>
+              <tbody id="tabla_modulo_seleccionado"></tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="btn_export_modulo_seleccionado">Descargar Notas del Módulo (CSV)</button>
+            <button class="btn btn-ghost btn-sm" id="btn_pdf_modulo_seleccionado">Descargar Notas del Módulo (PDF)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Diploma Final</h2>
+        <p class="hint">Para quienes aprobaron el diplomado completo (promedio general de todos los módulos).</p>
+        <div class="grid cols3">
+          <div class="field"><label>Rango de Fechas / Fecha de Graduación</label><input id="diploma_fecha_rango" placeholder='Ej. Guayaquil, 15 de Diciembre de 2026'></div>
+        </div>
+        <div id="diploma_preview" class="hint" style="margin-top:10px;"></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_export_diploma">Descargar Datos (CSV para Canva)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_diploma">Descargar Lista (PDF)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Menciones de Honor (Top 3 del Diplomado)</h2>
+        <p class="hint">Los 3 promedios más altos entre quienes aprobaron todo el diplomado.</p>
+        <div id="honor_preview" class="hint" style="margin-bottom:10px;"></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_export_honor">Descargar Datos (CSV para Canva)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_honor">Descargar Lista (PDF)</button>
         </div>
       </div>
     </div>
@@ -305,6 +378,7 @@ let MODULOS = [];
 let CALIFICACIONES = [];
 let MATRICULAS = [];
 let ASISTENCIA = [];
+let CURSOS_INFO = [];
 let CURSO_ACTUAL = null;
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
@@ -345,12 +419,17 @@ async function apiPost(sheet, action, extra){
 function normNum(v){ return Number(v)||0; }
 
 async function loadAll(){
-  const [nom, mod, cal, mat, asi] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia')]);
+  const [nom, mod, cal, mat, asi, cinfo] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo')]);
   NOMINA = nom;
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
   MATRICULAS = mat;
   ASISTENCIA = asi;
+  CURSOS_INFO = cinfo;
+}
+
+function getCursoInfo(curso){
+  return CURSOS_INFO.filter(c=>c.curso===curso).slice(-1)[0] || null;
 }
 
 function nombreParaCertificado(curso, estudiante){
@@ -527,6 +606,8 @@ function notasVigentesCurso(){
 }
 
 function renderAllCurso(){
+  cargarConfigCertificado();
+  poblarSelectCertModulo();
   renderTickerCurso();
   renderReporteCurso();
   renderHistorialCurso();
@@ -554,18 +635,29 @@ function renderTickerCurso(){
 }
 
 // ---------- REGISTRAR ----------
+document.getElementById('c_tipo').addEventListener('change', ()=>{
+  const esRecuperativa = document.getElementById('c_tipo').value === 'Recuperativa';
+  const maxNota = esRecuperativa ? 9 : 10;
+  document.getElementById('c_nota').max = maxNota;
+  document.getElementById('lbl_c_nota').textContent = `Nota (sobre ${maxNota})`;
+  const notaActual = Number(document.getElementById('c_nota').value);
+  if(notaActual > maxNota) document.getElementById('c_nota').value = maxNota;
+});
+
 document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>{
   const fecha = document.getElementById('c_fecha').value || new Date().toISOString().slice(0,10);
   const estudiante = document.getElementById('c_estudiante').value;
   const modulo = document.getElementById('c_modulo').value;
   const tipo = document.getElementById('c_tipo').value;
   const nota = Number(document.getElementById('c_nota').value);
+  const retroalimentacion = document.getElementById('c_retro').value.trim();
+  const maxNota = tipo === 'Recuperativa' ? 9 : 10;
   if(!estudiante){ showToast('No hay estudiante seleccionado.'); return; }
   if(!modulo){ showToast('No hay módulo seleccionado.'); return; }
-  if(isNaN(nota) || nota < 0 || nota > 10){ showToast('La nota debe estar entre 0 y 10.'); return; }
+  if(isNaN(nota) || nota < 0 || nota > maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}${tipo==='Recuperativa'?' (las recuperativas son sobre 9)':''}.`); return; }
   try{
-    await apiPost('Calificaciones','add',{data:{id:uid(), fecha, curso:CURSO_ACTUAL, modulo, estudiante, identificador:'', tipo, nota}});
-    document.getElementById('c_nota').value='';
+    await apiPost('Calificaciones','add',{data:{id:uid(), fecha, curso:CURSO_ACTUAL, modulo, estudiante, identificador:'', tipo, nota, retroalimentacion}});
+    document.getElementById('c_nota').value=''; document.getElementById('c_retro').value='';
     showToast('Calificación guardada.');
     await loadAll();
     renderAllCurso();
@@ -576,7 +668,6 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
 function renderReporteCurso(){
   const resumenBox = document.getElementById('reporte_resumen');
   const tblResumen = document.getElementById('tabla_resumen_curso');
-  const tblDetalle = document.getElementById('tabla_detalle_curso');
   const vig = notasVigentesCurso();
 
   const porEstudiante = {};
@@ -607,11 +698,96 @@ function renderReporteCurso(){
     <td>${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}</td></tr>
   `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
 
-  tblDetalle.innerHTML = vig.sort((a,b)=>a.estudiante.localeCompare(b.estudiante)).map(v=>`
-    <tr><td>${v.estudiante}</td><td>${v.modulo}</td><td class="num">${v.nota.toFixed(1)}</td>
-    <td>${v.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td><td>${v.fecha}</td></tr>
-  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin calificaciones registradas</td></tr>';
+  renderListaModulosReporte();
 }
+
+let MODULO_SELECCIONADO_REPORTE = null;
+
+function acortarTexto(texto, maxLen){
+  if(!texto) return '';
+  return texto.length > maxLen ? texto.slice(0, maxLen).trim() + '…' : texto;
+}
+
+function renderListaModulosReporte(){
+  const box = document.getElementById('lista_modulos_reporte');
+  const modulos = modulosDelCurso();
+  if(modulos.length===0){ box.innerHTML = '<p class="hint">Sin módulos en este curso.</p>'; return; }
+  box.innerHTML = modulos.map(m=>`
+    <button class="btn ${m===MODULO_SELECCIONADO_REPORTE?'btn-primary':'btn-ghost'} btn-sm" title="${m.replace(/"/g,'&quot;')}" onclick="seleccionarModuloReporte('${m.replace(/'/g,"\\'")}')">${acortarTexto(m,20)}</button>
+  `).join('');
+  if(MODULO_SELECCIONADO_REPORTE && modulos.includes(MODULO_SELECCIONADO_REPORTE)){
+    renderDetalleModuloSeleccionado();
+  }
+}
+
+window.seleccionarModuloReporte = function(modulo){
+  MODULO_SELECCIONADO_REPORTE = modulo;
+  renderListaModulosReporte();
+  renderDetalleModuloSeleccionado();
+};
+
+function datosModuloSeleccionado(){
+  const modulo = MODULO_SELECCIONADO_REPORTE;
+  const vig = notasVigentesCurso().filter(v=>v.modulo===modulo);
+  return estudiantesDelCurso().map(est=>{
+    const n = vig.find(v=>v.estudiante===est);
+    return {
+      estudiante: est,
+      nota: n ? n.nota : null,
+      tipo: n ? n.tipo : '',
+      retro: n ? (n.retroalimentacion||'') : '',
+      aprobado: n ? n.nota>=NOTA_MINIMA : null
+    };
+  });
+}
+
+function renderDetalleModuloSeleccionado(){
+  const wrap = document.getElementById('detalle_modulo_seleccionado');
+  if(!MODULO_SELECCIONADO_REPORTE){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  document.getElementById('titulo_modulo_seleccionado').textContent = MODULO_SELECCIONADO_REPORTE;
+
+  const filas = datosModuloSeleccionado();
+  document.getElementById('tabla_modulo_seleccionado').innerHTML = filas.map(f=>`
+    <tr><td>${f.estudiante}</td>
+    <td class="num">${f.nota===null?'—':f.nota.toFixed(1)}</td>
+    <td>${f.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':(f.tipo?'Regular':'—')}</td>
+    <td style="white-space:normal;max-width:280px;">${f.retro||'—'}</td>
+    <td>${f.aprobado===null?'<span class="pill na">Sin nota</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td></tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin datos</td></tr>';
+}
+
+document.getElementById('btn_export_modulo_seleccionado').addEventListener('click', ()=>{
+  if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
+  const filas = datosModuloSeleccionado();
+  const headers = ['Estudiante','Nota','Retroalimentación'];
+  const rows = [headers.join(',')];
+  filas.forEach(f=>rows.push([f.estudiante, f.nota===null?'':f.nota.toFixed(1), f.retro||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `notas_${MODULO_SELECCIONADO_REPORTE.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV del módulo descargado.');
+});
+
+document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click', ()=>{
+  if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
+  const filas = datosModuloSeleccionado();
+  const filasHtml = filas.map(f=>`<tr><td>${f.estudiante}</td><td style="text-align:right;">${f.nota===null?'—':f.nota.toFixed(1)}</td><td style="white-space:normal;">${f.retro||'—'}</td></tr>`).join('');
+  document.getElementById('print_individual_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Notas — ${MODULO_SELECCIONADO_REPORTE}</div>
+    </div>
+    <div class="hint" style="margin-bottom:16px;">Curso: <b>${CURSO_ACTUAL}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <table class="doc-table">
+      <thead><tr><th>Estudiante</th><th style="text-align:right;">Nota</th><th>Retroalimentación</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+});
 
 document.getElementById('btn_copiar_reporte').addEventListener('click', async ()=>{
   const vig = notasVigentesCurso();
@@ -686,6 +862,7 @@ window.descargarReporteIndividual = function(estudiante){
   `;
   document.getElementById('modal_overlay').classList.add('show');
 };
+
 document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
   document.getElementById('modal_overlay').classList.remove('show');
 });
@@ -693,7 +870,10 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
   document.body.classList.add('printing-individual');
   window.print();
 });
-window.onafterprint = function(){ document.body.classList.remove('printing-individual'); };
+window.onafterprint = function(){
+  document.body.classList.remove('printing-individual');
+  document.getElementById('print_orientation_override').textContent = '';
+};
 
 // ---------- MODO DEMO (sin conexión, solo para previsualizar diseño) ----------
 document.getElementById('btn_demo').addEventListener('click', ()=>{
@@ -732,6 +912,99 @@ document.querySelectorAll('.tab').forEach(tab=>{
     });
   });
 });
+
+// ---------- CONFIGURACIÓN DEL CERTIFICADO (por curso) ----------
+function cargarConfigCertificado(){
+  const info = getCursoInfo(CURSO_ACTUAL);
+  document.getElementById('ci_horas').value = info ? info.horasAcademicas || '' : '';
+  document.getElementById('ci_modalidad').value = info ? info.modalidad || 'Virtual' : 'Virtual';
+  document.getElementById('ci_tipo_certificacion').value = info ? info.tipoCertificacion || 'Asistencia y Aprobación' : 'Asistencia y Aprobación';
+}
+
+document.getElementById('btn_guardar_curso_info').addEventListener('click', async ()=>{
+  const horasAcademicas = document.getElementById('ci_horas').value;
+  const modalidad = document.getElementById('ci_modalidad').value;
+  const tipoCertificacion = document.getElementById('ci_tipo_certificacion').value;
+  const info = getCursoInfo(CURSO_ACTUAL);
+  try{
+    if(info){
+      await apiPost('CursosInfo','update',{id:info.id, data:{horasAcademicas, modalidad, tipoCertificacion}});
+    }else{
+      await apiPost('CursosInfo','add',{data:{id:uid(), curso:CURSO_ACTUAL, horasAcademicas, modalidad, tipoCertificacion}});
+    }
+    showToast('Configuración del certificado guardada.');
+    await loadAll();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+function cumpleAprobacionModulo(estudiante, modulo){
+  const nota = notasVigentesCurso().find(v=>v.estudiante===estudiante && v.modulo===modulo);
+  if(!nota) return false;
+  return nota.nota >= NOTA_MINIMA;
+}
+
+function promedioFinalEstudiante(estudiante){
+  const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
+  if(vig.length===0) return null;
+  return vig.reduce((s,v)=>s+v.nota,0)/vig.length;
+}
+
+function cumpleAprobacionFinal(estudiante){
+  const prom = promedioFinalEstudiante(estudiante);
+  return prom!==null && prom >= NOTA_MINIMA;
+}
+
+function fraseCertificadoFinal(curso){
+  const info = getCursoInfo(curso);
+  const tipo = info ? info.tipoCertificacion : 'Asistencia y Aprobación';
+  if(tipo === 'Asistencia') return `Por su asistencia al ${curso}`;
+  return `Por su asistencia y aprobación del ${curso}`;
+}
+
+function obtenerTop3Honor(){
+  return estudiantesDelCurso()
+    .filter(est=>cumpleAprobacionFinal(est))
+    .map(est=>({estudiante:est, promedio:promedioFinalEstudiante(est)}))
+    .sort((a,b)=>b.promedio-a.promedio)
+    .slice(0,3);
+}
+
+function fraseCertificadoModulo(curso, modulo){
+  const info = getCursoInfo(curso);
+  const tipo = info ? info.tipoCertificacion : 'Asistencia y Aprobación';
+  const base = (tipo === 'Asistencia') ? `Por su asistencia al` : `Por su asistencia y aprobación del`;
+  return `${base} ${modulo}`;
+}
+
+function poblarSelectCertModulo(){
+  const sel = document.getElementById('cert_modulo');
+  const modulos = modulosDelCurso();
+  sel.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
+  actualizarPreviewCertificado();
+  actualizarPreviewDiploma();
+  actualizarPreviewHonor();
+}
+
+function actualizarPreviewCertificado(){
+  const modulo = document.getElementById('cert_modulo').value;
+  const box = document.getElementById('cert_preview');
+  if(!modulo){ box.textContent=''; return; }
+  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
+  box.textContent = `${califican.length} estudiante(s) cumplen la nota mínima para certificarse en "${modulo}".`;
+}
+document.getElementById('cert_modulo').addEventListener('change', actualizarPreviewCertificado);
+
+function actualizarPreviewDiploma(){
+  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionFinal(est));
+  document.getElementById('diploma_preview').textContent = `${califican.length} estudiante(s) aprobaron el diplomado completo.`;
+}
+
+function actualizarPreviewHonor(){
+  const top3 = obtenerTop3Honor();
+  document.getElementById('honor_preview').textContent = top3.length>0
+    ? top3.map((t,i)=>`${i+1}° ${t.estudiante} (${t.promedio.toFixed(1)})`).join(' — ')
+    : 'Aún no hay estudiantes aprobados para calcular el top 3.';
+}
 
 // ---------- ASISTENCIA ----------
 function asistenciaDelCurso(){
@@ -885,6 +1158,204 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   a.href = url; a.download = `asistencia_${CURSO_ACTUAL.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV descargado.');
+});
+
+function partirNombreLargo(nombre, maxCaracteresPorLinea){
+  if(nombre.length <= maxCaracteresPorLinea) return nombre;
+  const palabras = nombre.split(' ');
+  let linea1 = '', linea2 = '';
+  palabras.forEach(p=>{
+    if((linea1 + ' ' + p).trim().length <= nombre.length/2 + 3 || !linea2){
+      linea1 = (linea1 + ' ' + p).trim();
+    }else{
+      linea2 = (linea2 + ' ' + p).trim();
+    }
+  });
+  return linea2 ? linea1 + '\n' + linea2 : linea1;
+}
+
+function obtenerCertificadosModulo(){
+  const modulo = document.getElementById('cert_modulo').value;
+  const fechaRango = document.getElementById('cert_fecha_rango').value.trim();
+  if(!modulo){ showToast('Selecciona un módulo.'); return null; }
+  if(!fechaRango){ showToast('Escribe el rango de fechas de la sesión.'); return null; }
+
+  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
+  if(califican.length===0){ showToast('Nadie cumple la nota mínima para este módulo todavía.'); return null; }
+
+  const info = getCursoInfo(CURSO_ACTUAL);
+  const horas = info ? info.horasAcademicas || '' : '';
+  const modalidad = info ? info.modalidad || '' : '';
+  const frase = fraseCertificadoModulo(CURSO_ACTUAL, modulo);
+
+  return califican.map(est=>({
+    nombre: nombreParaCertificado(CURSO_ACTUAL, est),
+    nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, est), 28),
+    curso: CURSO_ACTUAL, modulo, frase, horas, modalidad, fechaRango
+  }));
+}
+
+document.getElementById('btn_export_certificados').addEventListener('click', ()=>{
+  const filas = obtenerCertificadosModulo();
+  if(!filas) return;
+
+  const headers = ['Nombre','NombrePartido','Curso','Modulo','FraseCertificado','HorasAcademicas','Modalidad','Fecha'];
+  const rows = [headers.join(',')];
+  filas.forEach(f=>{
+    rows.push([f.nombre,f.nombrePartido,f.curso,f.modulo,f.frase,f.horas,f.modalidad,f.fechaRango].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+  });
+
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `certificados_${filas[0].modulo.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`CSV con ${filas.length} certificado(s) descargado — listo para Canva Bulk Create.`);
+});
+
+document.getElementById('btn_pdf_certificados').addEventListener('click', ()=>{
+  const filas = obtenerCertificadosModulo();
+  if(!filas) return;
+
+  const infoBloque = `
+    <div class="hint" style="line-height:1.8;">
+      Curso: <b>${CURSO_ACTUAL}</b><br>
+      Módulo: <b>${filas[0].modulo}</b><br>
+      Frase: <b>"${filas[0].frase}"</b><br>
+      Fechas: <b>${filas[0].fechaRango}</b><br>
+      Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+  `;
+  const listaNombres = filas.map(f=>`<tr><td>${f.nombre}</td></tr>`).join('');
+
+  document.getElementById('print_individual_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Lista de Certificados — ${filas[0].modulo}</div>
+    </div>
+    ${infoBloque}
+    <table class="doc-table" style="margin:20px 0;">
+      <thead><tr><th>Estudiante (${filas.length})</th></tr></thead>
+      <tbody>${listaNombres}</tbody>
+    </table>
+    ${infoBloque}
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+});
+
+// ---------- DIPLOMA FINAL ----------
+function obtenerDatosDiploma(){
+  const fechaRango = document.getElementById('diploma_fecha_rango').value.trim();
+  if(!fechaRango){ showToast('Escribe la fecha/rango de graduación.'); return null; }
+  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionFinal(est));
+  if(califican.length===0){ showToast('Nadie ha aprobado el diplomado completo todavía.'); return null; }
+
+  const info = getCursoInfo(CURSO_ACTUAL);
+  const horas = info ? info.horasAcademicas || '' : '';
+  const modalidad = info ? info.modalidad || '' : '';
+  const frase = fraseCertificadoFinal(CURSO_ACTUAL);
+
+  return califican.map(est=>({
+    nombre: nombreParaCertificado(CURSO_ACTUAL, est),
+    nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, est), 28),
+    curso: CURSO_ACTUAL, frase, horas, modalidad, fechaRango,
+    promedio: promedioFinalEstudiante(est).toFixed(1)
+  }));
+}
+
+document.getElementById('btn_export_diploma').addEventListener('click', ()=>{
+  const filas = obtenerDatosDiploma();
+  if(!filas) return;
+  const headers = ['Nombre','NombrePartido','Curso','FraseCertificado','HorasAcademicas','Modalidad','Fecha','Promedio'];
+  const rows = [headers.join(',')];
+  filas.forEach(f=>rows.push([f.nombre,f.nombrePartido,f.curso,f.frase,f.horas,f.modalidad,f.fechaRango,f.promedio].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `diploma_final_${CURSO_ACTUAL.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`CSV con ${filas.length} diploma(s) descargado — listo para Canva Bulk Create.`);
+});
+
+document.getElementById('btn_pdf_diploma').addEventListener('click', ()=>{
+  const filas = obtenerDatosDiploma();
+  if(!filas) return;
+  const infoBloque = `
+    <div class="hint" style="line-height:1.8;">
+      Curso: <b>${CURSO_ACTUAL}</b><br>
+      Frase: <b>"${filas[0].frase}"</b><br>
+      Fecha: <b>${filas[0].fechaRango}</b><br>
+      Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+  `;
+  const filasHtml = filas.map(f=>`<tr><td>${f.nombre}</td><td class="num">${f.promedio}</td></tr>`).join('');
+  document.getElementById('print_individual_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Diploma Final — ${CURSO_ACTUAL}</div>
+    </div>
+    ${infoBloque}
+    <table class="doc-table" style="margin:20px 0;">
+      <thead><tr><th>Estudiante (${filas.length})</th><th class="num">Promedio</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+    ${infoBloque}
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+});
+
+// ---------- MENCIONES DE HONOR ----------
+function obtenerDatosHonor(){
+  const fechaRango = document.getElementById('diploma_fecha_rango').value.trim();
+  if(!fechaRango){ showToast('Escribe la fecha/rango de graduación en "Diploma Final" primero — se usa la misma.'); return null; }
+  const top3 = obtenerTop3Honor();
+  if(top3.length===0){ showToast('Aún no hay estudiantes aprobados para el top 3.'); return null; }
+
+  const info = getCursoInfo(CURSO_ACTUAL);
+  const horas = info ? info.horasAcademicas || '' : '';
+  const modalidad = info ? info.modalidad || '' : '';
+  const ordinales = ['Primer Lugar','Segundo Lugar','Tercer Lugar'];
+
+  return top3.map((t,i)=>({
+    nombre: nombreParaCertificado(CURSO_ACTUAL, t.estudiante),
+    nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, t.estudiante), 28),
+    curso: CURSO_ACTUAL, horas, modalidad, fechaRango,
+    lugar: ordinales[i],
+    promedio: t.promedio.toFixed(1),
+    frase: `Mención de Honor — ${ordinales[i]} por Mejor Promedio del ${CURSO_ACTUAL}`
+  }));
+}
+
+document.getElementById('btn_export_honor').addEventListener('click', ()=>{
+  const filas = obtenerDatosHonor();
+  if(!filas) return;
+  const headers = ['Nombre','NombrePartido','Curso','Lugar','FraseCertificado','HorasAcademicas','Modalidad','Fecha','Promedio'];
+  const rows = [headers.join(',')];
+  filas.forEach(f=>rows.push([f.nombre,f.nombrePartido,f.curso,f.lugar,f.frase,f.horas,f.modalidad,f.fechaRango,f.promedio].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `menciones_honor_${CURSO_ACTUAL.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast(`CSV con ${filas.length} mención(es) de honor descargado.`);
+});
+
+document.getElementById('btn_pdf_honor').addEventListener('click', ()=>{
+  const filas = obtenerDatosHonor();
+  if(!filas) return;
+  const filasHtml = filas.map(f=>`<tr><td>${f.lugar}</td><td>${f.nombre}</td><td class="num">${f.promedio}</td></tr>`).join('');
+  document.getElementById('print_individual_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Menciones de Honor — ${CURSO_ACTUAL}</div>
+    </div>
+    <div class="hint" style="margin-bottom:16px;">Fecha: <b>${filas[0].fechaRango}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <table class="doc-table">
+      <thead><tr><th>Lugar</th><th>Estudiante</th><th class="num">Promedio</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
 });
 
 document.getElementById('c_fecha').valueAsDate = new Date();
