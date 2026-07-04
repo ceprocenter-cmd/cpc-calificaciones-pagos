@@ -44,8 +44,16 @@
   </div>
 
   <div class="panel" id="fijos_box">
-    <div class="field"><label>Tu Nombre (Tutor / Facilitador) <span class="req">*</span></label><input id="f_tutor" list="tutores_dl" placeholder="Nombre completo"><datalist id="tutores_dl"></datalist></div>
-    <div class="field"><label>Curso <span class="req">*</span></label><select id="f_curso"><option value="">Cargando cursos...</option></select></div>
+    <div class="field"><label>Tu Nombre (Tutor / Facilitador) <span class="req">*</span></label><input id="f_tutor" list="tutores_dl" placeholder="Nombre completo, tal como te registraron"><datalist id="tutores_dl"></datalist></div>
+    <button class="btn" id="btn_identificarme">Ver mis cursos asignados</button>
+  </div>
+
+  <div class="panel" id="sin_asignacion_box" style="display:none;">
+    <p style="color:var(--danger);font-size:14px;margin:0;">No encontramos cursos asignados a ese nombre. Verifica que lo hayas escrito igual que te registró la administración, o contáctalos para que te asignen un curso.</p>
+  </div>
+
+  <div class="panel" id="curso_modulo_box" style="display:none;">
+    <div class="field"><label>Curso <span class="req">*</span></label><select id="f_curso"><option value="">Selecciona un curso</option></select></div>
     <div class="field"><label>Módulo / Evaluación <span class="req">*</span></label><select id="f_modulo"><option value="">Selecciona un curso primero</option></select></div>
   </div>
 
@@ -55,7 +63,7 @@
     <div id="contexto_modulo" style="font-family:'Quicksand',sans-serif;font-weight:600;font-size:14px;color:var(--text);line-height:1.4;margin-top:2px;"></div>
   </div>
 
-  <div class="panel" id="form_box">
+  <div class="panel" id="form_box" style="display:none;">
     <div class="field"><label>Estudiante <span class="req">*</span></label><select id="f_estudiante"><option value="">Selecciona un curso primero</option></select></div>
     <div class="field"><label>Tipo</label>
       <select id="f_tipo">
@@ -89,14 +97,25 @@ async function apiGet(sheet){
   return await res.json();
 }
 
+function normalizarNombre(t){
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function buscarTutoresCoincidentes(tutorEscrito){
+  const palabrasEscritas = normalizarNombre(tutorEscrito).split(' ').filter(Boolean);
+  const tutoresUnicos = [...new Set(FACILITADORES.map(f=>f.tutor))];
+  return tutoresUnicos.filter(t=>{
+    const palabrasRegistradas = normalizarNombre(t).split(' ').filter(Boolean);
+    return palabrasEscritas.every(pe => palabrasRegistradas.includes(pe));
+  });
+}
+
 async function cargarDatos(){
   try{
     const [mod, nom, fac] = await Promise.all([apiGet('Modulos'), apiGet('Nomina'), apiGet('Facilitadores')]);
     MODULOS = mod;
     NOMINA = nom;
     FACILITADORES = fac;
-    const cursos = [...new Set(mod.map(m=>m.curso).filter(Boolean))].sort();
-    document.getElementById('f_curso').innerHTML = '<option value="">Selecciona un curso</option>' + cursos.map(c=>`<option value="${c}">${c}</option>`).join('');
     const tutores = [...new Set(fac.map(f=>f.tutor).filter(Boolean))].sort();
     document.getElementById('tutores_dl').innerHTML = tutores.map(t=>`<option value="${t}">`).join('');
   }catch(e){
@@ -118,36 +137,63 @@ function actualizarContexto(){
   }
 }
 
-function actualizarModulosSegunTutor(){
-  const curso = document.getElementById('f_curso').value;
-  const tutor = document.getElementById('f_tutor').value.trim();
-  if(!curso) return;
+let TUTOR_ACTUAL = '';
 
-  const todosLosModulos = MODULOS.filter(m=>m.curso===curso).map(m=>m.modulo);
-  const asignadosATutor = FACILITADORES
-    .filter(f=>f.curso===curso && f.tutor.trim().toLowerCase()===tutor.toLowerCase())
-    .map(f=>f.modulo);
+document.getElementById('btn_identificarme').addEventListener('click', ()=>{
+  const tutorEscrito = document.getElementById('f_tutor').value.trim();
+  if(!tutorEscrito){ showToast('Escribe tu nombre primero.'); return; }
 
-  const modulosAMostrar = (tutor && asignadosATutor.length>0) ? asignadosATutor : todosLosModulos;
+  const coincidencias = buscarTutoresCoincidentes(tutorEscrito);
 
-  document.getElementById('f_modulo').innerHTML = modulosAMostrar.length
-    ? modulosAMostrar.map(m=>`<option value="${m}">${m}</option>`).join('')
-    : '<option value="">(sin módulos configurados)</option>';
+  if(coincidencias.length === 0){
+    document.getElementById('sin_asignacion_box').innerHTML = '<p style="color:var(--danger);font-size:14px;margin:0;">No encontramos cursos asignados a ese nombre. Verifica que lo hayas escrito igual que te registró la administración, o contáctalos para que te asignen un curso.</p>';
+    document.getElementById('sin_asignacion_box').style.display='block';
+    document.getElementById('curso_modulo_box').style.display='none';
+    document.getElementById('form_box').style.display='none';
+    document.getElementById('contexto_box').style.display='none';
+    return;
+  }
 
+  if(coincidencias.length > 1){
+    document.getElementById('sin_asignacion_box').innerHTML = '<p style="color:var(--danger);font-size:14px;margin:0;">Encontramos más de un tutor que coincide con ese nombre. Por favor escribe tu nombre completo, tal como te registró la administración, para diferenciarte.</p>';
+    document.getElementById('sin_asignacion_box').style.display='block';
+    document.getElementById('curso_modulo_box').style.display='none';
+    document.getElementById('form_box').style.display='none';
+    document.getElementById('contexto_box').style.display='none';
+    return;
+  }
+
+  TUTOR_ACTUAL = coincidencias[0];
+  const cursosAsignados = [...new Set(FACILITADORES.filter(f=>f.tutor===TUTOR_ACTUAL).map(f=>f.curso))].sort();
+
+  document.getElementById('sin_asignacion_box').style.display='none';
+  document.getElementById('curso_modulo_box').style.display='block';
+  document.getElementById('form_box').style.display='block';
+
+  document.getElementById('f_curso').innerHTML = '<option value="">Selecciona un curso</option>' + cursosAsignados.map(c=>`<option value="${c}">${c}</option>`).join('');
+  document.getElementById('f_modulo').innerHTML = '<option value="">Selecciona un curso primero</option>';
+  document.getElementById('f_estudiante').innerHTML = '<option value="">Selecciona un curso primero</option>';
   actualizarContexto();
-}
+});
 
 document.getElementById('f_curso').addEventListener('change', ()=>{
   const curso = document.getElementById('f_curso').value;
+
+  const modulosAsignados = FACILITADORES
+    .filter(f=>f.curso===curso && normalizarNombre(f.tutor)===normalizarNombre(TUTOR_ACTUAL))
+    .map(f=>f.modulo);
+
+  document.getElementById('f_modulo').innerHTML = modulosAsignados.length
+    ? modulosAsignados.map(m=>`<option value="${m}">${m}</option>`).join('')
+    : '<option value="">(no tienes módulos asignados en este curso)</option>';
+
   const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   document.getElementById('f_estudiante').innerHTML = estudiantes.length
     ? '<option value="">Selecciona un estudiante</option>' + estudiantes.map(e=>`<option value="${e}">${e}</option>`).join('')
     : '<option value="">(sin estudiantes en la nómina)</option>';
 
-  actualizarModulosSegunTutor();
+  actualizarContexto();
 });
-document.getElementById('f_tutor').addEventListener('change', actualizarModulosSegunTutor);
-document.getElementById('f_tutor').addEventListener('blur', actualizarModulosSegunTutor);
 document.getElementById('f_modulo').addEventListener('change', actualizarContexto);
 
 function fileToBase64(file){
