@@ -774,7 +774,7 @@ document.getElementById('btn_export_modulo_seleccionado').addEventListener('clic
 document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
   const filas = datosModuloSeleccionado();
-  const filasHtml = filas.map(f=>`<tr><td>${f.estudiante}</td><td style="text-align:right;">${f.nota===null?'—':f.nota.toFixed(1)}</td><td style="white-space:normal;">${f.retro||'—'}</td></tr>`).join('');
+  const filasHtml = filas.map(f=>`<tr><td>${f.estudiante}</td><td style="text-align:right;">${f.nota===null?'—':f.nota.toFixed(1)}</td></tr>`).join('');
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -782,7 +782,7 @@ document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click',
     </div>
     <div class="hint" style="margin-bottom:16px;">Curso: <b>${CURSO_ACTUAL}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
     <table class="doc-table">
-      <thead><tr><th>Estudiante</th><th style="text-align:right;">Nota</th><th>Retroalimentación</th></tr></thead>
+      <thead><tr><th>Estudiante</th><th style="text-align:right;">Nota</th></tr></thead>
       <tbody>${filasHtml}</tbody>
     </table>
   `;
