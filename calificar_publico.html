@@ -44,7 +44,7 @@
   </div>
 
   <div class="panel" id="fijos_box">
-    <div class="field"><label>Tu Nombre (Tutor / Facilitador) <span class="req">*</span></label><input id="f_tutor" placeholder="Nombre completo"></div>
+    <div class="field"><label>Tu Nombre (Tutor / Facilitador) <span class="req">*</span></label><input id="f_tutor" list="tutores_dl" placeholder="Nombre completo"><datalist id="tutores_dl"></datalist></div>
     <div class="field"><label>Curso <span class="req">*</span></label><select id="f_curso"><option value="">Cargando cursos...</option></select></div>
     <div class="field"><label>Módulo / Evaluación <span class="req">*</span></label><select id="f_modulo"><option value="">Selecciona un curso primero</option></select></div>
   </div>
@@ -79,6 +79,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGee
 
 let MODULOS = [];
 let NOMINA = [];
+let FACILITADORES = [];
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3600); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -90,11 +91,14 @@ async function apiGet(sheet){
 
 async function cargarDatos(){
   try{
-    const [mod, nom] = await Promise.all([apiGet('Modulos'), apiGet('Nomina')]);
+    const [mod, nom, fac] = await Promise.all([apiGet('Modulos'), apiGet('Nomina'), apiGet('Facilitadores')]);
     MODULOS = mod;
     NOMINA = nom;
+    FACILITADORES = fac;
     const cursos = [...new Set(mod.map(m=>m.curso).filter(Boolean))].sort();
     document.getElementById('f_curso').innerHTML = '<option value="">Selecciona un curso</option>' + cursos.map(c=>`<option value="${c}">${c}</option>`).join('');
+    const tutores = [...new Set(fac.map(f=>f.tutor).filter(Boolean))].sort();
+    document.getElementById('tutores_dl').innerHTML = tutores.map(t=>`<option value="${t}">`).join('');
   }catch(e){
     showToast('No se pudo conectar. Recarga la página.');
   }
@@ -114,20 +118,36 @@ function actualizarContexto(){
   }
 }
 
-document.getElementById('f_curso').addEventListener('change', ()=>{
+function actualizarModulosSegunTutor(){
   const curso = document.getElementById('f_curso').value;
-  const modulos = MODULOS.filter(m=>m.curso===curso).map(m=>m.modulo);
-  document.getElementById('f_modulo').innerHTML = modulos.length
-    ? modulos.map(m=>`<option value="${m}">${m}</option>`).join('')
+  const tutor = document.getElementById('f_tutor').value.trim();
+  if(!curso) return;
+
+  const todosLosModulos = MODULOS.filter(m=>m.curso===curso).map(m=>m.modulo);
+  const asignadosATutor = FACILITADORES
+    .filter(f=>f.curso===curso && f.tutor.trim().toLowerCase()===tutor.toLowerCase())
+    .map(f=>f.modulo);
+
+  const modulosAMostrar = (tutor && asignadosATutor.length>0) ? asignadosATutor : todosLosModulos;
+
+  document.getElementById('f_modulo').innerHTML = modulosAMostrar.length
+    ? modulosAMostrar.map(m=>`<option value="${m}">${m}</option>`).join('')
     : '<option value="">(sin módulos configurados)</option>';
 
+  actualizarContexto();
+}
+
+document.getElementById('f_curso').addEventListener('change', ()=>{
+  const curso = document.getElementById('f_curso').value;
   const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   document.getElementById('f_estudiante').innerHTML = estudiantes.length
     ? '<option value="">Selecciona un estudiante</option>' + estudiantes.map(e=>`<option value="${e}">${e}</option>`).join('')
     : '<option value="">(sin estudiantes en la nómina)</option>';
 
-  actualizarContexto();
+  actualizarModulosSegunTutor();
 });
+document.getElementById('f_tutor').addEventListener('change', actualizarModulosSegunTutor);
+document.getElementById('f_tutor').addEventListener('blur', actualizarModulosSegunTutor);
 document.getElementById('f_modulo').addEventListener('change', actualizarContexto);
 
 function fileToBase64(file){
