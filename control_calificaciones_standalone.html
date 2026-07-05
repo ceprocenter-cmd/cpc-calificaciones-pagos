@@ -1015,6 +1015,10 @@ function poblarSelectCertModulo(){
   const sel = document.getElementById('cert_modulo');
   const modulos = modulosDelCurso();
   sel.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
+  const infoInicial = facilitadoresDelCurso().find(f=>f.modulo===sel.value);
+  if(infoInicial && infoInicial.fechaModulo){
+    document.getElementById('cert_fecha_rango').value = infoInicial.fechaModulo;
+  }
   actualizarPreviewCertificado();
   actualizarPreviewDiploma();
   actualizarPreviewHonor();
@@ -1027,7 +1031,14 @@ function actualizarPreviewCertificado(){
   const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
   box.textContent = `${califican.length} estudiante(s) cumplen la nota mínima para certificarse en "${modulo}".`;
 }
-document.getElementById('cert_modulo').addEventListener('change', actualizarPreviewCertificado);
+document.getElementById('cert_modulo').addEventListener('change', ()=>{
+  const modulo = document.getElementById('cert_modulo').value;
+  const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
+  if(info && info.fechaModulo){
+    document.getElementById('cert_fecha_rango').value = info.fechaModulo;
+  }
+  actualizarPreviewCertificado();
+});
 
 function actualizarPreviewDiploma(){
   const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionFinal(est));
@@ -1060,7 +1071,7 @@ function renderFacilitadores(){
   if(asignaciones.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   body.innerHTML = asignaciones.map(f=>`
-    <tr><td>${f.modulo}</td><td>${f.tutor}</td><td>${f.fechaModulo||'—'}</td>
+    <tr><td>${f.modulo}</td><td>${f.tutor}</td><td title="${(f.fechaModulo||'').replace(/"/g,'&quot;')}">${f.fechaModulo?acortarTexto(f.fechaModulo,18):'—'}</td>
     <td><button class="btn btn-ghost btn-sm" onclick="eliminarFacilitador('${f.id}')">Eliminar</button></td></tr>
   `).join('');
 }
@@ -1101,7 +1112,32 @@ function poblarSelectAsistenciaModulo(){
   sel.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
   if(modulos.includes(prev)) sel.value = prev;
 }
-document.getElementById('as_modulo').addEventListener('change', renderTomaAsistencia);
+const MESES_ES = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+
+function parsearPrimerDiaModulo(texto){
+  if(!texto) return null;
+  const t = texto.toLowerCase();
+  const diaMatch = t.match(/(\d{1,2})/);
+  const anioMatch = t.match(/(\d{4})/);
+  let mesEncontrado = null;
+  for(const nombre in MESES_ES){
+    if(t.includes(nombre)){ mesEncontrado = MESES_ES[nombre]; break; }
+  }
+  if(!diaMatch || !anioMatch || !mesEncontrado) return null;
+  const dia = diaMatch[1].padStart(2,'0');
+  const mes = String(mesEncontrado).padStart(2,'0');
+  return `${anioMatch[1]}-${mes}-${dia}`;
+}
+
+document.getElementById('as_modulo').addEventListener('change', ()=>{
+  const modulo = document.getElementById('as_modulo').value;
+  const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
+  const primerDia = info ? parsearPrimerDiaModulo(info.fechaModulo) : null;
+  if(primerDia){
+    document.getElementById('as_fecha').value = primerDia;
+  }
+  renderTomaAsistencia();
+});
 
 function renderTomaAsistencia(){
   poblarSelectAsistenciaModulo();
