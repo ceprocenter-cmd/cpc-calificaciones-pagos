@@ -349,7 +349,7 @@
           <label>Pegar Chat de Zoom (opcional)</label>
           <textarea id="as_zoom_chat" placeholder="Pega aquí el chat exportado de Zoom. El sistema detecta quién escribió 'presente'." style="min-height:100px;"></textarea>
           <div class="actions" style="margin-top:10px;">
-            <button class="btn btn-ghost btn-sm" id="btn_detectar_zoom">Detectar Presentes del Chat</button>
+            <button class="btn btn-primary btn-sm" id="btn_detectar_zoom">Detectar Presentes del Chat</button>
           </div>
         </div>
         <div id="as_lista_estudiantes" style="margin-top:16px;"></div>
@@ -1173,17 +1173,28 @@ function normalizarTexto(t){
 
 function detectarPresentesEnChat(textoChat){
   const lineas = textoChat.split('\n');
-  const presentesZoom = new Set();
+  const resultados = [];
   lineas.forEach(linea=>{
-    const match = linea.match(/from\s+(.+?)(?:\s+to\s+everyone)?\s*:\s*(.*)/i);
+    const match = linea.match(/^\s*\d{1,2}:\d{2}:\d{2}\s+(.+?):\s+(.*)$/);
     if(!match) return;
-    const nombre = match[1].trim();
-    const mensaje = normalizarTexto(match[2]||'');
-    if(mensaje.includes('presente')){
-      presentesZoom.add(nombre);
+    const usuario = match[1].trim();
+    const mensaje = match[2].trim();
+
+    if(normalizarTexto(mensaje).includes('presente')){
+      const nombreEnMensaje = mensaje.replace(/presente/ig,'').replace(/[,\.!¡]/g,'').trim();
+      resultados.push({usuario, nombreEnMensaje, tipo:'presente'});
+      return;
+    }
+
+    // Sin la palabra "presente": si el mensaje es corto y parece solo un nombre
+    // (no una frase de la clase), se intenta reconocer igual.
+    const soloLetras = /^[a-zA-ZÀ-ÿñÑ\s]+$/.test(mensaje);
+    const palabras = mensaje.split(/\s+/).filter(Boolean);
+    if(soloLetras && palabras.length>=1 && palabras.length<=5){
+      resultados.push({usuario, nombreEnMensaje: mensaje, tipo:'nombre'});
     }
   });
-  return [...presentesZoom];
+  return resultados;
 }
 
 function coincideNombre(nombreZoom, nombreEstudiante){
@@ -1192,14 +1203,17 @@ function coincideNombre(nombreZoom, nombreEstudiante){
   if(a===b) return true;
   const partesA = a.split(/\s+/).filter(p=>p.length>2);
   const partesB = b.split(/\s+/).filter(p=>p.length>2);
-  return partesA.some(pa=>partesB.some(pb=>pa===pb));
+  const coincidentes = partesA.filter(pa=>partesB.includes(pa)).length;
+  // Exige al menos 2 palabras en común (ej. nombre y apellido) — una sola palabra
+  // suelta como "María" nunca es suficiente si hay varias personas con ese nombre.
+  return coincidentes >= 2;
 }
 
 document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
   const texto = document.getElementById('as_zoom_chat').value.trim();
   if(!texto){ showToast('Pega el chat de Zoom primero.'); return; }
-  const nombresZoom = detectarPresentesEnChat(texto);
-  if(nombresZoom.length===0){ showToast('No se encontró a nadie escribiendo "presente" en ese texto.'); return; }
+  const detecciones = detectarPresentesEnChat(texto);
+  if(detecciones.length===0){ showToast('No se encontró a nadie escribiendo "presente" en ese texto.'); return; }
 
   const estudiantes = estudiantesDelCurso();
   const sinMatch = [];
@@ -1207,17 +1221,26 @@ document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
 
   document.querySelectorAll('.as-estado').forEach(sel=>{ sel.value = 'Ausente'; });
 
-  nombresZoom.forEach(nz=>{
-    const estMatch = estudiantes.find(est=>coincideNombre(nz, est));
-    if(estMatch){
-      const sel = document.querySelector(`.as-estado[data-estudiante="${CSS.escape(estMatch)}"]`);
-      if(sel){ sel.value = 'Presente'; coincidencias++; }
-    }else{
-      sinMatch.push(nz);
+  detecciones.forEach(d=>{
+    let candidatos = estudiantes.filter(est=>coincideNombre(d.usuario, est));
+    if(candidatos.length===0 && d.nombreEnMensaje){
+      candidatos = estudiantes.filter(est=>coincideNombre(d.nombreEnMensaje, est));
     }
+    if(candidatos.length===1){
+      const sel = document.querySelector(`.as-estado[data-estudiante="${CSS.escape(candidatos[0])}"]`);
+      if(sel){ sel.value = 'Presente'; coincidencias++; }
+    }else if(d.tipo==='presente'){
+      if(candidatos.length>1){
+        sinMatch.push(`${d.nombreEnMensaje||d.usuario} (ambiguo: coincide con ${candidatos.join(', ')})`);
+      }else{
+        sinMatch.push(d.nombreEnMensaje || d.usuario);
+      }
+    }
+    // Si tipo==='nombre' (detectado sin decir "presente") y no hubo coincidencia clara,
+    // se ignora en silencio — no era necesariamente un intento de marcar asistencia.
   });
 
-  let mensaje = `${coincidencias} de ${nombresZoom.length} detectados y marcados como Presente.`;
+  let mensaje = `${coincidencias} de ${detecciones.length} detectados y marcados como Presente.`;
   if(sinMatch.length>0) mensaje += ` Sin coincidencia: ${sinMatch.join(', ')} — revísalos a mano.`;
   showToast(mensaje);
 });
