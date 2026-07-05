@@ -224,10 +224,11 @@
     <div id="tab-facilitadores" style="display:none;">
       <div class="panel">
         <h2>Asignar Tutor a un Módulo</h2>
-        <p class="hint">Esto queda registrado para saber quién dicta cada módulo, y hace que la página pública de calificar le muestre al tutor solo lo que le corresponde.</p>
+        <p class="hint">Esto queda registrado para saber quién dicta cada módulo y en qué fecha, y hace que la página pública de calificar le muestre al tutor solo lo que le corresponde.</p>
         <div class="grid cols3">
           <div class="field"><label>Módulo</label><select id="fac_modulo"></select></div>
           <div class="field"><label>Nombre del Tutor</label><input id="fac_tutor" list="fac_tutores_dl" placeholder="Nombre completo"><datalist id="fac_tutores_dl"></datalist></div>
+          <div class="field"><label>Fecha del Módulo</label><input id="fac_fecha_modulo" placeholder='Ej. del 01 al 05 de Junio de 2026'></div>
         </div>
         <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_facilitador">Asignar</button></div>
       </div>
@@ -236,7 +237,7 @@
         <h2>Tutores Asignados en este Curso</h2>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Módulo</th><th>Tutor</th><th></th></tr></thead>
+            <thead><tr><th>Módulo</th><th>Tutor</th><th>Fecha del Módulo</th><th></th></tr></thead>
             <tbody id="tabla_facilitadores"></tbody>
           </table>
         </div>
@@ -339,8 +340,9 @@
     <div id="tab-asistencia" style="display:none;">
       <div class="panel">
         <h2>Tomar Asistencia</h2>
-        <p class="hint">Elige la fecha de la sesión — si ya tomaste asistencia ese día, se carga lo que registraste para que lo corrijas.</p>
-        <div class="grid" style="max-width:300px;">
+        <p class="hint">Elige el módulo y la fecha de la sesión — si ya tomaste asistencia ese día para ese módulo, se carga lo que registraste para que lo corrijas.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Módulo</label><select id="as_modulo"></select></div>
           <div class="field"><label>Fecha de la Sesión</label><input id="as_fecha" type="date"></div>
         </div>
         <div class="field" style="margin-top:14px;">
@@ -355,15 +357,21 @@
       </div>
 
       <div class="panel">
-        <h2>Resumen de Asistencia</h2>
-        <div class="table-scroll">
-          <table>
-            <thead><tr id="as_resumen_head"></tr></thead>
-            <tbody id="as_resumen_body"></tbody>
-          </table>
+        <h2>Resumen de Asistencia por Módulo</h2>
+        <p class="hint">Da clic en un módulo para ver su fecha y el detalle de asistencia.</p>
+        <div id="as_lista_modulos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+        <div id="as_detalle_modulo" style="display:none;">
+          <div class="hint" id="as_fecha_modulo_texto" style="margin-bottom:12px;"></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr id="as_resumen_head"></tr></thead>
+              <tbody id="as_resumen_body"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="as_resumen_empty" style="display:none;">Aún no hay asistencia registrada en este módulo.</div>
+          <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_asistencia">Descargar Asistencia del Módulo (CSV)</button></div>
         </div>
-        <div class="empty" id="as_resumen_empty" style="display:none;">Aún no hay asistencia registrada en este curso.</div>
-        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_asistencia">Descargar Asistencia (CSV)</button></div>
       </div>
     </div>
 
@@ -1052,7 +1060,7 @@ function renderFacilitadores(){
   if(asignaciones.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   body.innerHTML = asignaciones.map(f=>`
-    <tr><td>${f.modulo}</td><td>${f.tutor}</td>
+    <tr><td>${f.modulo}</td><td>${f.tutor}</td><td>${f.fechaModulo||'—'}</td>
     <td><button class="btn btn-ghost btn-sm" onclick="eliminarFacilitador('${f.id}')">Eliminar</button></td></tr>
   `).join('');
 }
@@ -1060,12 +1068,14 @@ function renderFacilitadores(){
 document.getElementById('btn_guardar_facilitador').addEventListener('click', async ()=>{
   const modulo = document.getElementById('fac_modulo').value;
   const tutor = document.getElementById('fac_tutor').value.trim();
+  const fechaModulo = document.getElementById('fac_fecha_modulo').value.trim();
   if(!modulo){ showToast('Selecciona un módulo.'); return; }
   if(!tutor){ showToast('Escribe el nombre del tutor.'); return; }
   try{
-    await apiPost('Facilitadores','add',{data:{id:uid(), tutor, curso:CURSO_ACTUAL, modulo}});
+    await apiPost('Facilitadores','add',{data:{id:uid(), tutor, curso:CURSO_ACTUAL, modulo, fechaModulo}});
     showToast('Tutor asignado.');
     document.getElementById('fac_tutor').value='';
+    document.getElementById('fac_fecha_modulo').value='';
     await loadAll();
     renderFacilitadores();
   }catch(e){ showToast('Error al guardar: '+e.message); }
@@ -1084,18 +1094,30 @@ function asistenciaDelCurso(){
   return ASISTENCIA.filter(a=>a.curso===CURSO_ACTUAL);
 }
 
+function poblarSelectAsistenciaModulo(){
+  const sel = document.getElementById('as_modulo');
+  const modulos = modulosDelCurso();
+  const prev = sel.value;
+  sel.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
+  if(modulos.includes(prev)) sel.value = prev;
+}
+document.getElementById('as_modulo').addEventListener('change', renderTomaAsistencia);
+
 function renderTomaAsistencia(){
+  poblarSelectAsistenciaModulo();
   const fechaInput = document.getElementById('as_fecha');
   if(!fechaInput.value) fechaInput.valueAsDate = new Date();
   const fecha = fechaInput.value;
+  const modulo = document.getElementById('as_modulo').value;
   const estudiantes = estudiantesDelCurso();
-  const registrosDia = asistenciaDelCurso().filter(a=>a.fecha===fecha);
+  const registrosSesion = asistenciaDelCurso().filter(a=>a.fecha===fecha && a.modulo===modulo);
 
   const box = document.getElementById('as_lista_estudiantes');
   if(estudiantes.length===0){ box.innerHTML = '<p class="hint">Sin estudiantes en este curso.</p>'; return; }
+  if(!modulo){ box.innerHTML = '<p class="hint">Este curso no tiene módulos configurados todavía.</p>'; return; }
 
   box.innerHTML = estudiantes.map(est=>{
-    const previo = registrosDia.find(r=>r.estudiante===est);
+    const previo = registrosSesion.find(r=>r.estudiante===est);
     const estadoActual = previo ? previo.estado : 'Presente';
     return `
       <div class="check-row">
@@ -1168,18 +1190,20 @@ document.getElementById('as_fecha').addEventListener('change', renderTomaAsisten
 
 document.getElementById('btn_guardar_asistencia').addEventListener('click', async ()=>{
   const fecha = document.getElementById('as_fecha').value;
+  const modulo = document.getElementById('as_modulo').value;
+  if(!modulo){ showToast('Selecciona un módulo.'); return; }
   if(!fecha){ showToast('Selecciona la fecha de la sesión.'); return; }
-  const registrosDia = asistenciaDelCurso().filter(a=>a.fecha===fecha);
+  const registrosSesion = asistenciaDelCurso().filter(a=>a.fecha===fecha && a.modulo===modulo);
   const selects = document.querySelectorAll('.as-estado');
   try{
     for(const sel of selects){
       const estudiante = sel.dataset.estudiante;
       const estado = sel.value;
-      const previo = registrosDia.find(r=>r.estudiante===estudiante);
+      const previo = registrosSesion.find(r=>r.estudiante===estudiante);
       if(previo){
         await apiPost('Asistencia','update',{id:previo.id, data:{estado}});
       }else{
-        await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, fecha, estudiante, estado}});
+        await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo, fecha, estudiante, estado}});
       }
     }
     showToast('Asistencia guardada.');
@@ -1188,8 +1212,37 @@ document.getElementById('btn_guardar_asistencia').addEventListener('click', asyn
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 
+let MODULO_SELECCIONADO_ASISTENCIA = null;
+
 function renderResumenAsistencia(){
-  const registros = asistenciaDelCurso();
+  const box = document.getElementById('as_lista_modulos');
+  const modulos = modulosDelCurso();
+  if(modulos.length===0){ box.innerHTML = '<p class="hint">Sin módulos en este curso.</p>'; return; }
+  box.innerHTML = modulos.map(m=>`
+    <button class="btn ${m===MODULO_SELECCIONADO_ASISTENCIA?'btn-primary':'btn-ghost'} btn-sm" title="${m.replace(/"/g,'&quot;')}" onclick="seleccionarModuloAsistencia('${m.replace(/'/g,"\\'")}')">${acortarTexto(m,20)}</button>
+  `).join('');
+  if(MODULO_SELECCIONADO_ASISTENCIA && modulos.includes(MODULO_SELECCIONADO_ASISTENCIA)){
+    renderDetalleAsistenciaModulo();
+  }
+}
+
+window.seleccionarModuloAsistencia = function(modulo){
+  MODULO_SELECCIONADO_ASISTENCIA = modulo;
+  renderResumenAsistencia();
+  renderDetalleAsistenciaModulo();
+};
+
+function renderDetalleAsistenciaModulo(){
+  const wrap = document.getElementById('as_detalle_modulo');
+  if(!MODULO_SELECCIONADO_ASISTENCIA){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+
+  const info = facilitadoresDelCurso().find(f=>f.modulo===MODULO_SELECCIONADO_ASISTENCIA);
+  document.getElementById('as_fecha_modulo_texto').innerHTML = info && info.fechaModulo
+    ? `Fecha del módulo: <b>${info.fechaModulo}</b>`
+    : `<span style="color:var(--warn);">Este módulo no tiene fecha registrada — puedes agregarla en la pestaña Facilitadores.</span>`;
+
+  const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   const estudiantes = estudiantesDelCurso();
   const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
 
@@ -1218,8 +1271,9 @@ function renderResumenAsistencia(){
 }
 
 document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
-  const registros = asistenciaDelCurso();
-  if(registros.length===0){ showToast('No hay asistencia registrada en este curso.'); return; }
+  if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
+  const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
+  if(registros.length===0){ showToast('No hay asistencia registrada en este módulo.'); return; }
   const headers = ['Fecha','Estudiante','Estado'];
   const rows = [headers.join(',')];
   registros.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(r=>{
@@ -1228,7 +1282,7 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `asistencia_${CURSO_ACTUAL.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = url; a.download = `asistencia_${MODULO_SELECCIONADO_ASISTENCIA.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV descargado.');
 });
