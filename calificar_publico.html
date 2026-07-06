@@ -205,8 +205,23 @@ document.getElementById('f_curso').addEventListener('change', ()=>{
 });
 document.getElementById('f_modulo').addEventListener('change', ()=>{ renderListaEstudiantes(); actualizarContexto(); });
 
+const TITULOS_PROFESIONALES = [
+  'lic','licda','lcdo','lcda','dr','dra','psi','psic','pscp','cl',
+  'mg','mgs','mgtr','mgd','msc','ing','mba','phd','ab','abg','prof',
+  'tec','tnlga','tnlgo'
+];
+
 function nombreSinTitulo(nombre){
-  return nombre.replace(/^\s*(lic|licda|lcdo|lcda|dr|dra|psi|pscp|mg|msc|mgtr|mgs|ing|mba|phd|ab|abg|prof)\.?\s+/i, '').trim();
+  let partes = nombre.trim().split(/\s+/).filter(Boolean);
+  while(partes.length > 1){
+    const primera = partes[0].replace(/\.$/,'').toLowerCase();
+    if(TITULOS_PROFESIONALES.includes(primera)){
+      partes = partes.slice(1);
+    }else{
+      break;
+    }
+  }
+  return partes.join(' ');
 }
 
 function inicialesDe(nombre){
