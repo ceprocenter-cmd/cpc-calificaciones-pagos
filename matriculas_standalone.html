@@ -54,6 +54,11 @@
   tr:hover td{background:var(--panel-2);}
   .num{text-align:right;font-variant-numeric:tabular-nums;}
   .table-scroll{overflow-x:auto;}
+  .sticky-col{position:sticky;background:var(--panel);z-index:2;}
+  .sticky-1{left:0;}
+  .sticky-2{left:110px;}
+  .sticky-3{left:290px;box-shadow:2px 0 4px rgba(0,0,0,0.06);}
+  thead .sticky-col{z-index:3;background:var(--panel-2);}
   .empty{text-align:center;padding:40px 20px;color:var(--text-dim);font-size:13.5px;}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;max-width:88%;text-align:center;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -176,7 +181,7 @@
           <div class="field"><label>Profesión</label><input id="m_profesion" placeholder="Profesión"></div>
           <div class="field"><label>Usuario de Instagram</label><input id="m_instagram" placeholder="@usuario"></div>
           <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
-          <div class="field"><label>País</label><input id="m_pais" placeholder="País"></div>
+          <div class="field"><label>País</label><input id="m_pais" list="lista_paises" placeholder="País"><datalist id="lista_paises"></datalist></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
           <div class="field"><label>Monto Mensual Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
         </div>
@@ -264,7 +269,12 @@
         <div id="conciliacion_resumen"></div>
         <div class="table-scroll" style="margin-top:12px;">
           <table>
-            <thead><tr><th>Fecha</th><th>Estudiante</th><th>Curso</th><th>Concepto</th><th class="num">Monto</th><th>Cuenta / Método</th><th>Referencia</th><th>Estado</th></tr></thead>
+            <thead><tr>
+              <th class="sticky-col sticky-1">Fecha</th>
+              <th class="sticky-col sticky-2">Estudiante</th>
+              <th class="sticky-col sticky-3">Confirmar</th>
+              <th>Curso</th><th>Concepto</th><th class="num">Monto</th><th>Cuenta / Método</th><th>Referencia</th>
+            </tr></thead>
             <tbody id="tabla_conciliacion"></tbody>
           </table>
         </div>
@@ -288,6 +298,45 @@
 
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
+
+const CODIGOS_PAIS = {
+  'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
+  'argentina':'+54','chile':'+56','bolivia':'+591','paraguay':'+595','uruguay':'+598',
+  'brasil':'+55','panama':'+507','costa rica':'+506','guatemala':'+502','honduras':'+504',
+  'el salvador':'+503','nicaragua':'+505','republica dominicana':'+1','cuba':'+53',
+  'espana':'+34','estados unidos':'+1','canada':'+1','puerto rico':'+1'
+};
+function normalizarPais(t){ return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+document.getElementById('lista_paises').innerHTML = ['Ecuador','Colombia','Venezuela','Perú','México','Argentina','Chile','Bolivia','Paraguay','Uruguay','Brasil','Panamá','Costa Rica','Guatemala','Honduras','El Salvador','Nicaragua','República Dominicana','Cuba','España','Estados Unidos','Canadá','Puerto Rico'].map(p=>`<option value="${p}">`).join('');
+
+function actualizarCodigoPais(){
+  const codigo = CODIGOS_PAIS[normalizarPais(document.getElementById('m_pais').value)];
+  if(!codigo) return;
+  const telInput = document.getElementById('m_telefono');
+  const actual = telInput.value.trim();
+  // Si está vacío, o ya empieza con un código de país (+...), lo reemplaza/agrega sin duplicar
+  if(!actual){
+    telInput.value = codigo + ' ';
+  }else if(/^\+\d+/.test(actual)){
+    telInput.value = actual.replace(/^\+\d+\s*/, codigo + ' ');
+  }else{
+    telInput.value = codigo + ' ' + actual;
+  }
+}
+document.getElementById('m_pais').addEventListener('change', actualizarCodigoPais);
+document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
+
+document.getElementById('m_estudiante').addEventListener('blur', ()=>{
+  const el = document.getElementById('m_estudiante');
+  const valor = el.value.trim();
+  if(!valor) return;
+  const soloMayus = valor === valor.toUpperCase();
+  const soloMinus = valor === valor.toLowerCase();
+  if(soloMayus || soloMinus){
+    el.value = valor.toLowerCase().replace(/(^|\s)([a-záéíóúñü])/g, (m,esp,letra)=>esp+letra.toUpperCase());
+  }
+});
+
 let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
 const CONCEPTO_LIBRE = '__PENALIDAD_OTRO__';
 
@@ -950,15 +999,24 @@ function renderConciliacion(pagos){
 
   body.innerHTML = ordenados.map(p=>`
     <tr>
-      <td>${p.fecha}</td><td>${p.estudiante}</td><td>${p.curso}</td><td>${p.modulo}</td>
+      <td class="sticky-col sticky-1">${fechaCorta(p.fecha)}</td>
+      <td class="sticky-col sticky-2">${p.estudiante}</td>
+      <td class="sticky-col sticky-3">${p.confirmadoBanco
+        ? '<span class="pill ok">Confirmado</span>'
+        : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button>`}</td>
+      <td>${p.curso}</td><td>${p.modulo}</td>
       <td class="num">${fmt(p.monto)}</td>
       <td>${p.metodoPago||'—'}</td>
       <td>${p.referenciaPago||'—'}</td>
-      <td>${p.confirmadoBanco
-        ? '<span class="pill ok">Confirmado</span>'
-        : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Marcar Confirmado</button>`}</td>
     </tr>
   `).join('');
+}
+
+function fechaCorta(fechaStr){
+  if(!fechaStr) return '—';
+  const d = new Date(fechaStr + (fechaStr.length<=10 ? 'T00:00:00' : ''));
+  if(isNaN(d.getTime())) return fechaStr;
+  return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 
 window.confirmarPagoBanco = async function(pagoId){
