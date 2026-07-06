@@ -177,11 +177,11 @@
           <div class="field"><label>Nombre del Estudiante</label><input id="m_estudiante" list="lista_est_curso" placeholder="Nombre completo"></div>
           <div class="field"><label>Cédula</label><input id="m_cedula" placeholder="N° de cédula"></div>
           <div class="field"><label>Correo</label><input id="m_correo" type="email" placeholder="correo@ejemplo.com"></div>
+          <div class="field"><label>País</label><input id="m_pais" list="lista_paises" placeholder="País"><datalist id="lista_paises"></datalist></div>
+          <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
           <div class="field"><label>Teléfono</label><input id="m_telefono" placeholder="+593 ..."></div>
           <div class="field"><label>Profesión</label><input id="m_profesion" placeholder="Profesión"></div>
           <div class="field"><label>Usuario de Instagram</label><input id="m_instagram" placeholder="@usuario"></div>
-          <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
-          <div class="field"><label>País</label><input id="m_pais" list="lista_paises" placeholder="País"><datalist id="lista_paises"></datalist></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
           <div class="field"><label>Monto Mensual Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
         </div>
@@ -869,6 +869,8 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     document.getElementById('m_correo').value=''; document.getElementById('m_telefono').value='';
     document.getElementById('m_profesion').value=''; document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value='';
     document.getElementById('m_pais').value=''; document.getElementById('m_certificado').value='';
+    document.getElementById('m_monto_mensual').value=''; document.getElementById('m_metodo_pago').selectedIndex=0;
+    document.getElementById('m_referencia_pago').value='';
     document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value='';
     document.getElementById('m_file_cedula').value='';
     document.getElementById('pago_lines').innerHTML=''; agregarLineaPago();
