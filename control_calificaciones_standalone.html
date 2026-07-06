@@ -475,7 +475,7 @@ function nominaActiva(estudiante){
 }
 
 function estaDadoDeBaja(estudiante){
-  return !nominaActiva(estudiante) || modulosSinPagar(estudiante) >= 2;
+  return !nominaActiva(estudiante);
 }
 
 window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
