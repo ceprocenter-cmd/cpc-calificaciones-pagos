@@ -412,6 +412,7 @@ let MATRICULAS = [];
 let ASISTENCIA = [];
 let CURSOS_INFO = [];
 let FACILITADORES = [];
+let PAGOS = [];
 let CURSO_ACTUAL = null;
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
@@ -452,7 +453,7 @@ async function apiPost(sheet, action, extra){
 function normNum(v){ return Number(v)||0; }
 
 async function loadAll(){
-  const [nom, mod, cal, mat, asi, cinfo, fac] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores')]);
+  const [nom, mod, cal, mat, asi, cinfo, fac, pag] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos')]);
   NOMINA = nom;
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
@@ -460,6 +461,16 @@ async function loadAll(){
   ASISTENCIA = asi;
   CURSOS_INFO = cinfo;
   FACILITADORES = fac;
+  PAGOS = pag;
+}
+
+function modulosSinPagar(estudiante){
+  const modulosCurso = modulosDelCurso();
+  return modulosCurso.filter(m => !PAGOS.some(p => p.curso===CURSO_ACTUAL && p.estudiante===estudiante && p.modulo===m)).length;
+}
+
+function estaDadoDeBaja(estudiante){
+  return modulosSinPagar(estudiante) >= 2;
 }
 
 function getCursoInfo(curso){
@@ -710,10 +721,12 @@ function renderReporteCurso(){
 
   const filas = estudiantesDelCurso().map(estudiante=>{
     const notas = porEstudiante[estudiante] || [];
-    if(notas.length===0) return {estudiante, prom:null, count:0, aprobado:null};
+    const baja = estaDadoDeBaja(estudiante);
+    if(notas.length===0) return {estudiante, prom:null, count:0, aprobado:null, baja};
     const prom = notas.reduce((s,n)=>s+n.nota,0)/notas.length;
-    return {estudiante, prom, count:notas.length, aprobado: prom>=NOTA_MINIMA};
+    return {estudiante, prom, count:notas.length, aprobado: prom>=NOTA_MINIMA, baja};
   }).sort((a,b)=>{
+    if(a.baja !== b.baja) return a.baja ? 1 : -1;
     if(a.prom===null && b.prom===null) return a.estudiante.localeCompare(b.estudiante);
     if(a.prom===null) return 1;
     if(b.prom===null) return -1;
@@ -723,10 +736,12 @@ function renderReporteCurso(){
   const totalEst = filas.length;
   const aprobados = filas.filter(f=>f.aprobado===true).length;
   const sinNotas = filas.filter(f=>f.prom===null).length;
-  resumenBox.innerHTML = `<p class="hint" style="margin:0;">${totalEst} estudiantes en nómina — ${aprobados} aprobados, ${filas.filter(f=>f.aprobado===false).length} reprobados, ${sinNotas} sin notas aún (mínimo: ${NOTA_MINIMA}).</p>`;
+  const bajas = filas.filter(f=>f.baja).length;
+  resumenBox.innerHTML = `<p class="hint" style="margin:0;">${totalEst} estudiantes en nómina — ${aprobados} aprobados, ${filas.filter(f=>f.aprobado===false).length} reprobados, ${sinNotas} sin notas aún (mínimo: ${NOTA_MINIMA})${bajas>0?`, ${bajas} no continuaron`:''}.</p>`;
 
   tblResumen.innerHTML = filas.map(f=>`
-    <tr><td>${f.estudiante}</td>
+    <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}">
+    <td>${f.estudiante}${f.baja?' <span class="pill na">No continuó</span>':''}</td>
     <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
     <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
     <td class="num">${f.count}</td>
