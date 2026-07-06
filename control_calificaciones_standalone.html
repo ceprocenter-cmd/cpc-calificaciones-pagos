@@ -454,7 +454,7 @@ function normNum(v){ return Number(v)||0; }
 
 async function loadAll(){
   const [nom, mod, cal, mat, asi, cinfo, fac, pag] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos')]);
-  NOMINA = nom;
+  NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
   MATRICULAS = mat;
@@ -469,9 +469,25 @@ function modulosSinPagar(estudiante){
   return modulosCurso.filter(m => !PAGOS.some(p => p.curso===CURSO_ACTUAL && p.estudiante===estudiante && p.modulo===m)).length;
 }
 
-function estaDadoDeBaja(estudiante){
-  return modulosSinPagar(estudiante) >= 2;
+function nominaActiva(estudiante){
+  const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
+  return reg ? reg.activo : true;
 }
+
+function estaDadoDeBaja(estudiante){
+  return !nominaActiva(estudiante) || modulosSinPagar(estudiante) >= 2;
+}
+
+window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
+  const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
+  if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
+  try{
+    await apiPost('Nomina','update',{id:reg.id, data:{activo:nuevoValor}});
+    showToast(nuevoValor ? 'Estudiante reactivado.' : 'Marcado como "no continuó".');
+    await loadAll();
+    renderAllCurso();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
 
 function getCursoInfo(curso){
   return CURSOS_INFO.filter(c=>c.curso===curso).slice(-1)[0] || null;
@@ -745,7 +761,12 @@ function renderReporteCurso(){
     <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
     <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
     <td class="num">${f.count}</td>
-    <td>${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}</td></tr>
+    <td>
+      ${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}
+      ${nominaActiva(f.estudiante)
+        ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', false)">No Continúa</button>`
+        : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', true)">Reactivar</button>`}
+    </td></tr>
   `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
 
   renderListaModulosReporte();
