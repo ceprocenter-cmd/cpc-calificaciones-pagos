@@ -34,6 +34,14 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;max-width:88%;text-align:center;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .setup-hint{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;font-size:13px;color:var(--text-dim);}
+  .est-card{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--panel-2);}
+  .est-card .est-nombre{font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;margin-bottom:10px;}
+  .est-card .est-fila{display:flex;gap:10px;margin-bottom:10px;}
+  .est-card .est-fila select{flex:0 0 118px;}
+  .est-card .est-fila input[type="number"]{flex:1;}
+  .est-card textarea{min-height:52px;font-size:14px;}
+  .est-card input[type="file"]{font-size:12px;}
+  .est-card.est-llena{border-color:var(--accent-dark);background:#fff;}
 </style>
 </head>
 <body>
@@ -64,17 +72,11 @@
   </div>
 
   <div class="panel" id="form_box" style="display:none;">
-    <div class="field"><label>Estudiante <span class="req">*</span></label><select id="f_estudiante"><option value="">Selecciona un curso primero</option></select></div>
-    <div class="field"><label>Tipo</label>
-      <select id="f_tipo">
-        <option>Regular</option>
-        <option>Recuperativa</option>
-      </select>
-    </div>
-    <div class="field"><label id="lbl_f_nota">Nota (sobre 10) <span class="req">*</span></label><input id="f_nota" type="number" step="0.1" min="0" max="10" placeholder="0.0"></div>
-    <div class="field"><label>Retroalimentación <span class="req">*</span></label><textarea id="f_retro" placeholder="Comentario sobre el desempeño del estudiante en esta evaluación..."></textarea></div>
-    <div class="field"><label>Archivo Adjunto (opcional)</label><input id="f_archivo" type="file" accept="image/*,.pdf,.doc,.docx"></div>
-    <button class="btn" id="btn_guardar">Guardar Calificación</button>
+    <h2 style="font-size:15px;margin:0 0 4px;">Calificar a Todo el Curso</h2>
+    <p style="text-align:left;margin:0 0 16px;color:var(--text-dim);font-size:14px;line-height:1.5;">Llena la nota de cada estudiante que vas a calificar en este módulo — puedes dejar en blanco a quien todavía no evalúes, y guardar todo junto al final.</p>
+    <div id="lista_estudiantes"></div>
+    <button class="btn" id="btn_guardar_todo" style="margin-top:8px;">Guardar Todas las Calificaciones</button>
+    <div id="progreso_guardado" style="text-align:center;font-size:13px;color:var(--text-dim);margin-top:10px;"></div>
   </div>
 
 </div>
@@ -172,7 +174,7 @@ document.getElementById('btn_identificarme').addEventListener('click', ()=>{
 
   document.getElementById('f_curso').innerHTML = '<option value="">Selecciona un curso</option>' + cursosAsignados.map(c=>`<option value="${c}">${c}</option>`).join('');
   document.getElementById('f_modulo').innerHTML = '<option value="">Selecciona un curso primero</option>';
-  document.getElementById('f_estudiante').innerHTML = '<option value="">Selecciona un curso primero</option>';
+  document.getElementById('lista_estudiantes').innerHTML = '';
   actualizarContexto();
 });
 
@@ -187,14 +189,46 @@ document.getElementById('f_curso').addEventListener('change', ()=>{
     ? modulosAsignados.map(m=>`<option value="${m}">${m}</option>`).join('')
     : '<option value="">(no tienes módulos asignados en este curso)</option>';
 
-  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
-  document.getElementById('f_estudiante').innerHTML = estudiantes.length
-    ? '<option value="">Selecciona un estudiante</option>' + estudiantes.map(e=>`<option value="${e}">${e}</option>`).join('')
-    : '<option value="">(sin estudiantes en la nómina)</option>';
-
+  renderListaEstudiantes();
   actualizarContexto();
 });
-document.getElementById('f_modulo').addEventListener('change', actualizarContexto);
+document.getElementById('f_modulo').addEventListener('change', ()=>{ renderListaEstudiantes(); actualizarContexto(); });
+
+function renderListaEstudiantes(){
+  const curso = document.getElementById('f_curso').value;
+  const modulo = document.getElementById('f_modulo').value;
+  const box = document.getElementById('lista_estudiantes');
+  if(!curso || !modulo){ box.innerHTML=''; return; }
+
+  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  if(estudiantes.length===0){ box.innerHTML = '<p class="hint" style="text-align:left;">No hay estudiantes en la nómina de este curso.</p>'; return; }
+
+  box.innerHTML = estudiantes.map((est,i)=>`
+    <div class="est-card" data-estudiante="${est.replace(/"/g,'&quot;')}">
+      <div class="est-nombre">${est}</div>
+      <div class="est-fila">
+        <select class="est-tipo">
+          <option>Regular</option>
+          <option>Recuperativa</option>
+        </select>
+        <input class="est-nota" type="number" step="0.1" min="0" max="10" placeholder="Nota">
+      </div>
+      <textarea class="est-retro" placeholder="Retroalimentación (obligatoria si le pones nota)"></textarea>
+      <div style="margin-top:8px;"><input class="est-archivo" type="file" accept="image/*,.pdf,.doc,.docx"></div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('lista_estudiantes').addEventListener('change', (e)=>{
+  if(!e.target.classList.contains('est-tipo')) return;
+  const card = e.target.closest('.est-card');
+  const esRecuperativa = e.target.value === 'Recuperativa';
+  const maxNota = esRecuperativa ? 9 : 10;
+  const notaInput = card.querySelector('.est-nota');
+  notaInput.max = maxNota;
+  notaInput.placeholder = `Nota (sobre ${maxNota})`;
+  if(Number(notaInput.value) > maxNota) notaInput.value = maxNota;
+});
 
 function fileToBase64(file){
   return new Promise((resolve,reject)=>{
@@ -205,63 +239,73 @@ function fileToBase64(file){
   });
 }
 
-document.getElementById('f_tipo').addEventListener('change', ()=>{
-  const esRecuperativa = document.getElementById('f_tipo').value === 'Recuperativa';
-  const maxNota = esRecuperativa ? 9 : 10;
-  document.getElementById('f_nota').max = maxNota;
-  document.getElementById('lbl_f_nota').innerHTML = `Nota (sobre ${maxNota}) <span class="req">*</span>`;
-  const actual = Number(document.getElementById('f_nota').value);
-  if(actual > maxNota) document.getElementById('f_nota').value = maxNota;
-});
-
-document.getElementById('btn_guardar').addEventListener('click', async ()=>{
-  const tutor = document.getElementById('f_tutor').value.trim();
+document.getElementById('btn_guardar_todo').addEventListener('click', async ()=>{
   const curso = document.getElementById('f_curso').value;
   const modulo = document.getElementById('f_modulo').value;
-  const estudiante = document.getElementById('f_estudiante').value;
-  const tipo = document.getElementById('f_tipo').value;
-  const nota = Number(document.getElementById('f_nota').value);
-  const retroalimentacion = document.getElementById('f_retro').value.trim();
-  const archivoInput = document.getElementById('f_archivo');
-  const maxNota = tipo === 'Recuperativa' ? 9 : 10;
-
-  if(!tutor){ showToast('Escribe tu nombre.'); return; }
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!modulo){ showToast('Selecciona un módulo.'); return; }
-  if(!estudiante){ showToast('Selecciona un estudiante.'); return; }
-  if(isNaN(nota) || nota<0 || nota>maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}.`); return; }
-  if(!retroalimentacion){ showToast('La retroalimentación es obligatoria.'); return; }
 
-  const btn = document.getElementById('btn_guardar');
-  btn.disabled = true; btn.textContent = 'Guardando...';
+  const tarjetas = [...document.querySelectorAll('.est-card')];
+  const aGuardar = [];
+  const errores = [];
 
-  try{
-    let archivo = null;
-    if(archivoInput.files[0]){
-      const f = archivoInput.files[0];
-      archivo = {data: await fileToBase64(f), name: f.name, mimeType: f.type||'application/octet-stream'};
+  tarjetas.forEach(card=>{
+    const estudiante = card.dataset.estudiante;
+    const notaInput = card.querySelector('.est-nota');
+    const notaTexto = notaInput.value.trim();
+    if(!notaTexto) return; // se deja en blanco a propósito, se ignora
+
+    const tipo = card.querySelector('.est-tipo').value;
+    const nota = Number(notaTexto);
+    const retro = card.querySelector('.est-retro').value.trim();
+    const maxNota = tipo === 'Recuperativa' ? 9 : 10;
+    const archivoInput = card.querySelector('.est-archivo');
+
+    if(isNaN(nota) || nota<0 || nota>maxNota){ errores.push(`${estudiante}: nota fuera de rango (0-${maxNota})`); return; }
+    if(!retro){ errores.push(`${estudiante}: falta la retroalimentación`); return; }
+
+    aGuardar.push({estudiante, tipo, nota, retro, archivoFile: archivoInput.files[0] || null, card});
+  });
+
+  if(errores.length>0){ showToast('Revisa: ' + errores.join(' | ')); return; }
+  if(aGuardar.length===0){ showToast('No hay ninguna nota para guardar.'); return; }
+
+  const tutor = TUTOR_ACTUAL;
+  const btn = document.getElementById('btn_guardar_todo');
+  const progreso = document.getElementById('progreso_guardado');
+  btn.disabled = true;
+
+  let guardadas = 0;
+  for(const item of aGuardar){
+    progreso.textContent = `Guardando ${guardadas+1} de ${aGuardar.length}...`;
+    try{
+      let archivo = null;
+      if(item.archivoFile){
+        archivo = {data: await fileToBase64(item.archivoFile), name: item.archivoFile.name, mimeType: item.archivoFile.type||'application/octet-stream'};
+      }
+      const res = await fetch(API_URL, {
+        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          action:'agregarCalificacion',
+          data:{ fecha:new Date().toISOString().slice(0,10), curso, modulo, estudiante:item.estudiante, tipo:item.tipo, nota:item.nota, retroalimentacion:item.retro, tutor, archivo }
+        })
+      });
+      const json = await res.json();
+      if(json.error) throw new Error(json.error);
+      guardadas++;
+      item.card.querySelector('.est-nota').value = '';
+      item.card.querySelector('.est-retro').value = '';
+      item.card.querySelector('.est-archivo').value = '';
+    }catch(e){
+      progreso.textContent = `Error guardando a ${item.estudiante}: ${e.message}. Se detuvo en ${guardadas} de ${aGuardar.length}.`;
+      btn.disabled = false;
+      return;
     }
-
-    const res = await fetch(API_URL, {
-      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({
-        action:'agregarCalificacion',
-        data:{ fecha:new Date().toISOString().slice(0,10), curso, modulo, estudiante, tipo, nota, retroalimentacion, tutor, archivo }
-      })
-    });
-    const json = await res.json();
-    if(json.error) throw new Error(json.error);
-
-    showToast(`Nota de ${estudiante} guardada.`);
-    document.getElementById('f_estudiante').value = '';
-    document.getElementById('f_nota').value = '';
-    document.getElementById('f_retro').value = '';
-    archivoInput.value = '';
-  }catch(e){
-    showToast('Error al guardar: '+e.message);
-  }finally{
-    btn.disabled = false; btn.textContent = 'Guardar Calificación';
   }
+
+  progreso.textContent = '';
+  btn.disabled = false;
+  showToast(`${guardadas} calificación(es) guardada(s) con éxito.`);
 });
 </script>
 </body>
