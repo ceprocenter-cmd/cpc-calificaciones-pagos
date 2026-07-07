@@ -558,10 +558,7 @@ function renderSolicitudes(){
         </div>
         <div class="field sol-cuenta-destino-wrap" style="display:${(s.metodoPago==='Transferencia Bancaria'||s.metodoPago==='Depósito')?'block':'none'};"><label>¿A cuál cuenta llegó?</label>
           <select class="sol-cuenta-destino">
-            <option>Banco Pacífico</option>
-            <option>Banco Pichincha</option>
-            <option>Banco Guayaquil</option>
-            <option>Otra</option>
+            ${['Banco Pacífico','Banco Pichincha','Banco Guayaquil','Otra'].map(c=>`<option ${c===s.cuentaDestino?'selected':''}>${c}</option>`).join('')}
           </select>
         </div>
         <div class="field"><label>N° de Referencia del Pago</label><input class="sol-referencia-pago" value="${s.referenciaPago||''}"></div>
