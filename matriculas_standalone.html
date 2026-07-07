@@ -209,6 +209,14 @@
               <option>Otro</option>
             </select>
           </div>
+          <div class="field" id="m_cuenta_destino_wrap" style="display:none;"><label>¿A cuál cuenta llegó?</label>
+            <select id="m_cuenta_destino">
+              <option>Banco Pacífico</option>
+              <option>Banco Pichincha</option>
+              <option>Banco Guayaquil</option>
+              <option>Otra</option>
+            </select>
+          </div>
           <div class="field"><label>N° de Referencia del Pago</label><input id="m_referencia_pago" placeholder="Número de comprobante o transacción"></div>
           <div class="field"><label>Comprobante de Pago (requerido)</label><input id="m_file_comprobante" type="file" accept="image/*,.pdf"></div>
           <div class="field"><label>Título / Constancia de Estudios (opcional)</label><input id="m_file_titulo" type="file" accept="image/*,.pdf"></div>
@@ -323,6 +331,12 @@ function actualizarCodigoPais(){
     telInput.value = codigo + ' ' + actual;
   }
 }
+document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
+  const metodo = document.getElementById('m_metodo_pago').value;
+  const requiereCuenta = metodo === 'Transferencia Bancaria' || metodo === 'Depósito';
+  document.getElementById('m_cuenta_destino_wrap').style.display = requiereCuenta ? 'block' : 'none';
+});
+
 document.getElementById('m_pais').addEventListener('change', actualizarCodigoPais);
 document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
 
@@ -538,8 +552,16 @@ function renderSolicitudes(){
           </select>
         </div>
         <div class="field"><label>Método de Pago</label>
-          <select class="sol-metodo-pago">
+          <select class="sol-metodo-pago" onchange="this.closest('.grid').querySelector('.sol-cuenta-destino-wrap').style.display = (this.value==='Transferencia Bancaria'||this.value==='Depósito') ? 'block' : 'none';">
             ${['Transferencia Bancaria','Depósito','Efectivo','PayPal','Zelle','Binance','Pago Móvil','Western Union/Zoom','Tarjeta de Crédito','Otro'].map(m=>`<option ${m===s.metodoPago?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field sol-cuenta-destino-wrap" style="display:${(s.metodoPago==='Transferencia Bancaria'||s.metodoPago==='Depósito')?'block':'none'};"><label>¿A cuál cuenta llegó?</label>
+          <select class="sol-cuenta-destino">
+            <option>Banco Pacífico</option>
+            <option>Banco Pichincha</option>
+            <option>Banco Guayaquil</option>
+            <option>Otra</option>
           </select>
         </div>
         <div class="field"><label>N° de Referencia del Pago</label><input class="sol-referencia-pago" value="${s.referenciaPago||''}"></div>
@@ -625,6 +647,7 @@ window.confirmarSolicitud = async function(solId){
   const certificado = card.querySelector('.sol-certificado').value.trim();
   const asesor = card.querySelector('.sol-asesor').value;
   const metodoPago = card.querySelector('.sol-metodo-pago').value;
+  const cuentaDestino = (metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') ? card.querySelector('.sol-cuenta-destino').value : '';
   const referenciaPago = card.querySelector('.sol-referencia-pago').value.trim();
 
   if(!curso){ showToast('Selecciona un curso válido.'); return; }
@@ -654,7 +677,7 @@ window.confirmarSolicitud = async function(solId){
   try{
     await apiConfirmarSolicitud({
       solicitudId: solId, fecha: new Date().toISOString().slice(0,10),
-      curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, asesor, metodoPago, referenciaPago,
+      curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, asesor, metodoPago, cuentaDestino, referenciaPago,
       modulosPagados,
       archivosExistentes
     });
@@ -826,6 +849,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   const certificado = document.getElementById('m_certificado').value.trim();
   const montoMensual = Number(document.getElementById('m_monto_mensual').value)||0;
   const metodoPago = document.getElementById('m_metodo_pago').value;
+  const cuentaDestino = document.getElementById('m_cuenta_destino_wrap').style.display !== 'none' ? document.getElementById('m_cuenta_destino').value : '';
   const referenciaPago = document.getElementById('m_referencia_pago').value.trim();
 
   if(!curso){ showToast('Selecciona un curso.'); return; }
@@ -860,7 +884,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     if(fileCedula) archivos.cedulaDoc = {data: await fileToBase64(fileCedula), name: fileCedula.name, mimeType: fileCedula.type||'application/octet-stream'};
 
     await apiMatricular({
-      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, instagram, ciudad, pais, certificado, montoMensual, metodoPago, referenciaPago, asesor,
+      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, instagram, ciudad, pais, certificado, montoMensual, metodoPago, cuentaDestino, referenciaPago, asesor,
       modulosPagados, archivos
     });
 
@@ -870,6 +894,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     document.getElementById('m_profesion').value=''; document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value='';
     document.getElementById('m_pais').value=''; document.getElementById('m_certificado').value='';
     document.getElementById('m_monto_mensual').value=''; document.getElementById('m_metodo_pago').selectedIndex=0;
+    document.getElementById('m_cuenta_destino').selectedIndex=0; document.getElementById('m_cuenta_destino_wrap').style.display='none';
     document.getElementById('m_referencia_pago').value='';
     document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value='';
     document.getElementById('m_file_cedula').value='';
