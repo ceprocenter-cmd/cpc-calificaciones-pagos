@@ -275,6 +275,10 @@
       <div class="panel">
         <h2>Conciliación Bancaria</h2>
         <p class="hint">Finanzas confirma aquí, pago por pago, que el dinero efectivamente cayó en la cuenta.</p>
+        <div class="grid cols3" style="margin-bottom:12px;">
+          <div class="field"><label>Filtrar por Método de Pago</label><select id="conc_filtro_metodo"><option value="">Todos</option></select></div>
+          <div class="field"><label>Filtrar por Cuenta / Banco</label><select id="conc_filtro_cuenta"><option value="">Todas</option></select></div>
+        </div>
         <div id="conciliacion_resumen"></div>
         <div class="table-scroll" style="margin-top:12px;">
           <table>
@@ -1049,7 +1053,35 @@ function renderReporteMensual(){
   renderConciliacion(pagos);
 }
 
+let PAGOS_CONCILIACION_ACTUAL = [];
+
 function renderConciliacion(pagos){
+  PAGOS_CONCILIACION_ACTUAL = pagos;
+
+  const selMetodo = document.getElementById('conc_filtro_metodo');
+  const selCuenta = document.getElementById('conc_filtro_cuenta');
+  const metodoPrevio = selMetodo.value;
+  const cuentaPrevia = selCuenta.value;
+
+  const metodos = [...new Set(pagos.map(p=>p.metodoPago).filter(Boolean))].sort();
+  const cuentas = [...new Set(pagos.map(p=>p.cuentaDestino).filter(Boolean))].sort();
+  selMetodo.innerHTML = '<option value="">Todos</option>' + metodos.map(m=>`<option ${m===metodoPrevio?'selected':''}>${m}</option>`).join('');
+  selCuenta.innerHTML = '<option value="">Todas</option>' + cuentas.map(c=>`<option ${c===cuentaPrevia?'selected':''}>${c}</option>`).join('');
+
+  aplicarFiltrosConciliacion();
+}
+
+document.getElementById('conc_filtro_metodo').addEventListener('change', aplicarFiltrosConciliacion);
+document.getElementById('conc_filtro_cuenta').addEventListener('change', aplicarFiltrosConciliacion);
+
+function aplicarFiltrosConciliacion(){
+  const metodo = document.getElementById('conc_filtro_metodo').value;
+  const cuenta = document.getElementById('conc_filtro_cuenta').value;
+
+  const pagos = PAGOS_CONCILIACION_ACTUAL.filter(p=>
+    (!metodo || p.metodoPago===metodo) && (!cuenta || p.cuentaDestino===cuenta)
+  );
+
   const body = document.getElementById('tabla_conciliacion');
   const empty = document.getElementById('conciliacion_empty');
   if(pagos.length===0){ body.innerHTML=''; empty.style.display='block'; document.getElementById('conciliacion_resumen').innerHTML=''; return; }
