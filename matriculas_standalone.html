@@ -1038,7 +1038,7 @@ function renderConciliacion(pagos){
         ? '<span class="pill ok">Confirmado</span>'
         : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button>
            <div style="margin-top:4px;"><a href="#" onclick="event.preventDefault(); confirmarPagoBanco('${p.id}', true);" style="font-size:11px;color:var(--text-dim);">Es histórica</a></div>`}</td>
-      <td>${p.curso}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
+      <td title="${p.curso.replace(/"/g,'&quot;')}">${acortarCurso(p.curso)}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
       <td class="num">${fmt(p.monto)}</td>
       <td>${p.metodoPago||'—'}</td>
       <td>${p.referenciaPago||'—'}</td>
@@ -1048,8 +1048,14 @@ function renderConciliacion(pagos){
 
 function acortarConcepto(texto){
   if(!texto) return '';
-  const match = texto.match(/\d+/);
-  return match ? 'Módulo ' + match[0] : texto;
+  const match = texto.match(/m[oó]dulo\s*(\d+)/i) || texto.match(/(\d+)/);
+  if(match) return 'Módulo ' + match[1];
+  return texto.length > 15 ? texto.slice(0,15).trim() + '…' : texto;
+}
+
+function acortarCurso(texto){
+  if(!texto) return '';
+  return texto.length > 22 ? texto.slice(0,22).trim() + '…' : texto;
 }
 
 function fechaCorta(fechaStr){
