@@ -405,10 +405,10 @@ async function apiConfirmarSolicitud(data){
   if(json.error) throw new Error(json.error);
   return json;
 }
-async function apiConfirmarPagoBanco(pagoId){
+async function apiConfirmarPagoBanco(pagoId, esHistorica){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'confirmarPagoBanco', pagoId})
+    body: JSON.stringify({action:'confirmarPagoBanco', pagoId, esHistorica: !!esHistorica})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -1036,13 +1036,20 @@ function renderConciliacion(pagos){
       <td class="sticky-col sticky-2">${p.estudiante}</td>
       <td class="sticky-col sticky-3">${p.confirmadoBanco
         ? '<span class="pill ok">Confirmado</span>'
-        : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button>`}</td>
-      <td>${p.curso}</td><td>${p.modulo}</td>
+        : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button>
+           <div style="margin-top:4px;"><a href="#" onclick="event.preventDefault(); confirmarPagoBanco('${p.id}', true);" style="font-size:11px;color:var(--text-dim);">Es histórica</a></div>`}</td>
+      <td>${p.curso}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
       <td class="num">${fmt(p.monto)}</td>
       <td>${p.metodoPago||'—'}</td>
       <td>${p.referenciaPago||'—'}</td>
     </tr>
   `).join('');
+}
+
+function acortarConcepto(texto){
+  if(!texto) return '';
+  const match = texto.match(/\d+/);
+  return match ? 'Módulo ' + match[0] : texto;
 }
 
 function fechaCorta(fechaStr){
@@ -1052,10 +1059,10 @@ function fechaCorta(fechaStr){
   return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 
-window.confirmarPagoBanco = async function(pagoId){
+window.confirmarPagoBanco = async function(pagoId, esHistorica){
   try{
-    await apiConfirmarPagoBanco(pagoId);
-    showToast('Pago confirmado en banco — ya se registró como ingreso en el Financiero.');
+    await apiConfirmarPagoBanco(pagoId, !!esHistorica);
+    showToast(esHistorica ? 'Pago confirmado — registrado en el Financiero como venta histórica (no suma al saldo).' : 'Pago confirmado en banco — ya se registró como ingreso en el Financiero.');
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al confirmar: '+e.message); }
