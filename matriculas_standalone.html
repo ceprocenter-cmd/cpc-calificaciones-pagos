@@ -168,21 +168,18 @@
         <p class="hint">Si el estudiante ya existe en este curso, escribe su nombre exacto para ver qué ha pagado.</p>
 
         <div class="grid cols3">
-          <div class="field"><label>Curso</label><select id="m_curso"></select></div>
-          <div class="field"><label>Asesor</label><select id="m_asesor"><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
-        </div>
-
-        <div class="grid cols3" style="margin-top:14px;">
-          <div class="field"><label>Nombre del Estudiante</label><input id="m_estudiante" list="lista_est_curso" placeholder="Nombre completo"></div>
+          <div class="field"><label>Diplomado</label><select id="m_curso"></select></div>
+          <div class="field"><label>Nombre Completo</label><input id="m_estudiante" list="lista_est_curso" placeholder="Nombre completo"></div>
           <div class="field"><label>Cédula</label><input id="m_cedula" placeholder="N° de cédula"></div>
           <div class="field"><label>Correo</label><input id="m_correo" type="email" placeholder="correo@ejemplo.com"></div>
           <div class="field"><label>País</label><input id="m_pais" list="lista_paises" placeholder="País"><datalist id="lista_paises"></datalist></div>
           <div class="field"><label>Ciudad</label><input id="m_ciudad" placeholder="Ciudad"></div>
           <div class="field"><label>Teléfono</label><input id="m_telefono" placeholder="+593 ..."></div>
+          <div class="field"><label>Asesor</label><select id="m_asesor"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
           <div class="field"><label>Profesión</label><input id="m_profesion" placeholder="Profesión"></div>
           <div class="field"><label>Usuario de Instagram</label><input id="m_instagram" placeholder="@usuario"></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
-          <div class="field"><label>Monto Mensual Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
+          <div class="field"><label>Monto Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
         </div>
         <datalist id="lista_est_curso"></datalist>
 
@@ -901,6 +898,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   if(!fecha){ showToast('Escribe la fecha del pago.'); return; }
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+  if(!asesor){ showToast('Selecciona el asesor.'); return; }
   if(!metodoPago){ showToast('Selecciona el método de pago.'); return; }
   if((metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') && !cuentaDestino){ showToast('Selecciona a cuál cuenta llegó el pago.'); return; }
 
