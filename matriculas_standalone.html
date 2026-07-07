@@ -168,7 +168,6 @@
         <p class="hint">Si el estudiante ya existe en este curso, escribe su nombre exacto para ver qué ha pagado.</p>
 
         <div class="grid cols3">
-          <div class="field"><label>Fecha</label><input id="m_fecha" type="date"></div>
           <div class="field"><label>Curso</label><select id="m_curso"></select></div>
           <div class="field"><label>Asesor</label><select id="m_asesor"><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
         </div>
@@ -195,6 +194,7 @@
         </div>
 
         <div class="grid" style="margin-top:16px;">
+          <div class="field"><label>Fecha del Pago</label><input id="m_fecha" type="date"></div>
           <div class="field"><label>Método de Pago</label>
             <select id="m_metodo_pago">
               <option value="">Selecciona una opción</option>
@@ -881,7 +881,7 @@ function actualizarTotalPago(){
 
 document.getElementById('btn_guardar_matricula').addEventListener('click', async ()=>{
   if(!API_URL){ showToast('El modo demo no puede subir archivos ni crear carpetas en Drive — conecta tu Apps Script real para guardar matrículas de verdad.'); return; }
-  const fecha = document.getElementById('m_fecha').value || new Date().toISOString().slice(0,10);
+  const fecha = document.getElementById('m_fecha').value;
   const curso = document.getElementById('m_curso').value;
   const asesor = document.getElementById('m_asesor').value;
   const estudiante = document.getElementById('m_estudiante').value.trim();
@@ -898,6 +898,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   const cuentaDestino = document.getElementById('m_cuenta_destino_wrap').style.display !== 'none' ? document.getElementById('m_cuenta_destino').value : '';
   const referenciaPago = document.getElementById('m_referencia_pago').value.trim();
 
+  if(!fecha){ showToast('Escribe la fecha del pago.'); return; }
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
   if(!metodoPago){ showToast('Selecciona el método de pago.'); return; }
@@ -937,6 +938,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     });
 
     showToast('¡Matrícula guardada! Carpeta creada en Drive.');
+    document.getElementById('m_fecha').value='';
     document.getElementById('m_estudiante').value=''; document.getElementById('m_cedula').value='';
     document.getElementById('m_correo').value=''; document.getElementById('m_telefono').value='';
     document.getElementById('m_profesion').value=''; document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value='';
@@ -1362,7 +1364,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
   });
 });
 
-document.getElementById('m_fecha').valueAsDate = new Date();
 initApp();
 </script>
 </body>
