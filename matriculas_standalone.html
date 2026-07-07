@@ -197,6 +197,7 @@
         <div class="grid" style="margin-top:16px;">
           <div class="field"><label>Método de Pago</label>
             <select id="m_metodo_pago">
+              <option value="">Selecciona una opción</option>
               <option>Transferencia Bancaria</option>
               <option>Depósito</option>
               <option>Efectivo</option>
@@ -340,6 +341,18 @@ document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
 document.getElementById('m_pais').addEventListener('change', actualizarCodigoPais);
 document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
 
+function normalizarNombreEst(t){
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+
+function buscarDatosPrevios(estudiante){
+  const nombreNorm = normalizarNombreEst(estudiante);
+  const coincidencias = MATRICULAS.filter(m => normalizarNombreEst(m.estudiante||'') === nombreNorm);
+  if(coincidencias.length===0) return null;
+  // toma la más reciente (última en la lista, asumiendo orden de inserción/fecha)
+  return coincidencias[coincidencias.length-1];
+}
+
 document.getElementById('m_estudiante').addEventListener('blur', ()=>{
   const el = document.getElementById('m_estudiante');
   const valor = el.value.trim();
@@ -348,6 +361,23 @@ document.getElementById('m_estudiante').addEventListener('blur', ()=>{
   const soloMinus = valor === valor.toLowerCase();
   if(soloMayus || soloMinus){
     el.value = valor.toLowerCase().replace(/(^|\s)([a-záéíóúñü])/g, (m,esp,letra)=>esp+letra.toUpperCase());
+  }
+
+  const previo = buscarDatosPrevios(el.value.trim());
+  if(previo){
+    const campos = {
+      m_cedula: previo.cedula, m_correo: previo.correo, m_telefono: previo.telefono,
+      m_profesion: previo.profesion, m_instagram: previo.instagram, m_ciudad: previo.ciudad,
+      m_pais: previo.pais, m_certificado: previo.certificado
+    };
+    let rellenoAlgo = false;
+    Object.entries(campos).forEach(([id, val])=>{
+      const campo = document.getElementById(id);
+      if(campo && !campo.value.trim() && val){ campo.value = val; rellenoAlgo = true; }
+    });
+    if(rellenoAlgo){
+      showToast(`Encontramos una matrícula anterior de ${el.value.trim()} (en "${previo.curso}") — autocompletamos sus datos, revisa que sigan vigentes.`);
+    }
   }
 });
 
@@ -562,6 +592,7 @@ function renderSolicitudes(){
         </div>
         <div class="field"><label>Método de Pago</label>
           <select class="sol-metodo-pago" onchange="this.closest('.grid').querySelector('.sol-cuenta-destino-wrap').style.display = (this.value==='Transferencia Bancaria'||this.value==='Depósito') ? 'block' : 'none';">
+            <option value="" ${!s.metodoPago?'selected':''}>Selecciona una opción</option>
             ${['Transferencia Bancaria','Depósito','Efectivo','PayPal','Zelle','Binance','Pago Móvil','Western Union/Zoom','Tarjeta de Crédito','Otro'].map(m=>`<option ${m===s.metodoPago?'selected':''}>${m}</option>`).join('')}
           </select>
         </div>
@@ -658,6 +689,8 @@ window.confirmarSolicitud = async function(solId){
 
   if(!curso){ showToast('Selecciona un curso válido.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+  if(!metodoPago){ showToast('Selecciona el método de pago.'); return; }
+  if((metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') && !cuentaDestino){ showToast('Selecciona a cuál cuenta llegó el pago.'); return; }
 
   const modulosPagados = [];
   let error = null;
@@ -860,6 +893,8 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
 
   if(!curso){ showToast('Selecciona un curso.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+  if(!metodoPago){ showToast('Selecciona el método de pago.'); return; }
+  if((metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') && !cuentaDestino){ showToast('Selecciona a cuál cuenta llegó el pago.'); return; }
 
   const modulosPagados = [];
   let error = null;
