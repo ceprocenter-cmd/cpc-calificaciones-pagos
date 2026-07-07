@@ -86,6 +86,14 @@
         <option>Western Union/Zoom</option><option>Tarjeta de Crédito</option><option>Otro</option>
       </select>
     </div>
+    <div class="field" id="f_cuenta_destino_wrap" style="display:none;"><label>¿A cuál cuenta transferiste/depositaste?</label>
+      <select id="f_cuenta_destino">
+        <option>Banco Pacífico</option>
+        <option>Banco Pichincha</option>
+        <option>Banco Guayaquil</option>
+        <option>Otra</option>
+      </select>
+    </div>
     <div class="field"><label>N° de Referencia del Pago</label><input id="f_referencia_pago" placeholder="Número de comprobante o transacción"></div>
     <div class="field"><label>Comprobante de pago <span class="req">*</span></label><input id="f_file_comprobante" type="file" accept="image/*,.pdf"></div>
     <div class="field"><label>Foto de tu cédula</label><input id="f_file_cedula" type="file" accept="image/*,.pdf"></div>
@@ -139,6 +147,12 @@ async function cargarCursos(){
 }
 cargarCursos();
 
+document.getElementById('f_metodo_pago').addEventListener('change', ()=>{
+  const metodo = document.getElementById('f_metodo_pago').value;
+  const requiereCuenta = metodo === 'Transferencia Bancaria' || metodo === 'Depósito';
+  document.getElementById('f_cuenta_destino_wrap').style.display = requiereCuenta ? 'block' : 'none';
+});
+
 document.getElementById('btn_enviar').addEventListener('click', async ()=>{
   const curso = document.getElementById('f_curso').value.trim();
   const estudiante = document.getElementById('f_estudiante').value.trim();
@@ -152,6 +166,7 @@ document.getElementById('btn_enviar').addEventListener('click', async ()=>{
   const certificado = document.getElementById('f_certificado').value.trim();
   const asesorMencionado = document.getElementById('f_asesor').value;
   const metodoPago = document.getElementById('f_metodo_pago').value;
+  const cuentaDestino = document.getElementById('f_cuenta_destino_wrap').style.display !== 'none' ? document.getElementById('f_cuenta_destino').value : '';
   const referenciaPago = document.getElementById('f_referencia_pago').value.trim();
 
   if(!curso || !estudiante || !cedula || !correo || !telefono || !pais || !ciudad || !profesion){
@@ -182,7 +197,7 @@ document.getElementById('btn_enviar').addEventListener('click', async ()=>{
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action:'crearSolicitud',
-        data:{ curso, estudiante, cedula, correo, telefono, pais, ciudad, profesion, instagram, certificado, asesorMencionado, metodoPago, referenciaPago, autorizoDatos: true, archivos }
+        data:{ curso, estudiante, cedula, correo, telefono, pais, ciudad, profesion, instagram, certificado, asesorMencionado, metodoPago, cuentaDestino, referenciaPago, autorizoDatos: true, archivos }
       })
     });
     const json = await res.json();
