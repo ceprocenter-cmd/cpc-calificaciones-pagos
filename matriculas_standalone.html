@@ -405,6 +405,15 @@ async function apiConfirmarSolicitud(data){
   if(json.error) throw new Error(json.error);
   return json;
 }
+async function apiConfirmarPagoBanco(pagoId){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'confirmarPagoBanco', pagoId})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
 function normNum(v){ return Number(v)||0; }
 function normBool(v){ return v===true || v==='TRUE' || v==='true' || v===1 || v==='1'; }
 function fileToBase64(file){
@@ -1045,8 +1054,8 @@ function fechaCorta(fechaStr){
 
 window.confirmarPagoBanco = async function(pagoId){
   try{
-    await apiPost('Pagos','update',{id:pagoId, data:{confirmadoBanco:true}});
-    showToast('Pago confirmado en banco.');
+    await apiConfirmarPagoBanco(pagoId);
+    showToast('Pago confirmado en banco — ya se registró como ingreso en el Financiero.');
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al confirmar: '+e.message); }
