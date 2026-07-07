@@ -758,7 +758,10 @@ document.getElementById('m_estudiante').addEventListener('input', refrescarEstad
 function actualizarDatalistEstudiantes(){
   const curso = document.getElementById('m_curso').value;
   const datalist = document.getElementById('lista_est_curso');
-  datalist.innerHTML = NOMINA.filter(n=>n.curso===curso).map(n=>`<option value="${n.estudiante}">`).join('');
+  const delCurso = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante);
+  const historicos = MATRICULAS.map(m=>m.estudiante).filter(Boolean);
+  const todos = [...new Set([...delCurso, ...historicos])].sort();
+  datalist.innerHTML = todos.map(nombre=>`<option value="${nombre.replace(/"/g,'&quot;')}">`).join('');
 }
 
 function agregarLineaPago(){
