@@ -72,6 +72,7 @@
     <div class="field">
       <label>¿Quién te atendió?</label>
       <select id="f_asesor">
+        <option value="">Selecciona una opción</option>
         <option value="Jose">Jose</option>
         <option value="Sara">Sara</option>
         <option value="Directo">No estoy seguro / Otro</option>
@@ -81,6 +82,7 @@
     <div class="section-label">Tus documentos</div>
     <div class="field"><label>Método de Pago <span class="req">*</span></label>
       <select id="f_metodo_pago">
+        <option value="">Selecciona una opción</option>
         <option>Transferencia Bancaria</option><option>Depósito</option><option>Efectivo</option>
         <option>PayPal</option><option>Zelle</option><option>Binance</option><option>Pago Móvil</option>
         <option>Western Union/Zoom</option><option>Tarjeta de Crédito</option><option>Otro</option>
@@ -88,6 +90,7 @@
     </div>
     <div class="field" id="f_cuenta_destino_wrap" style="display:none;"><label>¿A cuál cuenta transferiste/depositaste?</label>
       <select id="f_cuenta_destino">
+        <option value="">Selecciona una opción</option>
         <option>Banco Pacífico</option>
         <option>Banco Pichincha</option>
         <option>Banco Guayaquil</option>
@@ -172,6 +175,11 @@ document.getElementById('btn_enviar').addEventListener('click', async ()=>{
   if(!curso || !estudiante || !cedula || !correo || !telefono || !pais || !ciudad || !profesion){
     showToast('Por favor completa todos los campos marcados con *.');
     return;
+  }
+  if(!asesorMencionado){ showToast('Selecciona quién te atendió.'); return; }
+  if(!metodoPago){ showToast('Selecciona tu método de pago.'); return; }
+  if((metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') && !cuentaDestino){
+    showToast('Selecciona a cuál cuenta transferiste o depositaste.'); return;
   }
   if(!document.getElementById('f_autorizo').checked){
     showToast('Debes autorizar el uso de tus datos personales para continuar.');
