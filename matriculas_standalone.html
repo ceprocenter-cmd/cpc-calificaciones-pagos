@@ -265,6 +265,10 @@
 
       <div id="reporte_contenido" style="display:none;">
       <div class="panel">
+        <h2>Resumen General</h2>
+        <div class="ticker" id="ticker_reporte"></div>
+      </div>
+      <div class="panel">
         <h2>Reporte Mensual de Pagos</h2>
         <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
         <div id="reporte_resumen"></div>
@@ -350,6 +354,7 @@ const REPORTE_CLAVE_CORRECTA = '25069546CPC';
 if(sessionStorage.getItem('reporte_desbloqueado') === 'si'){
   document.getElementById('reporte_lock').style.display = 'none';
   document.getElementById('reporte_contenido').style.display = 'block';
+  renderTickerReporte();
 }
 
 document.getElementById('btn_desbloquear_reporte').addEventListener('click', ()=>{
@@ -358,6 +363,7 @@ document.getElementById('btn_desbloquear_reporte').addEventListener('click', ()=
     sessionStorage.setItem('reporte_desbloqueado','si');
     document.getElementById('reporte_lock').style.display = 'none';
     document.getElementById('reporte_contenido').style.display = 'block';
+    renderTickerReporte();
   }else{
     showToast('Clave incorrecta.');
   }
@@ -523,11 +529,28 @@ function itemsDe(curso){ return MODULOS.filter(m=>m.curso===curso); }
 
 function renderAll(){
   renderTicker();
+  renderTickerReporte();
   renderTablaCursos();
   renderSelectsCurso();
   renderSolicitudes();
   renderCXC();
   renderReporteMensual();
+}
+
+function renderTickerReporte(){
+  const box = document.getElementById('ticker_reporte');
+  if(!box) return;
+  const totalRecibido = PAGOS.reduce((s,p)=>s+p.monto,0);
+  const now = new Date();
+  const recibidoMes = PAGOS.filter(p=>{const d=new Date(p.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,p)=>s+p.monto,0);
+  const confirmado = PAGOS.filter(p=>p.confirmadoBanco).reduce((s,p)=>s+p.monto,0);
+  const pendiente = PAGOS.filter(p=>!p.confirmadoBanco).reduce((s,p)=>s+p.monto,0);
+  box.innerHTML = `
+    <div class="tick"><div class="n">${fmt(recibidoMes)}</div><div class="l">Recibido Este Mes</div></div>
+    <div class="tick"><div class="n">${fmt(totalRecibido)}</div><div class="l">Total Histórico</div></div>
+    <div class="tick"><div class="n">${fmt(confirmado)}</div><div class="l">Confirmado en Banco</div></div>
+    <div class="tick"><div class="n">${fmt(pendiente)}</div><div class="l">Pendiente de Confirmar</div></div>
+  `;
 }
 
 function renderTicker(){
