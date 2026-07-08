@@ -241,7 +241,10 @@
       <div class="panel">
         <h2>Cuentas por Cobrar</h2>
         <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
-        <div class="field" style="max-width:400px;margin-bottom:16px;"><label>Curso</label><select id="cxc_curso"></select></div>
+        <div class="grid cols3" style="margin-bottom:16px;">
+          <div class="field"><label>Curso</label><select id="cxc_curso"></select></div>
+          <div class="field"><label>Filtrar por Asesor</label><select id="cxc_filtro_asesor"><option value="">Todos</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
+        </div>
         <div class="actions" style="margin-top:0;margin-bottom:16px;">
           <button class="btn btn-ghost btn-sm" id="btn_export_deudores">Descargar Deudores (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_deudores">Descargar Deudores (PDF)</button>
@@ -281,6 +284,14 @@
           <button class="btn btn-ghost btn-sm" id="btn_export_pagos_csv">Descargar Pagos (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_export_matriculas_csv">Descargar Matrículas (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_reporte_mensual">Descargar Reporte (PDF)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Ventas por Asesor</h2>
+        <p class="hint">Quién ha vendido más en el periodo seleccionado arriba.</p>
+        <div class="table-scroll">
+          <table><thead><tr><th>Asesor</th><th class="num">N° Pagos</th><th class="num">Total Vendido</th><th>Progreso</th></tr></thead><tbody id="tabla_reporte_asesor"></tbody></table>
         </div>
       </div>
 
@@ -1059,8 +1070,16 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
 
 // ---------- CUENTAS POR COBRAR ----------
 document.getElementById('cxc_curso').addEventListener('change', renderCXC);
+document.getElementById('cxc_filtro_asesor').addEventListener('change', renderCXC);
+
+function asesorDeEstudiante(curso, estudiante){
+  const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante && m.asesor);
+  return registros.length>0 ? registros[registros.length-1].asesor : '';
+}
+
 function renderCXC(){
   const curso = document.getElementById('cxc_curso').value;
+  const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
   const head = document.getElementById('cxc_head');
   const body = document.getElementById('cxc_body');
   const empty = document.getElementById('cxc_empty');
@@ -1068,14 +1087,16 @@ function renderCXC(){
   empty.style.display='none';
 
   const items = itemsDe(curso);
-  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
 
-  head.innerHTML = '<th>Estudiante</th><th></th>' + items.map(m=>`<th>${m.modulo}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
+  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th>${m.modulo}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
 
   let filasDeuda = [];
   body.innerHTML = estudiantes.map(est=>{
     let saldoTotal = 0;
     const estados = [];
+    const asesorEst = asesorDeEstudiante(curso, est);
     const cells = items.map(it=>{
       const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo);
       const pagado = pagos.reduce((s,p)=>s+p.monto,0);
@@ -1090,10 +1111,11 @@ function renderCXC(){
       return celda;
     }).join('');
     const btnPago = `<td><button class="btn btn-ghost btn-sm" onclick="registrarPagoAdicional('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">+ Pago</button></td>`;
+    const celdaAsesor = `<td>${asesorEst||'—'}</td>`;
     const btnReporte = `<td><button class="btn btn-ghost btn-sm" onclick="pdfEstudianteIndividual('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">📄 Reporte</button></td>`;
     if(saldoTotal>0) filasDeuda.push([est].concat(estados).concat([saldoTotal]));
-    return `<tr><td>${est}</td>${btnPago}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}</tr>`;
-  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+    return `<tr><td>${est}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}</tr>`;
+  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
@@ -1152,6 +1174,23 @@ function renderReporteMensual(){
   document.getElementById('tabla_reporte_curso').innerHTML = Object.entries(porCurso).map(([curso,v])=>
     `<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
+
+  const porAsesor = {};
+  pagos.forEach(p=>{
+    const asesor = asesorDeEstudiante(p.curso, p.estudiante) || 'Sin asesor';
+    if(!porAsesor[asesor]) porAsesor[asesor]={count:0,total:0};
+    porAsesor[asesor].count++; porAsesor[asesor].total+=p.monto;
+  });
+  const rankingAsesores = Object.entries(porAsesor).sort((a,b)=>b[1].total-a[1].total);
+  const maxTotal = rankingAsesores.length>0 ? rankingAsesores[0][1].total : 0;
+  document.getElementById('tabla_reporte_asesor').innerHTML = rankingAsesores.map(([asesor,v],i)=>`
+    <tr>
+      <td>${i===0 && v.total>0 ? '🏆 ' : ''}${asesor}</td>
+      <td class="num">${v.count}</td>
+      <td class="num">${fmt(v.total)}</td>
+      <td><div style="background:var(--panel-2);border-radius:6px;overflow:hidden;height:10px;width:100%;"><div style="background:var(--accent);height:100%;width:${maxTotal>0?(v.total/maxTotal*100):0}%;"></div></div></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
 
   renderConciliacion(pagos);
 }
