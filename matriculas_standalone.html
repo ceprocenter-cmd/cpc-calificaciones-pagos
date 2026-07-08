@@ -1090,7 +1090,7 @@ function renderCXC(){
   let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
 
-  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th>${m.modulo}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
+  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
 
   let filasDeuda = [];
   body.innerHTML = estudiantes.map(est=>{
@@ -1252,7 +1252,7 @@ function aplicarFiltrosConciliacion(){
            <div style="margin-top:4px;"><a href="#" onclick="event.preventDefault(); confirmarPagoBanco('${p.id}', true);" style="font-size:11px;color:var(--text-dim);">Es histórica</a></div>`}</td>
       <td title="${p.curso.replace(/"/g,'&quot;')}">${acortarCurso(p.curso)}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
       <td class="num">${fmt(p.monto)}</td>
-      <td>${p.metodoPago||'—'}</td>
+      <td>${p.metodoPago||'—'}${p.cuentaDestino?`<br><span style="font-size:12px;color:var(--text-dim);">${p.cuentaDestino}</span>`:''}</td>
       <td>${p.referenciaPago||'—'}</td>
     </tr>
   `).join('');
