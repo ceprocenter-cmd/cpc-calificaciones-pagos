@@ -1090,7 +1090,7 @@ function renderCXC(){
   let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
 
-  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
+  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
 
   let filasDeuda = [];
   body.innerHTML = estudiantes.map(est=>{
@@ -1104,9 +1104,9 @@ function renderCXC(){
       const saldo = Math.max(0, esperado - pagado);
       saldoTotal += saldo;
       let estadoTxt, celda;
-      if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td><span class="pill fail">${estadoTxt}</span></td>`; }
-      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td><span class="pill abono">${estadoTxt}</span></td>`; }
-      else { estadoTxt = 'Pagado'; celda = `<td><span class="pill ok">${estadoTxt}</span></td>`; }
+      if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;"><span class="pill fail">${estadoTxt}</span></td>`; }
+      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td style="width:130px;white-space:normal;"><span class="pill abono">${estadoTxt}</span></td>`; }
+      else { estadoTxt = 'Pagado'; celda = `<td style="width:130px;white-space:normal;"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
       return celda;
     }).join('');
