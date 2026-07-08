@@ -254,6 +254,16 @@
 
     <!-- REPORTE MENSUAL -->
     <div id="tab-reporte" style="display:none;">
+      <div class="panel" id="reporte_lock">
+        <h2>Acceso Restringido</h2>
+        <p class="hint">Esta sección contiene información financiera. Ingresa la clave para verla.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Clave</label><input id="reporte_clave" type="password" placeholder="••••••"></div>
+        </div>
+        <div class="actions"><button class="btn btn-primary btn-sm" id="btn_desbloquear_reporte">Entrar</button></div>
+      </div>
+
+      <div id="reporte_contenido" style="display:none;">
       <div class="panel">
         <h2>Reporte Mensual de Pagos</h2>
         <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
@@ -289,6 +299,7 @@
           </table>
         </div>
         <div class="empty" id="conciliacion_empty" style="display:none;">No hay pagos en este periodo.</div>
+      </div>
       </div>
     </div>
   </div>
@@ -333,6 +344,29 @@ function actualizarCodigoPais(){
     telInput.value = codigo + ' ' + actual;
   }
 }
+// Clave de acceso al Reporte Mensual — cámbiala aquí cuando quieras.
+const REPORTE_CLAVE_CORRECTA = 'ceprocenter2026';
+
+if(sessionStorage.getItem('reporte_desbloqueado') === 'si'){
+  document.getElementById('reporte_lock').style.display = 'none';
+  document.getElementById('reporte_contenido').style.display = 'block';
+}
+
+document.getElementById('btn_desbloquear_reporte').addEventListener('click', ()=>{
+  const clave = document.getElementById('reporte_clave').value;
+  if(clave === REPORTE_CLAVE_CORRECTA){
+    sessionStorage.setItem('reporte_desbloqueado','si');
+    document.getElementById('reporte_lock').style.display = 'none';
+    document.getElementById('reporte_contenido').style.display = 'block';
+  }else{
+    showToast('Clave incorrecta.');
+  }
+  document.getElementById('reporte_clave').value = '';
+});
+document.getElementById('reporte_clave').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('btn_desbloquear_reporte').click();
+});
+
 document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
   const metodo = document.getElementById('m_metodo_pago').value;
   const requiereCuenta = metodo === 'Transferencia Bancaria' || metodo === 'Depósito';
@@ -499,14 +533,9 @@ function renderAll(){
 function renderTicker(){
   const cursos = cursosUnicos().length;
   const estudiantes = NOMINA.length;
-  const totalRecibido = PAGOS.reduce((s,p)=>s+p.monto,0);
-  const now = new Date();
-  const recibidoMes = PAGOS.filter(p=>{const d=new Date(p.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).reduce((s,p)=>s+p.monto,0);
   document.getElementById('ticker').innerHTML = `
     <div class="tick"><div class="n">${cursos}</div><div class="l">Cursos Configurados</div></div>
     <div class="tick"><div class="n">${estudiantes}</div><div class="l">Estudiantes Matriculados</div></div>
-    <div class="tick"><div class="n">${fmt(recibidoMes)}</div><div class="l">Recibido Este Mes</div></div>
-    <div class="tick"><div class="n">${fmt(totalRecibido)}</div><div class="l">Total Histórico</div></div>
   `;
 }
 
