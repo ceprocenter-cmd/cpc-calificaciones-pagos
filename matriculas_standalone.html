@@ -217,9 +217,24 @@
             </select>
           </div>
           <div class="field"><label>N° de Referencia del Pago</label><input id="m_referencia_pago" placeholder="Número de comprobante o transacción"></div>
-          <div class="field"><label>Comprobante de Pago (requerido)</label><input id="m_file_comprobante" type="file" accept="image/*,.pdf"></div>
-          <div class="field"><label>Título / Constancia de Estudios (opcional)</label><input id="m_file_titulo" type="file" accept="image/*,.pdf"></div>
-          <div class="field"><label>Cédula Escaneada (opcional)</label><input id="m_file_cedula" type="file" accept="image/*,.pdf"></div>
+          <div class="field"><label>Comprobante de Pago (requerido)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="m_file_comprobante" type="file" accept="image/*,.pdf" style="flex:1;">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('m_file_comprobante').value='';">✕</button>
+            </div>
+          </div>
+          <div class="field"><label>Título / Constancia de Estudios (opcional)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="m_file_titulo" type="file" accept="image/*,.pdf" style="flex:1;">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('m_file_titulo').value='';">✕</button>
+            </div>
+          </div>
+          <div class="field"><label>Cédula Escaneada (opcional)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="m_file_cedula" type="file" accept="image/*,.pdf" style="flex:1;">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('m_file_cedula').value='';">✕</button>
+            </div>
+          </div>
         </div>
 
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_matricula">Guardar Matrícula</button></div>
