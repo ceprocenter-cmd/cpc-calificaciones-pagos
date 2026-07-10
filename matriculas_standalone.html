@@ -1257,20 +1257,27 @@ function renderListaCursosAsesor(){
   });
   const cursos = Object.entries(porCursoAsesor).sort((a,b)=>b[1].total-a[1].total);
 
-  document.getElementById('va_lista_cursos').innerHTML = cursos.map(([curso,v])=>`
-    <button type="button" class="btn ${curso===VA_CURSO_SEL?'btn-primary':'btn-ghost'} btn-sm" style="text-align:left;justify-content:space-between;display:flex;width:100%;" onclick="seleccionarCursoVentas('${curso.replace(/'/g,"\\'")}')">
+  document.getElementById('va_lista_cursos').innerHTML = cursos.map(([curso,v],i)=>`
+    <button type="button" data-curso-index="${i}" class="btn ${curso===VA_CURSO_SEL?'btn-primary':'btn-ghost'} btn-sm" style="text-align:left;justify-content:space-between;display:flex;width:100%;">
       <span>${curso}</span><span>${fmt(v.total)} (${v.count})</span>
     </button>
   `).join('') || '<p class="hint">Sin ventas de este asesor en el periodo.</p>';
+
+  VA_CURSOS_LISTA_ACTUAL = cursos.map(([curso])=>curso);
 
   if(VA_CURSO_SEL) renderTablaVentasAsesorCurso(asesorSel);
   else wrapVentas.style.display='none';
 }
 
-window.seleccionarCursoVentas = function(curso){
-  VA_CURSO_SEL = curso;
+let VA_CURSOS_LISTA_ACTUAL = [];
+
+document.getElementById('va_lista_cursos').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-curso-index]');
+  if(!btn) return;
+  const idx = Number(btn.dataset.cursoIndex);
+  VA_CURSO_SEL = VA_CURSOS_LISTA_ACTUAL[idx];
   renderListaCursosAsesor();
-};
+});
 
 function renderTablaVentasAsesorCurso(asesorSel){
   const ventas = PAGOS_MES_ACTUAL.filter(p=>
