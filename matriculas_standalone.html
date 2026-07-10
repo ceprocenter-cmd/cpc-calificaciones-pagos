@@ -308,6 +308,18 @@
         <div class="table-scroll">
           <table><thead><tr><th>Asesor</th><th class="num">N° Pagos</th><th class="num">Total Vendido</th><th>Progreso</th></tr></thead><tbody id="tabla_reporte_asesor"></tbody></table>
         </div>
+
+        <div class="field" style="max-width:280px;margin-top:20px;"><label>Ver Detalle de un Asesor</label><select id="sel_detalle_asesor"><option value="">Selecciona un asesor</option></select></div>
+        <div id="detalle_asesor_box" style="display:none;margin-top:14px;">
+          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin-bottom:8px;">Por Curso</h3>
+          <div class="table-scroll">
+            <table><thead><tr><th>Curso</th><th class="num">N° Pagos</th><th class="num">Total</th></tr></thead><tbody id="tabla_asesor_por_curso"></tbody></table>
+          </div>
+          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:16px 0 8px;">Detalle de Ventas</h3>
+          <div class="table-scroll">
+            <table><thead><tr><th>Fecha</th><th>Estudiante</th><th>Curso</th><th>Módulo</th><th class="num">Monto</th></tr></thead><tbody id="tabla_asesor_detalle"></tbody></table>
+          </div>
+        </div>
       </div>
 
       <div class="panel">
@@ -1207,8 +1219,38 @@ function renderReporteMensual(){
     </tr>
   `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
 
+  PAGOS_MES_ACTUAL = pagos;
+  const selAsesor = document.getElementById('sel_detalle_asesor');
+  const prevSel = selAsesor.value;
+  const asesoresDisponibles = rankingAsesores.map(([asesor])=>asesor);
+  selAsesor.innerHTML = '<option value="">Selecciona un asesor</option>' + asesoresDisponibles.map(a=>`<option ${a===prevSel?'selected':''}>${a}</option>`).join('');
+  renderDetalleAsesor();
+
   renderConciliacion(pagos);
 }
+
+let PAGOS_MES_ACTUAL = [];
+
+function renderDetalleAsesor(){
+  const asesorSel = document.getElementById('sel_detalle_asesor').value;
+  const box = document.getElementById('detalle_asesor_box');
+  if(!asesorSel){ box.style.display='none'; return; }
+  box.style.display='block';
+
+  const ventas = PAGOS_MES_ACTUAL.filter(p=>(asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel);
+
+  const porCursoAsesor = {};
+  ventas.forEach(p=>{ if(!porCursoAsesor[p.curso]) porCursoAsesor[p.curso]={count:0,total:0}; porCursoAsesor[p.curso].count++; porCursoAsesor[p.curso].total+=p.monto; });
+  document.getElementById('tabla_asesor_por_curso').innerHTML = Object.entries(porCursoAsesor)
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([curso,v])=>`<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`).join('')
+    || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin ventas</td></tr>';
+
+  document.getElementById('tabla_asesor_detalle').innerHTML = ventas.slice().sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha))
+    .map(p=>`<tr><td>${fechaCorta(p.fecha)}</td><td>${p.estudiante}</td><td>${p.curso}</td><td>${acortarConcepto(p.modulo)}</td><td class="num">${fmt(p.monto)}</td></tr>`).join('')
+    || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin ventas</td></tr>';
+}
+document.getElementById('sel_detalle_asesor').addEventListener('change', renderDetalleAsesor);
 
 let PAGOS_CONCILIACION_ACTUAL = [];
 
