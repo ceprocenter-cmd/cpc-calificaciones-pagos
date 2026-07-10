@@ -310,14 +310,16 @@
         </div>
 
         <div class="field" style="max-width:280px;margin-top:20px;"><label>Ver Detalle de un Asesor</label><select id="sel_detalle_asesor"><option value="">Selecciona un asesor</option></select></div>
-        <div id="detalle_asesor_box" style="display:none;margin-top:14px;">
-          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin-bottom:8px;">Por Curso</h3>
+
+        <div id="va_lista_cursos_wrap" style="display:none;margin-top:14px;">
+          <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Elige un Curso</label>
+          <div id="va_lista_cursos" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
+        <div id="va_tabla_ventas_wrap" style="display:none;margin-top:18px;">
+          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin-bottom:8px;" id="va_titulo_ventas"></h3>
           <div class="table-scroll">
-            <table><thead><tr><th>Curso</th><th class="num">N° Pagos</th><th class="num">Total</th></tr></thead><tbody id="tabla_asesor_por_curso"></tbody></table>
-          </div>
-          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:16px 0 8px;">Detalle de Ventas</h3>
-          <div class="table-scroll">
-            <table><thead><tr><th>Fecha</th><th>Estudiante</th><th>Curso</th><th>Módulo</th><th class="num">Monto</th></tr></thead><tbody id="tabla_asesor_detalle"></tbody></table>
+            <table><thead><tr><th>Fecha</th><th>Estudiante</th><th>Módulo</th><th class="num">Monto</th></tr></thead><tbody id="va_tabla_ventas"></tbody></table>
           </div>
         </div>
       </div>
@@ -1224,33 +1226,63 @@ function renderReporteMensual(){
   const prevSel = selAsesor.value;
   const asesoresDisponibles = rankingAsesores.map(([asesor])=>asesor);
   selAsesor.innerHTML = '<option value="">Selecciona un asesor</option>' + asesoresDisponibles.map(a=>`<option ${a===prevSel?'selected':''}>${a}</option>`).join('');
-  renderDetalleAsesor();
+  VA_CURSO_SEL = null;
+  renderListaCursosAsesor();
 
   renderConciliacion(pagos);
 }
 
 let PAGOS_MES_ACTUAL = [];
+let VA_CURSO_SEL = null;
 
-function renderDetalleAsesor(){
+document.getElementById('sel_detalle_asesor').addEventListener('change', ()=>{
+  VA_CURSO_SEL = null;
+  renderListaCursosAsesor();
+});
+
+function renderListaCursosAsesor(){
   const asesorSel = document.getElementById('sel_detalle_asesor').value;
-  const box = document.getElementById('detalle_asesor_box');
-  if(!asesorSel){ box.style.display='none'; return; }
-  box.style.display='block';
+  const wrapCursos = document.getElementById('va_lista_cursos_wrap');
+  const wrapVentas = document.getElementById('va_tabla_ventas_wrap');
 
-  const ventas = PAGOS_MES_ACTUAL.filter(p=>(asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel);
+  if(!asesorSel){ wrapCursos.style.display='none'; wrapVentas.style.display='none'; return; }
+  wrapCursos.style.display='block';
 
+  const ventasAsesor = PAGOS_MES_ACTUAL.filter(p=>(asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel);
   const porCursoAsesor = {};
-  ventas.forEach(p=>{ if(!porCursoAsesor[p.curso]) porCursoAsesor[p.curso]={count:0,total:0}; porCursoAsesor[p.curso].count++; porCursoAsesor[p.curso].total+=p.monto; });
-  document.getElementById('tabla_asesor_por_curso').innerHTML = Object.entries(porCursoAsesor)
-    .sort((a,b)=>b[1].total-a[1].total)
-    .map(([curso,v])=>`<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`).join('')
-    || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin ventas</td></tr>';
+  ventasAsesor.forEach(p=>{
+    const curso = p.curso || '(Sin curso)';
+    if(!porCursoAsesor[curso]) porCursoAsesor[curso]={count:0,total:0};
+    porCursoAsesor[curso].count++; porCursoAsesor[curso].total+=(p.monto||0);
+  });
+  const cursos = Object.entries(porCursoAsesor).sort((a,b)=>b[1].total-a[1].total);
 
-  document.getElementById('tabla_asesor_detalle').innerHTML = ventas.slice().sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha))
-    .map(p=>`<tr><td>${fechaCorta(p.fecha)}</td><td>${p.estudiante}</td><td>${p.curso}</td><td>${acortarConcepto(p.modulo)}</td><td class="num">${fmt(p.monto)}</td></tr>`).join('')
-    || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin ventas</td></tr>';
+  document.getElementById('va_lista_cursos').innerHTML = cursos.map(([curso,v])=>`
+    <button type="button" class="btn ${curso===VA_CURSO_SEL?'btn-primary':'btn-ghost'} btn-sm" style="text-align:left;justify-content:space-between;display:flex;width:100%;" onclick="seleccionarCursoVentas('${curso.replace(/'/g,"\\'")}')">
+      <span>${curso}</span><span>${fmt(v.total)} (${v.count})</span>
+    </button>
+  `).join('') || '<p class="hint">Sin ventas de este asesor en el periodo.</p>';
+
+  if(VA_CURSO_SEL) renderTablaVentasAsesorCurso(asesorSel);
+  else wrapVentas.style.display='none';
 }
-document.getElementById('sel_detalle_asesor').addEventListener('change', renderDetalleAsesor);
+
+window.seleccionarCursoVentas = function(curso){
+  VA_CURSO_SEL = curso;
+  renderListaCursosAsesor();
+};
+
+function renderTablaVentasAsesorCurso(asesorSel){
+  const ventas = PAGOS_MES_ACTUAL.filter(p=>
+    (asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel && (p.curso||'(Sin curso)')===VA_CURSO_SEL
+  ).slice().sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha));
+
+  document.getElementById('va_titulo_ventas').textContent = `${asesorSel} — ${VA_CURSO_SEL}`;
+  document.getElementById('va_tabla_ventas_wrap').style.display = 'block';
+  document.getElementById('va_tabla_ventas').innerHTML = ventas.map(p=>
+    `<tr><td>${fechaCorta(p.fecha)}</td><td>${p.estudiante||'—'}</td><td>${acortarConcepto(p.modulo||'')}</td><td class="num">${fmt(p.monto||0)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);">Sin ventas</td></tr>';
+}
 
 let PAGOS_CONCILIACION_ACTUAL = [];
 
