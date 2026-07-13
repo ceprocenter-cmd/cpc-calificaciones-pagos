@@ -64,6 +64,7 @@
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;text-transform:uppercase;font-weight:700;}
   .pill.ok{background:var(--accent-soft);color:var(--accent-dark);}
+  .pill.na{background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);}
   .pill.fail{background:var(--danger-soft);color:var(--danger);}
   .pill.abono{background:var(--warn-soft);color:var(--warn);}
   .setup-banner{background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;}
@@ -541,7 +542,7 @@ async function loadAll(){
   const [nom, mod, pag, mat, sol] = await Promise.all([
     apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes')
   ]);
-  NOMINA = nom;
+  NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
   PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado), confirmadoBanco:normBool(p.confirmadoBanco)}));
   MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
@@ -1106,6 +1107,22 @@ function asesorDeEstudiante(curso, estudiante){
   return registros.length>0 ? registros[registros.length-1].asesor : '';
 }
 
+function nominaActivaCXC(curso, estudiante){
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  return reg ? reg.activo : true;
+}
+
+window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor){
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
+  try{
+    await apiPost('Nomina','update',{id:reg.id, data:{activo:nuevoValor}});
+    showToast(nuevoValor ? 'Estudiante reactivado.' : 'Marcado como "no continuó".');
+    await loadAll();
+    renderCXC();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
+
 function renderCXC(){
   const curso = document.getElementById('cxc_curso').value;
   const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
@@ -1118,8 +1135,13 @@ function renderCXC(){
   const items = itemsDe(curso);
   let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
+  estudiantes.sort((a,b)=>{
+    const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b);
+    if(activoA===activoB) return a.localeCompare(b);
+    return activoA ? -1 : 1;
+  });
 
-  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th>';
+  head.innerHTML = '<th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th>';
 
   let filasDeuda = [];
   body.innerHTML = estudiantes.map(est=>{
@@ -1142,9 +1164,13 @@ function renderCXC(){
     const btnPago = `<td><button class="btn btn-ghost btn-sm" onclick="registrarPagoAdicional('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">+ Pago</button></td>`;
     const celdaAsesor = `<td>${asesorEst||'—'}</td>`;
     const btnReporte = `<td><button class="btn btn-ghost btn-sm" onclick="pdfEstudianteIndividual('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">📄 Reporte</button></td>`;
+    const activo = nominaActivaCXC(curso, est);
+    const btnBaja = `<td>${activo
+      ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
     if(saldoTotal>0) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal]));
-    return `<tr><td>${est}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}</tr>`;
-  }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}</tr>`;
+  }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
