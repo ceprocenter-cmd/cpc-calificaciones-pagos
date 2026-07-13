@@ -29,10 +29,13 @@
   .tab.active{background:var(--accent);color:#1A2E0A;border-color:var(--accent);}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
   .panel h2{font-size:17px;margin:0 0 4px;}
+  .panel h3{font-size:14px;margin:0 0 10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;}
   .hint{color:var(--text-dim);font-size:13px;margin:0 0 16px;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
   .grid.cols3{grid-template-columns:repeat(3,1fr);}
-  @media (max-width:800px){.grid.cols3{grid-template-columns:1fr;}}
+  .grid.cols4{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:800px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
+  @media (max-width:520px){.grid.cols3,.grid.cols4{grid-template-columns:1fr;}}
   .field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
   .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14.5px;}
   .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--accent-dark);}
@@ -54,18 +57,25 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .setup-hint{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;font-size:13px;}
+  .resumen-linea{display:flex;justify-content:space-between;padding:8px 0;font-size:14.5px;}
+  .resumen-linea.total{border-top:2px solid var(--text);margin-top:6px;padding-top:12px;font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;color:var(--accent-dark);}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
   .modal-overlay.show{display:flex;}
-  .modal-box{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:0;}
-  .modal-box-inner{padding:32px;}
+  .modal-box{background:#fff;border-radius:14px;max-width:640px;width:100%;padding:0;}
+  .modal-box-inner{padding:36px;}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 32px;border-top:1px solid var(--line);}
-  .recibo-header{text-align:center;margin-bottom:20px;}
-  .recibo-header .brand{font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;color:var(--accent-dark);}
-  .recibo-header .title{font-family:'Quicksand',sans-serif;font-weight:600;font-size:14px;color:var(--text-dim);margin-top:2px;}
-  .recibo-linea{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;}
-  .recibo-linea .lbl{color:var(--text-dim);}
-  .recibo-monto{text-align:center;margin:20px 0;}
-  .recibo-monto .n{font-family:'Quicksand',sans-serif;font-size:32px;font-weight:700;color:var(--accent-dark);}
+  .rol-header{text-align:center;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--text);}
+  .rol-header .brand{font-family:'Quicksand',sans-serif;font-weight:700;font-size:19px;}
+  .rol-header .title{font-family:'Quicksand',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;margin-top:6px;}
+  .rol-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:13px;margin-bottom:20px;}
+  .rol-meta .lbl{color:var(--text-dim);font-weight:700;}
+  .rol-tabla{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:13.5px;}
+  .rol-tabla th{background:var(--panel-2);text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-dim);}
+  .rol-tabla td{padding:7px 10px;border-bottom:1px solid var(--line);}
+  .rol-tabla td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .rol-tabla tr.tot td{font-weight:700;border-top:1.5px solid var(--text);border-bottom:none;}
+  .rol-firmas{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:44px;text-align:center;}
+  .rol-firmas .linea{border-top:1px solid var(--text);padding-top:6px;font-size:12.5px;color:var(--text-dim);}
   @media print{
     body.printing *{visibility:hidden;}
     body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
@@ -80,7 +90,7 @@
 
   <div class="top">
     <h1>Rol de Pagos <span class="accent">Ceprocenter</span></h1>
-    <div class="sub">Pagos a facilitadores y personal — registro simple, tipo recibo.</div>
+    <div class="sub">Pagos a facilitadores y personal, con el desglose formal de ingresos y descuentos.</div>
   </div>
 
   <div class="setup-hint" id="setup_banner" style="display:none;">
@@ -96,7 +106,7 @@
     <div class="ticker" id="ticker"></div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="registrar">Registrar Pago</button>
+      <button class="tab active" data-tab="registrar">Registrar Rol de Pago</button>
       <button class="tab" data-tab="historial">Historial</button>
       <button class="tab" data-tab="resumen">Resumen por Trabajador</button>
     </div>
@@ -104,10 +114,9 @@
     <!-- REGISTRAR -->
     <div id="tab-registrar">
       <div class="panel">
-        <h2>Registrar Pago</h2>
-        <p class="hint">Un pago por línea — como llenar un recibo.</p>
-        <div class="grid cols3">
-          <div class="field"><label>Fecha</label><input id="r_fecha" type="date"></div>
+        <h2>Datos del Trabajador</h2>
+        <div class="grid cols4">
+          <div class="field"><label>Fecha de Emisión</label><input id="r_fecha" type="date"></div>
           <div class="field"><label>Trabajador</label><input id="r_trabajador" list="lista_trabajadores" placeholder="Nombre completo"><datalist id="lista_trabajadores"></datalist></div>
           <div class="field"><label>Cédula</label><input id="r_cedula" placeholder="N° de cédula"></div>
           <div class="field"><label>Cargo</label><input id="r_cargo" placeholder="Ej. Facilitador, Asesor de Ventas..."></div>
@@ -118,9 +127,41 @@
               <option value="Fijo">Personal Fijo</option>
             </select>
           </div>
-          <div class="field"><label>Período de Trabajo</label><input id="r_periodo" placeholder="Ej. 01 al 31 de Julio 2026"></div>
-          <div class="field"><label>Concepto</label><input id="r_concepto" placeholder="Ej. Pago Módulo 3, Sueldo Julio, Comisión..."></div>
-          <div class="field"><label>Monto ($)</label><input id="r_monto" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Período</label><input id="r_periodo" placeholder="Ej. 01 al 31 de Julio 2026"></div>
+          <div class="field"><label>Fecha de Ingreso</label><input id="r_fecha_ingreso" type="date"></div>
+          <div class="field"><label>Días Trabajados</label><input id="r_dias" type="number" min="0" placeholder="Ej. 30"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Ingresos</h3>
+        <div class="grid cols4">
+          <div class="field"><label>Sueldo Básico</label><input class="ing" id="i_sueldo" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Horas Extras</label><input class="ing" id="i_horas" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Comisiones</label><input class="ing" id="i_comisiones" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Bonificaciones</label><input class="ing" id="i_bonif" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Transporte</label><input class="ing" id="i_transporte" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Alimentación</label><input class="ing" id="i_alimentacion" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Otros Ingresos</label><input class="ing" id="i_otros" type="number" step="0.01" min="0" placeholder="0.00"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Descuentos</h3>
+        <div class="grid cols4">
+          <div class="field"><label>Aporte Personal IESS</label><input class="desc" id="d_iess" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Anticipos</label><input class="desc" id="d_anticipos" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Préstamos</label><input class="desc" id="d_prestamos" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Otros Descuentos</label><input class="desc" id="d_otros" type="number" step="0.01" min="0" placeholder="0.00"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Resumen</h3>
+        <div class="resumen-linea"><span>Total Ingresos</span><span id="rs_ingresos">$0.00</span></div>
+        <div class="resumen-linea"><span>(-) Total Descuentos</span><span id="rs_descuentos">$0.00</span></div>
+        <div class="resumen-linea total"><span>Valor Neto a Recibir</span><span id="rs_neto">$0.00</span></div>
+        <div class="grid" style="margin-top:16px;max-width:280px;">
           <div class="field"><label>Método de Pago</label>
             <select id="r_metodo">
               <option>Transferencia Bancaria</option>
@@ -130,14 +171,14 @@
             </select>
           </div>
         </div>
-        <div class="actions"><button class="btn" id="btn_guardar_pago">Guardar Pago</button></div>
+        <div class="actions"><button class="btn" id="btn_guardar_pago">Guardar Rol de Pago</button></div>
       </div>
     </div>
 
     <!-- HISTORIAL -->
     <div id="tab-historial" style="display:none;">
       <div class="panel">
-        <h2>Historial de Pagos</h2>
+        <h2>Historial de Roles de Pago</h2>
         <div class="grid cols3" style="margin-bottom:16px;">
           <div class="field"><label>Mes</label><input type="month" id="filt_mes"></div>
           <div class="field"><label>Trabajador</label><select id="filt_trabajador"><option value="">Todos</option></select></div>
@@ -145,12 +186,12 @@
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Fecha</th><th>Trabajador</th><th>Tipo</th><th>Concepto</th><th>Método</th><th class="num">Monto</th><th></th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Trabajador</th><th>Tipo</th><th>Período</th><th class="num">Ingresos</th><th class="num">Descuentos</th><th class="num">Neto Pagado</th><th></th></tr></thead>
             <tbody id="tabla_historial"></tbody>
-            <tfoot><tr><td colspan="5">TOTAL</td><td class="num" id="tot_historial">$0.00</td><td></td></tr></tfoot>
+            <tfoot><tr><td colspan="6">TOTAL NETO</td><td class="num" id="tot_historial">$0.00</td><td></td></tr></tfoot>
           </table>
         </div>
-        <div class="empty" id="historial_empty" style="display:none;">No hay pagos con este filtro.</div>
+        <div class="empty" id="historial_empty" style="display:none;">No hay roles de pago con este filtro.</div>
         <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_csv">Descargar CSV</button></div>
       </div>
     </div>
@@ -162,7 +203,7 @@
         <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="res_mes"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Trabajador</th><th>Tipo</th><th class="num">N° Pagos</th><th class="num">Total Pagado</th></tr></thead>
+            <thead><tr><th>Trabajador</th><th>Tipo</th><th class="num">N° Roles</th><th class="num">Total Neto Pagado</th></tr></thead>
             <tbody id="tabla_resumen"></tbody>
           </table>
         </div>
@@ -175,7 +216,7 @@
 
 <div class="modal-overlay" id="modal_overlay">
   <div class="modal-box">
-    <div class="modal-box-inner" id="recibo_content"></div>
+    <div class="modal-box-inner" id="rol_content"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn_cerrar_modal">Cerrar</button>
       <button class="btn" id="btn_imprimir_modal">Imprimir / Guardar PDF</button>
@@ -200,6 +241,8 @@ document.getElementById('btn_guardar_config').addEventListener('click', ()=>{
   location.reload();
 });
 
+const RUC_CEPROCENTER = '0993369780001';
+
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function fmt(n){ return '$' + (Number(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
@@ -223,7 +266,23 @@ let ROL_PAGOS = [];
 
 async function loadAll(){
   const rp = await apiGet('RolPagos');
-  ROL_PAGOS = rp.map(p=>({...p, monto:normNum(p.monto)}));
+  ROL_PAGOS = rp.map(p=>({
+    ...p,
+    sueldoBasico:normNum(p.sueldoBasico), horasExtras:normNum(p.horasExtras), comisiones:normNum(p.comisiones),
+    bonificaciones:normNum(p.bonificaciones), transporte:normNum(p.transporte), alimentacion:normNum(p.alimentacion),
+    otrosIngresos:normNum(p.otrosIngresos), aporteIESS:normNum(p.aporteIESS), anticipos:normNum(p.anticipos),
+    prestamos:normNum(p.prestamos), otrosDescuentos:normNum(p.otrosDescuentos)
+  }));
+}
+
+function totalIngresosDe(p){
+  return p.sueldoBasico+p.horasExtras+p.comisiones+p.bonificaciones+p.transporte+p.alimentacion+p.otrosIngresos;
+}
+function totalDescuentosDe(p){
+  return p.aporteIESS+p.anticipos+p.prestamos+p.otrosDescuentos;
+}
+function valorNetoDe(p){
+  return totalIngresosDe(p) - totalDescuentosDe(p);
 }
 
 function fechaCorta(fechaStr){
@@ -250,9 +309,19 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 
-// ---------- REGISTRAR ----------
-const RUC_CEPROCENTER = '0993369780001';
+// ---------- CÁLCULO EN VIVO ----------
+function recalcularResumen(){
+  const ingresos = ['i_sueldo','i_horas','i_comisiones','i_bonif','i_transporte','i_alimentacion','i_otros']
+    .reduce((s,id)=>s+(Number(document.getElementById(id).value)||0), 0);
+  const descuentos = ['d_iess','d_anticipos','d_prestamos','d_otros']
+    .reduce((s,id)=>s+(Number(document.getElementById(id).value)||0), 0);
+  document.getElementById('rs_ingresos').textContent = fmt(ingresos);
+  document.getElementById('rs_descuentos').textContent = fmt(descuentos);
+  document.getElementById('rs_neto').textContent = fmt(ingresos - descuentos);
+}
+document.querySelectorAll('.ing, .desc').forEach(inp=>inp.addEventListener('input', recalcularResumen));
 
+// ---------- REGISTRAR ----------
 document.getElementById('btn_guardar_pago').addEventListener('click', async ()=>{
   const fecha = document.getElementById('r_fecha').value;
   const trabajador = document.getElementById('r_trabajador').value.trim();
@@ -260,44 +329,100 @@ document.getElementById('btn_guardar_pago').addEventListener('click', async ()=>
   const cargo = document.getElementById('r_cargo').value.trim();
   const tipo = document.getElementById('r_tipo').value;
   const periodoTrabajo = document.getElementById('r_periodo').value.trim();
-  const concepto = document.getElementById('r_concepto').value.trim();
-  const monto = Number(document.getElementById('r_monto').value)||0;
+  const fechaIngreso = document.getElementById('r_fecha_ingreso').value;
+  const diasTrabajados = document.getElementById('r_dias').value;
   const metodoPago = document.getElementById('r_metodo').value;
 
-  if(!fecha){ showToast('Escribe la fecha del pago.'); return; }
+  const p = {
+    sueldoBasico: Number(document.getElementById('i_sueldo').value)||0,
+    horasExtras: Number(document.getElementById('i_horas').value)||0,
+    comisiones: Number(document.getElementById('i_comisiones').value)||0,
+    bonificaciones: Number(document.getElementById('i_bonif').value)||0,
+    transporte: Number(document.getElementById('i_transporte').value)||0,
+    alimentacion: Number(document.getElementById('i_alimentacion').value)||0,
+    otrosIngresos: Number(document.getElementById('i_otros').value)||0,
+    aporteIESS: Number(document.getElementById('d_iess').value)||0,
+    anticipos: Number(document.getElementById('d_anticipos').value)||0,
+    prestamos: Number(document.getElementById('d_prestamos').value)||0,
+    otrosDescuentos: Number(document.getElementById('d_otros').value)||0
+  };
+
+  if(!fecha){ showToast('Escribe la fecha de emisión.'); return; }
   if(!trabajador){ showToast('Escribe el nombre del trabajador.'); return; }
   if(!tipo){ showToast('Selecciona el tipo de trabajador.'); return; }
-  if(!concepto){ showToast('Escribe el concepto del pago.'); return; }
-  if(monto<=0){ showToast('El monto debe ser mayor a 0.'); return; }
+  const totalIng = totalIngresosDe(p);
+  if(totalIng<=0){ showToast('Ingresa al menos un valor en Ingresos.'); return; }
 
   try{
     const nuevoId = uid();
-    await apiPost('RolPagos','add',{data:{id:nuevoId, fecha, trabajador, cedula, cargo, tipo, periodoTrabajo, concepto, metodoPago, monto}});
-    showToast('Pago guardado.');
-    document.getElementById('r_concepto').value=''; document.getElementById('r_monto').value='';
+    const data = {id:nuevoId, fecha, trabajador, cedula, cargo, tipo, periodoTrabajo, fechaIngreso, diasTrabajados, metodoPago, ...p};
+    await apiPost('RolPagos','add',{data});
+    showToast('Rol de pago guardado.');
+    document.querySelectorAll('.ing, .desc').forEach(inp=>inp.value='');
+    recalcularResumen();
     await loadAll();
     renderAll();
-    mostrarRecibo({id:nuevoId, fecha, trabajador, cedula, cargo, tipo, periodoTrabajo, concepto, metodoPago, monto});
+    mostrarRol(data);
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 
-// ---------- RECIBO (modal + imprimir) ----------
-function mostrarRecibo(p){
-  document.getElementById('recibo_content').innerHTML = `
-    <div class="recibo-header">
-      <div class="brand">Ceprocenter</div>
-      <div class="title">Comprobante de Pago</div>
-      <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">RUC: ${RUC_CEPROCENTER}</div>
+// ---------- ROL DE PAGO (modal + imprimir) ----------
+function mostrarRol(p){
+  const totalIng = totalIngresosDe(p);
+  const totalDesc = totalDescuentosDe(p);
+  const neto = totalIng - totalDesc;
+
+  const filasIngresos = [
+    ['Sueldo básico', p.sueldoBasico], ['Horas extras', p.horasExtras], ['Comisiones', p.comisiones],
+    ['Bonificaciones', p.bonificaciones], ['Transporte', p.transporte], ['Alimentación', p.alimentacion],
+    ['Otros ingresos', p.otrosIngresos]
+  ].filter(([,v])=>v>0);
+  const filasDescuentos = [
+    ['Aporte personal IESS', p.aporteIESS], ['Anticipos', p.anticipos], ['Préstamos', p.prestamos], ['Otros descuentos', p.otrosDescuentos]
+  ].filter(([,v])=>v>0);
+
+  document.getElementById('rol_content').innerHTML = `
+    <div class="rol-header">
+      <div class="brand">CEPROCENTER</div>
+      <div style="font-size:12px;color:var(--text-dim);">RUC: ${RUC_CEPROCENTER}</div>
+      <div class="title">Rol de Pago</div>
     </div>
-    <div class="recibo-linea"><span class="lbl">Fecha</span><span>${fechaCorta(p.fecha)}</span></div>
-    <div class="recibo-linea"><span class="lbl">Trabajador</span><span>${p.trabajador}</span></div>
-    <div class="recibo-linea"><span class="lbl">Cédula</span><span>${p.cedula||'—'}</span></div>
-    <div class="recibo-linea"><span class="lbl">Cargo</span><span>${p.cargo||'—'}</span></div>
-    <div class="recibo-linea"><span class="lbl">Tipo</span><span>${p.tipo==='Facilitador'?'Facilitador / Tutor':'Personal Fijo'}</span></div>
-    <div class="recibo-linea"><span class="lbl">Período de Trabajo</span><span>${p.periodoTrabajo||'—'}</span></div>
-    <div class="recibo-linea"><span class="lbl">Concepto</span><span>${p.concepto}</span></div>
-    <div class="recibo-linea"><span class="lbl">Método de Pago</span><span>${p.metodoPago||'—'}</span></div>
-    <div class="recibo-monto"><div class="n">${fmt(p.monto)}</div></div>
+    <div class="rol-meta">
+      <div><span class="lbl">Período:</span> ${p.periodoTrabajo||'—'}</div>
+      <div><span class="lbl">Fecha de Emisión:</span> ${fechaCorta(p.fecha)}</div>
+      <div><span class="lbl">Nombre:</span> ${p.trabajador}</div>
+      <div><span class="lbl">Cédula:</span> ${p.cedula||'—'}</div>
+      <div><span class="lbl">Cargo:</span> ${p.cargo||'—'}</div>
+      <div><span class="lbl">Tipo:</span> ${p.tipo==='Facilitador'?'Facilitador / Tutor':'Personal Fijo'}</div>
+      <div><span class="lbl">Fecha de Ingreso:</span> ${p.fechaIngreso?fechaCorta(p.fechaIngreso):'—'}</div>
+      <div><span class="lbl">Días Trabajados:</span> ${p.diasTrabajados||'—'}</div>
+    </div>
+
+    <table class="rol-tabla">
+      <thead><tr><th>Ingresos</th><th class="num">Valor (USD)</th></tr></thead>
+      <tbody>
+        ${filasIngresos.map(([c,v])=>`<tr><td>${c}</td><td class="num">${fmt(v)}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--text-dim);">Sin ingresos registrados</td></tr>'}
+        <tr class="tot"><td>TOTAL INGRESOS</td><td class="num">${fmt(totalIng)}</td></tr>
+      </tbody>
+    </table>
+
+    <table class="rol-tabla">
+      <thead><tr><th>Descuentos</th><th class="num">Valor (USD)</th></tr></thead>
+      <tbody>
+        ${filasDescuentos.map(([c,v])=>`<tr><td>${c}</td><td class="num">${fmt(v)}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--text-dim);">Sin descuentos registrados</td></tr>'}
+        <tr class="tot"><td>TOTAL DESCUENTOS</td><td class="num">${fmt(totalDesc)}</td></tr>
+      </tbody>
+    </table>
+
+    <div class="resumen-linea"><span>Total Ingresos</span><span>${fmt(totalIng)}</span></div>
+    <div class="resumen-linea"><span>(-) Total Descuentos</span><span>${fmt(totalDesc)}</span></div>
+    <div class="resumen-linea total"><span>VALOR NETO A RECIBIR</span><span>${fmt(neto)}</span></div>
+    <div class="hint" style="margin-top:8px;">Método de pago: ${p.metodoPago||'—'}</div>
+
+    <div class="rol-firmas">
+      <div><div class="linea">Empleado — ${p.trabajador}</div></div>
+      <div><div class="linea">Empleador — Ceprocenter</div></div>
+    </div>
   `;
   document.getElementById('modal_overlay').classList.add('show');
 }
@@ -310,16 +435,16 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
 });
 window.onafterprint = function(){ document.body.classList.remove('printing'); };
 
-window.verRecibo = function(id){
+window.verRol = function(id){
   const p = ROL_PAGOS.find(x=>x.id===id);
-  if(p) mostrarRecibo(p);
+  if(p) mostrarRol(p);
 };
 
 window.eliminarPago = async function(id){
-  if(!confirm('¿Eliminar este pago?')) return;
+  if(!confirm('¿Eliminar este rol de pago?')) return;
   try{
     await apiPost('RolPagos','delete',{id});
-    showToast('Pago eliminado.');
+    showToast('Eliminado.');
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al eliminar: '+e.message); }
@@ -336,12 +461,12 @@ function renderAll(){
 
 function renderTicker(){
   const now = new Date();
-  const totalHistorico = ROL_PAGOS.reduce((s,p)=>s+p.monto,0);
+  const totalHistorico = ROL_PAGOS.reduce((s,p)=>s+valorNetoDe(p),0);
   const pagosMes = ROL_PAGOS.filter(p=>{const d=new Date(p.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-  const totalMes = pagosMes.reduce((s,p)=>s+p.monto,0);
+  const totalMes = pagosMes.reduce((s,p)=>s+valorNetoDe(p),0);
   const trabajadoresUnicos = new Set(ROL_PAGOS.map(p=>p.trabajador)).size;
   document.getElementById('ticker').innerHTML = `
-    <div class="tick"><div class="n">${fmt(totalMes)}</div><div class="l">Pagado Este Mes</div></div>
+    <div class="tick"><div class="n">${fmt(totalMes)}</div><div class="l">Neto Pagado Este Mes</div></div>
     <div class="tick"><div class="n">${fmt(totalHistorico)}</div><div class="l">Total Histórico</div></div>
     <div class="tick"><div class="n">${trabajadoresUnicos}</div><div class="l">Trabajadores Registrados</div></div>
   `;
@@ -379,16 +504,18 @@ function renderHistorial(){
       <tr>
         <td>${fechaCorta(p.fecha)}</td><td>${p.trabajador}</td>
         <td><span class="pill ${p.tipo==='Facilitador'?'tutor':'fijo'}">${p.tipo==='Facilitador'?'Facilitador':'Fijo'}</span></td>
-        <td>${p.concepto}</td><td>${p.metodoPago||'—'}</td>
-        <td class="num">${fmt(p.monto)}</td>
+        <td>${p.periodoTrabajo||'—'}</td>
+        <td class="num">${fmt(totalIngresosDe(p))}</td>
+        <td class="num">${fmt(totalDescuentosDe(p))}</td>
+        <td class="num">${fmt(valorNetoDe(p))}</td>
         <td>
-          <button class="btn btn-ghost btn-sm" onclick="verRecibo('${p.id}')">📄 Recibo</button>
+          <button class="btn btn-ghost btn-sm" onclick="verRol('${p.id}')">📄 Rol</button>
           <button class="btn btn-ghost btn-sm" onclick="eliminarPago('${p.id}')">Eliminar</button>
         </td>
       </tr>
     `).join('');
   }
-  document.getElementById('tot_historial').textContent = fmt(rows.reduce((s,p)=>s+p.monto,0));
+  document.getElementById('tot_historial').textContent = fmt(rows.reduce((s,p)=>s+valorNetoDe(p),0));
 }
 ['filt_mes','filt_trabajador','filt_tipo'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderHistorial);
@@ -403,11 +530,16 @@ document.getElementById('btn_export_csv').addEventListener('click', ()=>{
   if(mes) rows = rows.filter(p=>p.fecha && p.fecha.slice(0,7)===mes);
   if(trabajador) rows = rows.filter(p=>p.trabajador===trabajador);
   if(tipo) rows = rows.filter(p=>p.tipo===tipo);
-  if(rows.length===0){ showToast('No hay pagos para exportar.'); return; }
+  if(rows.length===0){ showToast('No hay roles de pago para exportar.'); return; }
 
-  const headers = ['Fecha','Trabajador','Cédula','Cargo','Tipo','Período de Trabajo','Concepto','Método','Monto'];
+  const headers = ['Fecha','Trabajador','Cédula','Cargo','Tipo','Período','Días Trabajados','Sueldo Básico','Horas Extras','Comisiones','Bonificaciones','Transporte','Alimentación','Otros Ingresos','Total Ingresos','Aporte IESS','Anticipos','Préstamos','Otros Descuentos','Total Descuentos','Valor Neto','Método'];
   const csv = [headers.join(',')];
-  rows.forEach(p=>csv.push([p.fecha,p.trabajador,p.cedula||'',p.cargo||'',p.tipo,p.periodoTrabajo||'',p.concepto,p.metodoPago||'',p.monto].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  rows.forEach(p=>csv.push([
+    p.fecha,p.trabajador,p.cedula||'',p.cargo||'',p.tipo,p.periodoTrabajo||'',p.diasTrabajados||'',
+    p.sueldoBasico,p.horasExtras,p.comisiones,p.bonificaciones,p.transporte,p.alimentacion,p.otrosIngresos,totalIngresosDe(p),
+    p.aporteIESS,p.anticipos,p.prestamos,p.otrosDescuentos,totalDescuentosDe(p),
+    valorNetoDe(p),p.metodoPago||''
+  ].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
   const blob = new Blob([csv.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -424,7 +556,7 @@ function renderResumen(){
   rows.forEach(p=>{
     if(!porTrabajador[p.trabajador]) porTrabajador[p.trabajador] = {tipo:p.tipo, count:0, total:0};
     porTrabajador[p.trabajador].count++;
-    porTrabajador[p.trabajador].total += p.monto;
+    porTrabajador[p.trabajador].total += valorNetoDe(p);
   });
   const lista = Object.entries(porTrabajador).sort((a,b)=>b[1].total-a[1].total);
 
