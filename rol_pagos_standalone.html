@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ceprocenter · Rol de Pagos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF0F5; --panel: #FFFFFF; --panel-2: #F5F6FA; --line: #DEE2EA;
+    --accent: #A5D32A; --accent-soft: rgba(165,211,42,0.15); --accent-dark: #7A9A1E;
+    --text: #24273A; --text-dim: #767C93; --danger: #D9614F; --danger-soft: rgba(217,97,79,0.12); --radius: 12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Nunito',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Quicksand',sans-serif;letter-spacing:0.01em;}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 70px;}
+  .top{text-align:center;margin-bottom:22px;}
+  .top h1{font-size:26px;font-weight:700;margin:0;}
+  .top .sub{color:var(--text-dim);font-size:14px;margin-top:6px;}
+  .accent{color:var(--accent-dark);}
+  .ticker{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px;}
+  .tick{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center;}
+  .tick .n{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;}
+  .tick .l{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .tab{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 16px;font-family:'Quicksand',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--text-dim);}
+  .tab.active{background:var(--accent);color:#1A2E0A;border-color:var(--accent);}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:18px;}
+  .panel h2{font-size:17px;margin:0 0 4px;}
+  .hint{color:var(--text-dim);font-size:13px;margin:0 0 16px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+  .grid.cols3{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:800px){.grid.cols3{grid-template-columns:1fr;}}
+  .field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
+  .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14.5px;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--accent-dark);}
+  .btn{font-family:'Quicksand',sans-serif;font-weight:700;font-size:14px;border-radius:9px;padding:11px 18px;border:none;cursor:pointer;background:var(--accent);color:#1A2E0A;}
+  .btn:hover{background:var(--accent-dark);color:#fff;}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--panel-2);color:var(--text);}
+  .btn-sm{padding:7px 12px;font-size:12.5px;}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;font-family:'Quicksand',sans-serif;text-transform:uppercase;letter-spacing:0.04em;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);}
+  .table-scroll{overflow-x:auto;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;text-transform:uppercase;font-weight:700;}
+  .pill.tutor{background:var(--accent-soft);color:var(--accent-dark);}
+  .pill.fijo{background:#E4E8F5;color:#4A5AA8;}
+  .empty{text-align:center;color:var(--text-dim);padding:24px;font-size:13.5px;}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .setup-hint{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;font-size:13px;}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
+  .modal-overlay.show{display:flex;}
+  .modal-box{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:0;}
+  .modal-box-inner{padding:32px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 32px;border-top:1px solid var(--line);}
+  .recibo-header{text-align:center;margin-bottom:20px;}
+  .recibo-header .brand{font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;color:var(--accent-dark);}
+  .recibo-header .title{font-family:'Quicksand',sans-serif;font-weight:600;font-size:14px;color:var(--text-dim);margin-top:2px;}
+  .recibo-linea{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .recibo-linea .lbl{color:var(--text-dim);}
+  .recibo-monto{text-align:center;margin:20px 0;}
+  .recibo-monto .n{font-family:'Quicksand',sans-serif;font-size:32px;font-weight:700;color:var(--accent-dark);}
+  @media print{
+    body.printing *{visibility:hidden;}
+    body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
+    body.printing .modal-box{position:absolute;top:0;left:0;width:100%;max-width:100%;}
+    body.printing .modal-actions{display:none;}
+    @page{size:portrait;margin:15mm;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <h1>Rol de Pagos <span class="accent">Ceprocenter</span></h1>
+    <div class="sub">Pagos a facilitadores y personal — registro simple, tipo recibo.</div>
+  </div>
+
+  <div class="setup-hint" id="setup_banner" style="display:none;">
+    <b>Primera vez usando esta herramienta.</b> Pega abajo la URL de tu Apps Script (la misma que usan Calificaciones y Matrículas).
+    <div class="grid" style="margin-top:12px;max-width:500px;">
+      <input id="config_url" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+    </div>
+    <button class="btn btn-sm" id="btn_guardar_config" style="margin-top:10px;">Guardar y Conectar</button>
+  </div>
+
+  <div id="app_content" style="display:none;">
+
+    <div class="ticker" id="ticker"></div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="registrar">Registrar Pago</button>
+      <button class="tab" data-tab="historial">Historial</button>
+      <button class="tab" data-tab="resumen">Resumen por Trabajador</button>
+    </div>
+
+    <!-- REGISTRAR -->
+    <div id="tab-registrar">
+      <div class="panel">
+        <h2>Registrar Pago</h2>
+        <p class="hint">Un pago por línea — como llenar un recibo.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Fecha</label><input id="r_fecha" type="date"></div>
+          <div class="field"><label>Trabajador</label><input id="r_trabajador" list="lista_trabajadores" placeholder="Nombre completo"><datalist id="lista_trabajadores"></datalist></div>
+          <div class="field"><label>Tipo</label>
+            <select id="r_tipo">
+              <option value="">Selecciona una opción</option>
+              <option value="Facilitador">Facilitador / Tutor</option>
+              <option value="Fijo">Personal Fijo</option>
+            </select>
+          </div>
+          <div class="field"><label>Concepto</label><input id="r_concepto" placeholder="Ej. Pago Módulo 3, Sueldo Julio, Comisión..."></div>
+          <div class="field"><label>Monto ($)</label><input id="r_monto" type="number" step="0.01" min="0" placeholder="0.00"></div>
+          <div class="field"><label>Método de Pago</label>
+            <select id="r_metodo">
+              <option>Transferencia Bancaria</option>
+              <option>Depósito</option>
+              <option>Efectivo</option>
+              <option>Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions"><button class="btn" id="btn_guardar_pago">Guardar Pago</button></div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div id="tab-historial" style="display:none;">
+      <div class="panel">
+        <h2>Historial de Pagos</h2>
+        <div class="grid cols3" style="margin-bottom:16px;">
+          <div class="field"><label>Mes</label><input type="month" id="filt_mes"></div>
+          <div class="field"><label>Trabajador</label><select id="filt_trabajador"><option value="">Todos</option></select></div>
+          <div class="field"><label>Tipo</label><select id="filt_tipo"><option value="">Todos</option><option value="Facilitador">Facilitador / Tutor</option><option value="Fijo">Personal Fijo</option></select></div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Fecha</th><th>Trabajador</th><th>Tipo</th><th>Concepto</th><th>Método</th><th class="num">Monto</th><th></th></tr></thead>
+            <tbody id="tabla_historial"></tbody>
+            <tfoot><tr><td colspan="5">TOTAL</td><td class="num" id="tot_historial">$0.00</td><td></td></tr></tfoot>
+          </table>
+        </div>
+        <div class="empty" id="historial_empty" style="display:none;">No hay pagos con este filtro.</div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_csv">Descargar CSV</button></div>
+      </div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div id="tab-resumen" style="display:none;">
+      <div class="panel">
+        <h2>Resumen por Trabajador</h2>
+        <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="res_mes"></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Trabajador</th><th>Tipo</th><th class="num">N° Pagos</th><th class="num">Total Pagado</th></tr></thead>
+            <tbody id="tabla_resumen"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="resumen_empty" style="display:none;">Sin pagos en este mes.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_overlay">
+  <div class="modal-box">
+    <div class="modal-box-inner" id="recibo_content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn_cerrar_modal">Cerrar</button>
+      <button class="btn" id="btn_imprimir_modal">Imprimir / Guardar PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
+if(!API_URL){
+  document.getElementById('setup_banner').style.display = 'block';
+}else{
+  document.getElementById('app_content').style.display = 'block';
+}
+document.getElementById('config_url').value = API_URL;
+document.getElementById('btn_guardar_config').addEventListener('click', ()=>{
+  const url = document.getElementById('config_url').value.trim();
+  if(!url){ showToast('Pega la URL primero.'); return; }
+  localStorage.setItem('cepro_api_url_academico', url);
+  location.reload();
+});
+
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function fmt(n){ return '$' + (Number(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function normNum(v){ return Number(v)||0; }
+
+async function apiGet(sheet){
+  const res = await fetch(`${API_URL}?sheet=${sheet}`);
+  return await res.json();
+}
+async function apiPost(sheet, action, payload){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({sheet, action, ...payload})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+
+let ROL_PAGOS = [];
+
+async function loadAll(){
+  const rp = await apiGet('RolPagos');
+  ROL_PAGOS = rp.map(p=>({...p, monto:normNum(p.monto)}));
+}
+
+function fechaCorta(fechaStr){
+  if(!fechaStr) return '—';
+  const d = new Date(fechaStr + (fechaStr.length<=10 ? 'T00:00:00' : ''));
+  if(isNaN(d.getTime())) return fechaStr;
+  return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function fechaValor(f){
+  if(!f) return 0;
+  const partes = String(f).slice(0,10).split('-');
+  if(partes.length!==3) return 0;
+  return Number(partes[0])*10000 + Number(partes[1])*100 + Number(partes[2]);
+}
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['registrar','historial','resumen'].forEach(t=>{
+      document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
+    });
+  });
+});
+
+// ---------- REGISTRAR ----------
+document.getElementById('btn_guardar_pago').addEventListener('click', async ()=>{
+  const fecha = document.getElementById('r_fecha').value;
+  const trabajador = document.getElementById('r_trabajador').value.trim();
+  const tipo = document.getElementById('r_tipo').value;
+  const concepto = document.getElementById('r_concepto').value.trim();
+  const monto = Number(document.getElementById('r_monto').value)||0;
+  const metodoPago = document.getElementById('r_metodo').value;
+
+  if(!fecha){ showToast('Escribe la fecha del pago.'); return; }
+  if(!trabajador){ showToast('Escribe el nombre del trabajador.'); return; }
+  if(!tipo){ showToast('Selecciona el tipo de trabajador.'); return; }
+  if(!concepto){ showToast('Escribe el concepto del pago.'); return; }
+  if(monto<=0){ showToast('El monto debe ser mayor a 0.'); return; }
+
+  try{
+    const nuevoId = uid();
+    await apiPost('RolPagos','add',{data:{id:nuevoId, fecha, trabajador, tipo, concepto, metodoPago, monto}});
+    showToast('Pago guardado.');
+    document.getElementById('r_concepto').value=''; document.getElementById('r_monto').value='';
+    await loadAll();
+    renderAll();
+    mostrarRecibo({id:nuevoId, fecha, trabajador, tipo, concepto, metodoPago, monto});
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+// ---------- RECIBO (modal + imprimir) ----------
+function mostrarRecibo(p){
+  document.getElementById('recibo_content').innerHTML = `
+    <div class="recibo-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Comprobante de Pago</div>
+    </div>
+    <div class="recibo-linea"><span class="lbl">Fecha</span><span>${fechaCorta(p.fecha)}</span></div>
+    <div class="recibo-linea"><span class="lbl">Trabajador</span><span>${p.trabajador}</span></div>
+    <div class="recibo-linea"><span class="lbl">Tipo</span><span>${p.tipo==='Facilitador'?'Facilitador / Tutor':'Personal Fijo'}</span></div>
+    <div class="recibo-linea"><span class="lbl">Concepto</span><span>${p.concepto}</span></div>
+    <div class="recibo-linea"><span class="lbl">Método de Pago</span><span>${p.metodoPago||'—'}</span></div>
+    <div class="recibo-monto"><div class="n">${fmt(p.monto)}</div></div>
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+}
+document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
+  document.getElementById('modal_overlay').classList.remove('show');
+});
+document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
+  document.body.classList.add('printing');
+  window.print();
+});
+window.onafterprint = function(){ document.body.classList.remove('printing'); };
+
+window.verRecibo = function(id){
+  const p = ROL_PAGOS.find(x=>x.id===id);
+  if(p) mostrarRecibo(p);
+};
+
+window.eliminarPago = async function(id){
+  if(!confirm('¿Eliminar este pago?')) return;
+  try{
+    await apiPost('RolPagos','delete',{id});
+    showToast('Pago eliminado.');
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error al eliminar: '+e.message); }
+};
+
+// ---------- RENDER ----------
+function renderAll(){
+  renderTicker();
+  renderDatalistTrabajadores();
+  renderFiltroTrabajadores();
+  renderHistorial();
+  renderResumen();
+}
+
+function renderTicker(){
+  const now = new Date();
+  const totalHistorico = ROL_PAGOS.reduce((s,p)=>s+p.monto,0);
+  const pagosMes = ROL_PAGOS.filter(p=>{const d=new Date(p.fecha);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
+  const totalMes = pagosMes.reduce((s,p)=>s+p.monto,0);
+  const trabajadoresUnicos = new Set(ROL_PAGOS.map(p=>p.trabajador)).size;
+  document.getElementById('ticker').innerHTML = `
+    <div class="tick"><div class="n">${fmt(totalMes)}</div><div class="l">Pagado Este Mes</div></div>
+    <div class="tick"><div class="n">${fmt(totalHistorico)}</div><div class="l">Total Histórico</div></div>
+    <div class="tick"><div class="n">${trabajadoresUnicos}</div><div class="l">Trabajadores Registrados</div></div>
+  `;
+}
+
+function renderDatalistTrabajadores(){
+  const nombres = [...new Set(ROL_PAGOS.map(p=>p.trabajador))].sort();
+  document.getElementById('lista_trabajadores').innerHTML = nombres.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">`).join('');
+}
+
+function renderFiltroTrabajadores(){
+  const sel = document.getElementById('filt_trabajador');
+  const prev = sel.value;
+  const nombres = [...new Set(ROL_PAGOS.map(p=>p.trabajador))].sort();
+  sel.innerHTML = '<option value="">Todos</option>' + nombres.map(n=>`<option ${n===prev?'selected':''}>${n}</option>`).join('');
+}
+
+function renderHistorial(){
+  const mes = document.getElementById('filt_mes').value;
+  const trabajador = document.getElementById('filt_trabajador').value;
+  const tipo = document.getElementById('filt_tipo').value;
+
+  let rows = ROL_PAGOS.slice();
+  if(mes) rows = rows.filter(p=>p.fecha && p.fecha.slice(0,7)===mes);
+  if(trabajador) rows = rows.filter(p=>p.trabajador===trabajador);
+  if(tipo) rows = rows.filter(p=>p.tipo===tipo);
+  rows.sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha));
+
+  const body = document.getElementById('tabla_historial');
+  const empty = document.getElementById('historial_empty');
+  if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; }
+  else{
+    empty.style.display='none';
+    body.innerHTML = rows.map(p=>`
+      <tr>
+        <td>${fechaCorta(p.fecha)}</td><td>${p.trabajador}</td>
+        <td><span class="pill ${p.tipo==='Facilitador'?'tutor':'fijo'}">${p.tipo==='Facilitador'?'Facilitador':'Fijo'}</span></td>
+        <td>${p.concepto}</td><td>${p.metodoPago||'—'}</td>
+        <td class="num">${fmt(p.monto)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="verRecibo('${p.id}')">📄 Recibo</button>
+          <button class="btn btn-ghost btn-sm" onclick="eliminarPago('${p.id}')">Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById('tot_historial').textContent = fmt(rows.reduce((s,p)=>s+p.monto,0));
+}
+['filt_mes','filt_trabajador','filt_tipo'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderHistorial);
+  document.getElementById(id).addEventListener('change', renderHistorial);
+});
+
+document.getElementById('btn_export_csv').addEventListener('click', ()=>{
+  const mes = document.getElementById('filt_mes').value;
+  const trabajador = document.getElementById('filt_trabajador').value;
+  const tipo = document.getElementById('filt_tipo').value;
+  let rows = ROL_PAGOS.slice();
+  if(mes) rows = rows.filter(p=>p.fecha && p.fecha.slice(0,7)===mes);
+  if(trabajador) rows = rows.filter(p=>p.trabajador===trabajador);
+  if(tipo) rows = rows.filter(p=>p.tipo===tipo);
+  if(rows.length===0){ showToast('No hay pagos para exportar.'); return; }
+
+  const headers = ['Fecha','Trabajador','Tipo','Concepto','Método','Monto'];
+  const csv = [headers.join(',')];
+  rows.forEach(p=>csv.push([p.fecha,p.trabajador,p.tipo,p.concepto,p.metodoPago||'',p.monto].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob([csv.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `rol_pagos_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+});
+
+function renderResumen(){
+  const mes = document.getElementById('res_mes').value;
+  let rows = ROL_PAGOS.slice();
+  if(mes) rows = rows.filter(p=>p.fecha && p.fecha.slice(0,7)===mes);
+
+  const porTrabajador = {};
+  rows.forEach(p=>{
+    if(!porTrabajador[p.trabajador]) porTrabajador[p.trabajador] = {tipo:p.tipo, count:0, total:0};
+    porTrabajador[p.trabajador].count++;
+    porTrabajador[p.trabajador].total += p.monto;
+  });
+  const lista = Object.entries(porTrabajador).sort((a,b)=>b[1].total-a[1].total);
+
+  const body = document.getElementById('tabla_resumen');
+  const empty = document.getElementById('resumen_empty');
+  if(lista.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = lista.map(([trabajador,v])=>`
+    <tr>
+      <td>${trabajador}</td>
+      <td><span class="pill ${v.tipo==='Facilitador'?'tutor':'fijo'}">${v.tipo==='Facilitador'?'Facilitador':'Fijo'}</span></td>
+      <td class="num">${v.count}</td>
+      <td class="num">${fmt(v.total)}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('res_mes').addEventListener('input', renderResumen);
+
+async function initApp(){
+  if(!API_URL) return;
+  try{
+    await loadAll();
+    renderAll();
+  }catch(e){
+    showToast('No se pudo conectar: ' + e.message);
+  }
+}
+document.getElementById('r_fecha').valueAsDate = new Date();
+initApp();
+</script>
+</body>
+</html>
