@@ -1142,7 +1142,7 @@ function renderCXC(){
     const btnPago = `<td><button class="btn btn-ghost btn-sm" onclick="registrarPagoAdicional('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">+ Pago</button></td>`;
     const celdaAsesor = `<td>${asesorEst||'—'}</td>`;
     const btnReporte = `<td><button class="btn btn-ghost btn-sm" onclick="pdfEstudianteIndividual('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">📄 Reporte</button></td>`;
-    if(saldoTotal>0) filasDeuda.push([est].concat(estados).concat([saldoTotal]));
+    if(saldoTotal>0) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal]));
     return `<tr><td>${est}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}</tr>`;
   }).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
@@ -1181,7 +1181,7 @@ document.getElementById('btn_export_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
-  const headers = ['Estudiante'].concat(data.items).concat(['Saldo Pendiente Total']);
+  const headers = ['Estudiante','Asesor'].concat(data.items).concat(['Saldo Pendiente Total']);
   const rows = [headers.join(',')];
   data.filas.forEach(f=>rows.push(f.map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'deudores_'+data.curso.replace(/[^a-z0-9]+/gi,'_'));
@@ -1439,7 +1439,9 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
 };
 
 window.pdfDeudoresModulo = function(curso, modulo){
-  const estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
+  let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
   const deudores = [];
   let totalGeneral = 0;
   estudiantes.forEach(est=>{
@@ -1450,19 +1452,19 @@ window.pdfDeudoresModulo = function(curso, modulo){
     if(saldo>0){
       totalGeneral += saldo;
       const estado = pagado===0 ? `Debe ${fmt(esperado)}` : `Abonó ${fmt(pagado)}, debe ${fmt(saldo)}`;
-      deudores.push({est, estado, saldo});
+      deudores.push({est, estado, saldo, asesor: asesorDeEstudiante(curso, est)||'—'});
     }
   });
   if(deudores.length===0){ showToast('Nadie debe el módulo "'+modulo+'" — todos están al día.'); return; }
 
-  const filas = deudores.sort((a,b)=>b.saldo-a.saldo).map(d=>`<tr><td>${d.est}</td><td>${d.estado}</td></tr>`).join('');
+  const filas = deudores.sort((a,b)=>b.saldo-a.saldo).map(d=>`<tr><td>${d.est}</td><td>${d.asesor}</td><td>${d.estado}</td></tr>`).join('');
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
       <div class="title">Deudores — ${modulo}</div>
     </div>
-    <div class="doc-meta">Curso: <b>${curso}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b></div>
-    <table class="doc-table"><thead><tr><th>Estudiante</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="doc-meta">Curso: <b>${curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b></div>
+    <table class="doc-table"><thead><tr><th>Estudiante</th><th>Asesor</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>
   `;
   abrirModalDoc(html);
 };
@@ -1472,15 +1474,17 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
   const totalGeneral = data.filas.reduce((s,f)=>s+Number(f[f.length-1]),0);
+  const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
 
   const tarjetas = data.filas.map(f=>{
     const estudiante = f[0];
+    const asesorTarjeta = f[1];
     const saldo = f[f.length-1];
-    const estadosModulos = f.slice(1, f.length-1);
+    const estadosModulos = f.slice(2, f.length-1);
     const filasModulo = data.items.map((modulo,i)=>`<tr><td>${modulo}</td><td>${estadosModulos[i]}</td></tr>`).join('');
     return `
       <div class="deudor-card">
-        <div class="deudor-nombre"><span>${estudiante}</span><span class="saldo">${fmt(saldo)}</span></div>
+        <div class="deudor-nombre"><span>${estudiante} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${asesorTarjeta})</span></span><span class="saldo">${fmt(saldo)}</span></div>
         <table class="deudor-modulos">${filasModulo}</table>
       </div>
     `;
@@ -1491,7 +1495,7 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
       <div class="brand">Ceprocenter</div>
       <div class="title">Reporte de Deudores</div>
     </div>
-    <div class="doc-meta">Curso: <b>${data.curso}</b> — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
+    <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
     ${tarjetas}
   `;
   abrirModalDoc(html);
