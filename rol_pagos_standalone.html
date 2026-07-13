@@ -109,6 +109,8 @@
         <div class="grid cols3">
           <div class="field"><label>Fecha</label><input id="r_fecha" type="date"></div>
           <div class="field"><label>Trabajador</label><input id="r_trabajador" list="lista_trabajadores" placeholder="Nombre completo"><datalist id="lista_trabajadores"></datalist></div>
+          <div class="field"><label>Cédula</label><input id="r_cedula" placeholder="N° de cédula"></div>
+          <div class="field"><label>Cargo</label><input id="r_cargo" placeholder="Ej. Facilitador, Asesor de Ventas..."></div>
           <div class="field"><label>Tipo</label>
             <select id="r_tipo">
               <option value="">Selecciona una opción</option>
@@ -116,6 +118,7 @@
               <option value="Fijo">Personal Fijo</option>
             </select>
           </div>
+          <div class="field"><label>Período de Trabajo</label><input id="r_periodo" placeholder="Ej. 01 al 31 de Julio 2026"></div>
           <div class="field"><label>Concepto</label><input id="r_concepto" placeholder="Ej. Pago Módulo 3, Sueldo Julio, Comisión..."></div>
           <div class="field"><label>Monto ($)</label><input id="r_monto" type="number" step="0.01" min="0" placeholder="0.00"></div>
           <div class="field"><label>Método de Pago</label>
@@ -248,10 +251,15 @@ document.querySelectorAll('.tab').forEach(btn=>{
 });
 
 // ---------- REGISTRAR ----------
+const RUC_CEPROCENTER = '0993369780001';
+
 document.getElementById('btn_guardar_pago').addEventListener('click', async ()=>{
   const fecha = document.getElementById('r_fecha').value;
   const trabajador = document.getElementById('r_trabajador').value.trim();
+  const cedula = document.getElementById('r_cedula').value.trim();
+  const cargo = document.getElementById('r_cargo').value.trim();
   const tipo = document.getElementById('r_tipo').value;
+  const periodoTrabajo = document.getElementById('r_periodo').value.trim();
   const concepto = document.getElementById('r_concepto').value.trim();
   const monto = Number(document.getElementById('r_monto').value)||0;
   const metodoPago = document.getElementById('r_metodo').value;
@@ -264,12 +272,12 @@ document.getElementById('btn_guardar_pago').addEventListener('click', async ()=>
 
   try{
     const nuevoId = uid();
-    await apiPost('RolPagos','add',{data:{id:nuevoId, fecha, trabajador, tipo, concepto, metodoPago, monto}});
+    await apiPost('RolPagos','add',{data:{id:nuevoId, fecha, trabajador, cedula, cargo, tipo, periodoTrabajo, concepto, metodoPago, monto}});
     showToast('Pago guardado.');
     document.getElementById('r_concepto').value=''; document.getElementById('r_monto').value='';
     await loadAll();
     renderAll();
-    mostrarRecibo({id:nuevoId, fecha, trabajador, tipo, concepto, metodoPago, monto});
+    mostrarRecibo({id:nuevoId, fecha, trabajador, cedula, cargo, tipo, periodoTrabajo, concepto, metodoPago, monto});
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 
@@ -279,10 +287,14 @@ function mostrarRecibo(p){
     <div class="recibo-header">
       <div class="brand">Ceprocenter</div>
       <div class="title">Comprobante de Pago</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">RUC: ${RUC_CEPROCENTER}</div>
     </div>
     <div class="recibo-linea"><span class="lbl">Fecha</span><span>${fechaCorta(p.fecha)}</span></div>
     <div class="recibo-linea"><span class="lbl">Trabajador</span><span>${p.trabajador}</span></div>
+    <div class="recibo-linea"><span class="lbl">Cédula</span><span>${p.cedula||'—'}</span></div>
+    <div class="recibo-linea"><span class="lbl">Cargo</span><span>${p.cargo||'—'}</span></div>
     <div class="recibo-linea"><span class="lbl">Tipo</span><span>${p.tipo==='Facilitador'?'Facilitador / Tutor':'Personal Fijo'}</span></div>
+    <div class="recibo-linea"><span class="lbl">Período de Trabajo</span><span>${p.periodoTrabajo||'—'}</span></div>
     <div class="recibo-linea"><span class="lbl">Concepto</span><span>${p.concepto}</span></div>
     <div class="recibo-linea"><span class="lbl">Método de Pago</span><span>${p.metodoPago||'—'}</span></div>
     <div class="recibo-monto"><div class="n">${fmt(p.monto)}</div></div>
@@ -393,9 +405,9 @@ document.getElementById('btn_export_csv').addEventListener('click', ()=>{
   if(tipo) rows = rows.filter(p=>p.tipo===tipo);
   if(rows.length===0){ showToast('No hay pagos para exportar.'); return; }
 
-  const headers = ['Fecha','Trabajador','Tipo','Concepto','Método','Monto'];
+  const headers = ['Fecha','Trabajador','Cédula','Cargo','Tipo','Período de Trabajo','Concepto','Método','Monto'];
   const csv = [headers.join(',')];
-  rows.forEach(p=>csv.push([p.fecha,p.trabajador,p.tipo,p.concepto,p.metodoPago||'',p.monto].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  rows.forEach(p=>csv.push([p.fecha,p.trabajador,p.cedula||'',p.cargo||'',p.tipo,p.periodoTrabajo||'',p.concepto,p.metodoPago||'',p.monto].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
   const blob = new Blob([csv.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
