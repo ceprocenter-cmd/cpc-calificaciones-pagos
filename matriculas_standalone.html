@@ -1390,6 +1390,13 @@ function acortarConcepto(texto){
   return texto.length > 15 ? texto.slice(0,15).trim() + '…' : texto;
 }
 
+function nombreCursoSinEspecializacion(texto){
+  if(!texto) return '';
+  const match = texto.match(/especializaci[oó]n\s+en\s+(.+)/i);
+  if(match) return match[1];
+  return texto;
+}
+
 function acortarCurso(texto){
   if(!texto) return '';
   return texto.length > 22 ? texto.slice(0,22).trim() + '…' : texto;
@@ -1499,7 +1506,7 @@ window.pdfDeudoresModulo = function(curso, modulo){
     </div>
     <div class="doc-meta">Curso: <b>${curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b> (no incluye a quienes no continuaron)</div>
     <table class="doc-table"><thead><tr><th>Estudiante</th><th>Asesor</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>
-    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">Solo Nombres (para copiar)</h3>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">${acortarConcepto(modulo)} — ${nombreCursoSinEspecializacion(curso)}</h3>
     <div style="font-size:13.5px;line-height:1.9;">${soloNombres}</div>
   `;
   abrirModalDoc(html);
@@ -1541,7 +1548,7 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
     </div>
     <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
     ${tarjetas}
-    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">Solo Nombres (para copiar)</h3>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">${nombreCursoSinEspecializacion(data.curso)}</h3>
     <div style="font-size:13.5px;line-height:1.9;">${soloNombresGeneral}</div>
   `;
   abrirModalDoc(html);
