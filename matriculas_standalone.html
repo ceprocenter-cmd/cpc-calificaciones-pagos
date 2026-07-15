@@ -255,7 +255,7 @@
     <!-- CUENTAS POR COBRAR -->
     <div id="tab-cobrar" style="display:none;">
       <div class="panel">
-        <h2>Cuentas por Cobrar</h2>
+        <h2>Cuentas por Cobrar <span id="cxc_contador" style="font-weight:400;color:var(--text-dim);font-size:14px;"></span></h2>
         <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
         <div class="grid cols3" style="margin-bottom:16px;">
           <div class="field"><label>Curso</label><select id="cxc_curso"></select></div>
@@ -1129,12 +1129,15 @@ function renderCXC(){
   const head = document.getElementById('cxc_head');
   const body = document.getElementById('cxc_body');
   const empty = document.getElementById('cxc_empty');
-  if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; return; }
+  if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; document.getElementById('cxc_contador').textContent=''; return; }
   empty.style.display='none';
 
   const items = itemsDe(curso);
   let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
+  const activos = estudiantes.filter(est=>nominaActivaCXC(curso, est)).length;
+  const inactivos = estudiantes.length - activos;
+  document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})`;
   estudiantes.sort((a,b)=>{
     const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b);
     if(activoA===activoB) return a.localeCompare(b);
@@ -1168,7 +1171,7 @@ function renderCXC(){
     const btnBaja = `<td>${activo
       ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
-    if(saldoTotal>0) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal]));
+    if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
     return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}</tr>`;
   }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
@@ -1207,7 +1210,7 @@ document.getElementById('btn_export_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
-  const headers = ['Estudiante','Asesor'].concat(data.items).concat(['Saldo Pendiente Total']);
+  const headers = ['Estudiante','Asesor'].concat(data.items).concat(['Saldo Pendiente Total','Activo']);
   const rows = [headers.join(',')];
   data.filas.forEach(f=>rows.push(f.map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'deudores_'+data.curso.replace(/[^a-z0-9]+/gi,'_'));
@@ -1476,21 +1479,28 @@ window.pdfDeudoresModulo = function(curso, modulo){
     const esperado = precioEsperado(curso, est, modulo);
     const saldo = Math.max(0, esperado - pagado);
     if(saldo>0){
-      totalGeneral += saldo;
-      const estado = pagado===0 ? `Debe ${fmt(esperado)}` : `Abonó ${fmt(pagado)}, debe ${fmt(saldo)}`;
-      deudores.push({est, estado, saldo, asesor: asesorDeEstudiante(curso, est)||'—'});
+      const activo = nominaActivaCXC(curso, est);
+      if(activo){
+        totalGeneral += saldo;
+        const estado = pagado===0 ? `Debe ${fmt(esperado)}` : `Abonó ${fmt(pagado)}, debe ${fmt(saldo)}`;
+        deudores.push({est, estado, saldo, asesor: asesorDeEstudiante(curso, est)||'—'});
+      }
     }
   });
   if(deudores.length===0){ showToast('Nadie debe el módulo "'+modulo+'" — todos están al día.'); return; }
 
-  const filas = deudores.sort((a,b)=>b.saldo-a.saldo).map(d=>`<tr><td>${d.est}</td><td>${d.asesor}</td><td>${d.estado}</td></tr>`).join('');
+  deudores.sort((a,b)=>b.saldo-a.saldo);
+  const filas = deudores.map(d=>`<tr><td>${d.est}</td><td>${d.asesor}</td><td>${d.estado}</td></tr>`).join('');
+  const soloNombres = deudores.map(d=>d.est).join('<br>');
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
       <div class="title">Deudores — ${modulo}</div>
     </div>
-    <div class="doc-meta">Curso: <b>${curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b></div>
+    <div class="doc-meta">Curso: <b>${curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b> (no incluye a quienes no continuaron)</div>
     <table class="doc-table"><thead><tr><th>Estudiante</th><th>Asesor</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">Solo Nombres (para copiar)</h3>
+    <div style="font-size:13.5px;line-height:1.9;">${soloNombres}</div>
   `;
   abrirModalDoc(html);
 };
@@ -1499,23 +1509,31 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
-  const totalGeneral = data.filas.reduce((s,f)=>s+Number(f[f.length-1]),0);
   const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
 
-  const tarjetas = data.filas.map(f=>{
+  const filasOrdenadas = data.filas.slice().sort((a,b)=>{
+    const activoA = a[a.length-1]==='Sí', activoB = b[b.length-1]==='Sí';
+    if(activoA===activoB) return 0;
+    return activoA ? -1 : 1;
+  });
+  const totalGeneral = filasOrdenadas.filter(f=>f[f.length-1]==='Sí').reduce((s,f)=>s+Number(f[f.length-2]),0);
+
+  const tarjetas = filasOrdenadas.map(f=>{
     const estudiante = f[0];
     const asesorTarjeta = f[1];
-    const saldo = f[f.length-1];
-    const estadosModulos = f.slice(2, f.length-1);
+    const activoFila = f[f.length-1]==='Sí';
+    const saldo = f[f.length-2];
+    const estadosModulos = f.slice(2, f.length-2);
     const filasModulo = data.items.map((modulo,i)=>`<tr><td>${modulo}</td><td>${estadosModulos[i]}</td></tr>`).join('');
     return `
-      <div class="deudor-card">
-        <div class="deudor-nombre"><span>${estudiante} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${asesorTarjeta})</span></span><span class="saldo">${fmt(saldo)}</span></div>
+      <div class="deudor-card"${activoFila?'':' style="opacity:0.55;"'}>
+        <div class="deudor-nombre"><span>${estudiante} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${asesorTarjeta})${activoFila?'':' — No continuó, no cuenta en el total'}</span></span><span class="saldo">${fmt(saldo)}</span></div>
         <table class="deudor-modulos">${filasModulo}</table>
       </div>
     `;
   }).join('');
 
+  const soloNombresGeneral = filasOrdenadas.map(f=>f[0]).join('<br>');
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -1523,6 +1541,8 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
     </div>
     <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
     ${tarjetas}
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">Solo Nombres (para copiar)</h3>
+    <div style="font-size:13.5px;line-height:1.9;">${soloNombresGeneral}</div>
   `;
   abrirModalDoc(html);
 });
