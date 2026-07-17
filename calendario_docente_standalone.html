@@ -116,7 +116,7 @@
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Mes</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th><th>Modalidad</th><th>Honorario</th><th>Tema</th><th>Observación</th><th></th></tr></thead>
+            <thead><tr id="calendario_head"></tr></thead>
             <tbody id="tabla_calendario"></tbody>
           </table>
         </div>
@@ -265,9 +265,27 @@ function fechaValor(f){
   if(partes.length!==3) return 0;
   return Number(partes[0])*10000 + Number(partes[1])*100 + Number(partes[2]);
 }
+function nombreMesDe(fechaStr){
+  if(!fechaStr || !/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) return '—';
+  const d = new Date(fechaStr.slice(0,10)+'T00:00:00');
+  if(isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('es-EC',{month:'long',year:'numeric'});
+}
+
 function rangoFechas(inicio, fin){
   if(!inicio) return '—';
   if(!fin || fin===inicio) return fechaCorta(inicio);
+  const dIni = new Date(inicio+'T00:00:00');
+  const dFin = new Date(fin+'T00:00:00');
+  const diaIni = String(dIni.getDate()).padStart(2,'0');
+  const diaFin = String(dFin.getDate()).padStart(2,'0');
+  const mismoMes = dIni.getMonth()===dFin.getMonth() && dIni.getFullYear()===dFin.getFullYear();
+  const mismoAnio = dIni.getFullYear()===dFin.getFullYear();
+  const mesFinNombre = dFin.toLocaleDateString('es-EC',{month:'long'});
+  const mesIniNombre = dIni.toLocaleDateString('es-EC',{month:'long'});
+
+  if(mismoMes) return `${diaIni} al ${diaFin} de ${mesFinNombre} ${dFin.getFullYear()}`;
+  if(mismoAnio) return `${diaIni} de ${mesIniNombre} al ${diaFin} de ${mesFinNombre} ${dFin.getFullYear()}`;
   return `${fechaCorta(inicio)} al ${fechaCorta(fin)}`;
 }
 
@@ -537,6 +555,7 @@ function renderCalendario(){
   const mes = document.getElementById('filt_mes').value;
   const docente = document.getElementById('filt_docente').value;
   const honorario = document.getElementById('filt_honorario').value;
+  const mostrarModalidad = !modalidad;
 
   let rows = CALENDARIO.slice();
   if(modalidad) rows = rows.filter(c=>c.modalidad===modalidad);
@@ -545,6 +564,11 @@ function renderCalendario(){
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
   if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
+
+  document.getElementById('calendario_head').innerHTML =
+    '<th>Mes y Año</th><th>Fechas</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th>'
+    + (mostrarModalidad ? '<th>Modalidad</th>' : '')
+    + '<th>Honorario</th><th>Tema</th><th>Observación</th><th></th>';
 
   const body = document.getElementById('tabla_calendario');
   const empty = document.getElementById('calendario_empty');
@@ -558,19 +582,18 @@ function renderCalendario(){
     if(mesActual !== mesAnterior){ colorAlterno = !colorAlterno; mesAnterior = mesActual; }
     const esFeriado = c.esFeriado==='Sí';
     const fondoMes = esFeriado ? 'background:#FFF6D6;' : (colorAlterno ? 'background:#F3F5FA;' : 'background:#FFFFFF;');
-    const nombreMes = c.fechaInicio ? new Date(c.fechaInicio+'T00:00:00').toLocaleDateString('es-EC',{month:'long',year:'numeric'}) : '—';
+    const nombreMes = nombreMesDe(c.fechaInicio);
     const observacion = esFeriado ? `🟡 Feriado: ${c.tema||''}` : (c.observacion||'—');
 
     return `<tr style="${fondoMes}">
       <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
-      <td>${esFeriado?'—':(c.horario||'—')}</td>
       <td>${esFeriado?'—':(c.capacitacion||'—')}</td>
       <td>${esFeriado?'—':(c.modulo||'—')}</td>
       <td>${esFeriado?'—':(c.docente||'—')}</td>
       <td>${esFeriado?'—':(c.encargado||'—')}</td>
       <td>${esFeriado?'—':(c.categoria||'—')}</td>
-      <td>${esFeriado?'—':(c.modalidad||'—')}</td>
+      ${mostrarModalidad ? `<td>${esFeriado?'—':(c.modalidad||'—')}</td>` : ''}
       <td>${esFeriado?'—':`<select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
         <option value="Pendiente" ${c.honorario!=='Pagado'?'selected':''}>Pendiente</option>
         <option value="Pagado" ${c.honorario==='Pagado'?'selected':''}>Pagado</option>
@@ -618,14 +641,13 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
     .sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
   const filasHtml = filas.map(c=>{
-    const mesNombre = c.fechaInicio ? new Date(c.fechaInicio+'T00:00:00').toLocaleDateString('es-EC',{month:'long'}).toUpperCase() : '—';
+    const mesNombre = nombreMesDe(c.fechaInicio).toUpperCase();
     if(c.tipo==='feriado'){
-      return `<tr style="background:#FFF6D6;"><td>${mesNombre}</td><td colspan="4" style="font-weight:700;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — FERIADO: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td>${mesNombre}</td><td colspan="3" style="font-weight:700;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — FERIADO: ${c.tema||'—'}</td></tr>`;
     }
     return `<tr>
       <td>${mesNombre}</td>
       <td>${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
-      <td>${c.horario||'—'}</td>
       <td>${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span>${c.subtemas?'<br><span style="color:var(--text-dim);font-size:12px;">'+c.subtemas+'</span>':''}</td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
     </tr>`;
@@ -638,7 +660,7 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
     </div>
     <div class="hint">Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
     <table class="doc-table">
-      <thead><tr><th>Mes</th><th>Días</th><th>Horario</th><th>Diplomado / Tema</th><th>Contenido</th></tr></thead>
+      <thead><tr><th>Mes y Año</th><th>Días</th><th>Diplomado / Tema</th><th>Contenido</th></tr></thead>
       <tbody>${filasHtml}</tbody>
     </table>
   `;
@@ -691,19 +713,15 @@ function renderVistaTutor(nombreTutor){
   const filas = [...sesiones.map(c=>({...c, tipo:'sesion'})), ...feriadosEnRango.map(c=>({...c, tipo:'feriado'}))]
     .sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
-  let mesAnterior = null;
   const filasHtml = filas.map(c=>{
-    const mesActual = c.fechaInicio ? c.fechaInicio.slice(0,7) : '';
-    const nombreMes = c.fechaInicio ? new Date(c.fechaInicio+'T00:00:00').toLocaleDateString('es-EC',{month:'long',year:'numeric'}) : '—';
-    const encabezadoMes = mesActual !== mesAnterior ? `<tr><td colspan="4" style="background:var(--panel-2);font-weight:700;text-transform:capitalize;padding-top:16px;">${nombreMes}</td></tr>` : '';
-    mesAnterior = mesActual;
+    const nombreMes = nombreMesDe(c.fechaInicio);
 
     if(c.tipo==='feriado'){
-      return encabezadoMes + `<tr style="background:#FFF6D6;"><td colspan="4">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td><td colspan="3">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
     }
-    return encabezadoMes + `<tr>
+    return `<tr>
+      <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td style="white-space:nowrap;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
-      <td style="white-space:nowrap;">${c.horario||'—'}</td>
       <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
     </tr>`;
@@ -712,7 +730,7 @@ function renderVistaTutor(nombreTutor){
   document.getElementById('vista_tutor_panel').innerHTML = `
     <div class="table-scroll">
       <table>
-        <thead><tr><th>Fechas</th><th>Horario</th><th>Capacitación / Tema</th><th>Contenido</th></tr></thead>
+        <thead><tr><th>Mes y Año</th><th>Fechas</th><th>Capacitación / Tema</th><th>Contenido</th></tr></thead>
         <tbody>${filasHtml}</tbody>
       </table>
     </div>
