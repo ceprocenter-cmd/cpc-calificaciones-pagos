@@ -116,7 +116,7 @@
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th><th>Modalidad</th><th>Honorario</th><th>Tema</th><th></th></tr></thead>
+            <thead><tr><th>Mes</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th><th>Modalidad</th><th>Honorario</th><th>Tema</th><th>Observación</th><th></th></tr></thead>
             <tbody id="tabla_calendario"></tbody>
           </table>
         </div>
@@ -208,9 +208,26 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
-if(!API_URL){ document.getElementById('setup_banner').style.display = 'block'; }
-else{ document.getElementById('app_content').style.display = 'block'; }
+// Para el link público del tutor (?tutor=...), pega aquí la misma URL de tu Apps Script una sola vez.
+// Así el tutor no necesita configurar nada al abrir su link.
+const API_URL_PUBLICO = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGeepxsP_jie58658PL-jnQXtiVqqAT7283HpXWRs7HOWkNJ/exec';
+
+const paramsIniciales = new URLSearchParams(window.location.search);
+const esVistaTutor = !!paramsIniciales.get('tutor');
+
+let API_URL = esVistaTutor
+  ? (API_URL_PUBLICO.indexOf('PEGA_AQUI')===0 ? '' : API_URL_PUBLICO)
+  : (localStorage.getItem('cepro_api_url_academico') || '');
+
+if(esVistaTutor){
+  document.getElementById('setup_banner').style.display = 'none';
+  document.getElementById('app_content').style.display = 'none';
+  if(!API_URL) document.body.innerHTML = '<div class="wrap"><p class="hint">Este link todavía no está configurado. Contacta a Ceprocenter.</p></div>';
+}else if(!API_URL){
+  document.getElementById('setup_banner').style.display = 'block';
+}else{
+  document.getElementById('app_content').style.display = 'block';
+}
 document.getElementById('config_url').value = API_URL;
 document.getElementById('btn_guardar_config').addEventListener('click', ()=>{
   const url = document.getElementById('config_url').value.trim();
@@ -276,18 +293,32 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
 
   const filas = [];
   let fecha = new Date(anio, 0, 1);
-  // arranca en el primer lunes del año
-  while(fecha.getDay() !== 1){ fecha.setDate(fecha.getDate()+1); }
-
-  while(fecha.getFullYear() === anio){
-    const inicio = new Date(fecha);
-    const fin = new Date(fecha); fin.setDate(fin.getDate()+4); // lunes a viernes
-    filas.push({
-      id: uid(), modalidad,
-      fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
-      horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:'Pendiente'
-    });
-    fecha.setDate(fecha.getDate()+7);
+  if(modalidad === 'Presencial'){
+    // arranca en el primer sábado del año
+    while(fecha.getDay() !== 6){ fecha.setDate(fecha.getDate()+1); }
+    while(fecha.getFullYear() === anio){
+      const inicio = new Date(fecha);
+      const fin = new Date(fecha); fin.setDate(fin.getDate()+1); // sábado a domingo
+      filas.push({
+        id: uid(), modalidad,
+        fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
+        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:'Pendiente'
+      });
+      fecha.setDate(fecha.getDate()+7);
+    }
+  }else{
+    // arranca en el primer lunes del año
+    while(fecha.getDay() !== 1){ fecha.setDate(fecha.getDate()+1); }
+    while(fecha.getFullYear() === anio){
+      const inicio = new Date(fecha);
+      const fin = new Date(fecha); fin.setDate(fin.getDate()+4); // lunes a viernes
+      filas.push({
+        id: uid(), modalidad,
+        fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
+        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:'Pendiente'
+      });
+      fecha.setDate(fecha.getDate()+7);
+    }
   }
 
   showToast(`Cargando ${filas.length} semanas de ${anio}, un momento...`);
@@ -412,6 +443,33 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
   }catch(e){ showToast('Error: '+e.message); }
 };
 
+window.editarFechaSesion = function(id){
+  const entry = CALENDARIO.find(c=>c.id===id);
+  if(!entry) return;
+  const html = `
+    <h3 style="margin-top:0;">Editar Fechas</h3>
+    <p class="hint">${entry.esFeriado==='Sí' ? 'Feriado: '+(entry.tema||'') : (entry.capacitacion||entry.tema||'Sesión')}</p>
+    <div class="grid cols3">
+      <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${entry.fechaInicio||''}"></div>
+      <div class="field"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${entry.fechaFin||entry.fechaInicio||''}"></div>
+    </div>
+    <div class="actions"><button class="btn" onclick="guardarFechaEditada('${id}')">Guardar Fecha</button></div>
+  `;
+  abrirModalDoc(html);
+};
+window.guardarFechaEditada = async function(id){
+  const fechaInicio = document.getElementById('edit_fecha_inicio').value;
+  const fechaFin = document.getElementById('edit_fecha_fin').value || fechaInicio;
+  if(!fechaInicio){ showToast('Selecciona la fecha de inicio.'); return; }
+  try{
+    await apiPost('CalendarioDocente','update',{id, data:{fechaInicio, fechaFin}});
+    showToast('Fecha actualizada.');
+    document.getElementById('modal_overlay').classList.remove('show');
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error: '+e.message); }
+};
+
 window.eliminarSesion = async function(id){
   if(!confirm('¿Eliminar esta sesión del calendario?')) return;
   try{
@@ -493,29 +551,34 @@ function renderCalendario(){
   if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
+  let mesAnterior = null;
+  let colorAlterno = false;
   body.innerHTML = rows.map(c=>{
-    if(c.esFeriado==='Sí'){
-      return `<tr style="background:#FFF6D6;">
-        <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
-        <td colspan="8" style="font-weight:700;">🟡 FERIADO — ${c.tema||'—'}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button></td>
-      </tr>`;
-    }
-    return `<tr>
+    const mesActual = c.fechaInicio ? c.fechaInicio.slice(0,7) : '';
+    if(mesActual !== mesAnterior){ colorAlterno = !colorAlterno; mesAnterior = mesActual; }
+    const esFeriado = c.esFeriado==='Sí';
+    const fondoMes = esFeriado ? 'background:#FFF6D6;' : (colorAlterno ? 'background:#F3F5FA;' : 'background:#FFFFFF;');
+    const nombreMes = c.fechaInicio ? new Date(c.fechaInicio+'T00:00:00').toLocaleDateString('es-EC',{month:'long',year:'numeric'}) : '—';
+    const observacion = esFeriado ? `🟡 Feriado: ${c.tema||''}` : (c.observacion||'—');
+
+    return `<tr style="${fondoMes}">
+      <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
-      <td>${c.horario||'—'}</td>
-      <td>${c.capacitacion||'—'}</td>
-      <td>${c.modulo||'—'}</td>
-      <td>${c.docente||'—'}</td>
-      <td>${c.encargado||'—'}</td>
-      <td>${c.categoria||'—'}</td>
-      <td>${c.modalidad||'—'}</td>
-      <td><select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
+      <td>${esFeriado?'—':(c.horario||'—')}</td>
+      <td>${esFeriado?'—':(c.capacitacion||'—')}</td>
+      <td>${esFeriado?'—':(c.modulo||'—')}</td>
+      <td>${esFeriado?'—':(c.docente||'—')}</td>
+      <td>${esFeriado?'—':(c.encargado||'—')}</td>
+      <td>${esFeriado?'—':(c.categoria||'—')}</td>
+      <td>${esFeriado?'—':(c.modalidad||'—')}</td>
+      <td>${esFeriado?'—':`<select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
         <option value="Pendiente" ${c.honorario!=='Pagado'?'selected':''}>Pendiente</option>
         <option value="Pagado" ${c.honorario==='Pagado'?'selected':''}>Pagado</option>
-      </select></td>
-      <td style="white-space:normal;max-width:220px;">${c.tema||'—'}${c.linkContenido?` — <a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:''}</td>
+      </select>`}</td>
+      <td style="white-space:normal;max-width:200px;">${esFeriado?'—':(c.tema||'—')}${c.linkContenido?` — <a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:''}</td>
+      <td style="white-space:normal;max-width:180px;font-weight:${esFeriado?'700':'400'};">${observacion}</td>
       <td>
+        <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion('${c.id}')">Editar Fecha</button>
         <button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button>
       </td>
     </tr>`;
@@ -582,10 +645,78 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   abrirModalDoc(html);
 });
 
+// ---------- VISTA PÚBLICA PARA EL TUTOR (?tutor=Nombre) ----------
+const tutorEnLink = paramsIniciales.get('tutor');
+
 async function initApp(){
   if(!API_URL) return;
-  try{ await loadAll(); renderAll(); }
+  try{
+    await loadAll();
+    if(tutorEnLink){
+      renderVistaTutor(tutorEnLink);
+    }else{
+      renderAll();
+    }
+  }
   catch(e){ showToast('No se pudo conectar: ' + e.message); }
+}
+
+function renderVistaTutor(nombreTutor){
+  document.body.innerHTML = `
+    <div class="wrap" style="max-width:760px;">
+      <div class="top">
+        <h1>Tu Calendario <span class="accent">Ceprocenter</span></h1>
+        <div class="sub">${nombreTutor}</div>
+      </div>
+      <div class="panel" id="vista_tutor_panel"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+  `;
+
+  const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
+  const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
+
+  if(sesiones.length===0){
+    document.getElementById('vista_tutor_panel').innerHTML = '<p class="hint">Todavía no tienes sesiones registradas en el calendario. Consulta con Ceprocenter.</p>';
+    return;
+  }
+
+  const primeraFecha = fechaValor(sesiones[0].fechaInicio);
+  const ultimaFecha = fechaValor(sesiones[sesiones.length-1].fechaFin || sesiones[sesiones.length-1].fechaInicio);
+  const feriadosEnRango = feriados.filter(f=>{
+    const fv = fechaValor(f.fechaInicio);
+    return fv>=primeraFecha && fv<=ultimaFecha;
+  });
+
+  const filas = [...sesiones.map(c=>({...c, tipo:'sesion'})), ...feriadosEnRango.map(c=>({...c, tipo:'feriado'}))]
+    .sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
+
+  let mesAnterior = null;
+  const filasHtml = filas.map(c=>{
+    const mesActual = c.fechaInicio ? c.fechaInicio.slice(0,7) : '';
+    const nombreMes = c.fechaInicio ? new Date(c.fechaInicio+'T00:00:00').toLocaleDateString('es-EC',{month:'long',year:'numeric'}) : '—';
+    const encabezadoMes = mesActual !== mesAnterior ? `<tr><td colspan="4" style="background:var(--panel-2);font-weight:700;text-transform:capitalize;padding-top:16px;">${nombreMes}</td></tr>` : '';
+    mesAnterior = mesActual;
+
+    if(c.tipo==='feriado'){
+      return encabezadoMes + `<tr style="background:#FFF6D6;"><td colspan="4">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
+    }
+    return encabezadoMes + `<tr>
+      <td style="white-space:nowrap;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
+      <td style="white-space:nowrap;">${c.horario||'—'}</td>
+      <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
+      <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('vista_tutor_panel').innerHTML = `
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Fechas</th><th>Horario</th><th>Capacitación / Tema</th><th>Contenido</th></tr></thead>
+        <tbody>${filasHtml}</tbody>
+      </table>
+    </div>
+  `;
 }
 initApp();
 </script>
