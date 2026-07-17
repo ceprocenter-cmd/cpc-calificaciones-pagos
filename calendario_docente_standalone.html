@@ -114,6 +114,12 @@
           <div class="field"><label>Docente</label><select id="filt_docente"><option value="">Todos</option></select></div>
           <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option></select></div>
         </div>
+        <div class="field" style="max-width:320px;margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="filt_ocultar_pasados" style="width:18px;height:18px;">
+            Ocultar meses que ya pasaron
+          </label>
+        </div>
         <div class="table-scroll">
           <table>
             <thead><tr id="calendario_head"></tr></thead>
@@ -139,6 +145,7 @@
           <div class="field"><label>Año</label><input id="gen_anio" type="number" value="2026" placeholder="2026"></div>
           <div class="field"><label>Modalidad</label><select id="gen_modalidad_anio"><option>Virtual</option><option>Presencial</option></select></div>
         </div>
+        <div class="hint" style="margin-top:10px;">Acceso rápido: <span id="botones_anios_rapidos"></span></div>
         <div class="actions"><button class="btn" id="btn_generar_anio">Cargar Todas las Semanas del Año</button></div>
       </div>
 
@@ -265,27 +272,29 @@ function fechaValor(f){
   if(partes.length!==3) return 0;
   return Number(partes[0])*10000 + Number(partes[1])*100 + Number(partes[2]);
 }
+function capitalizar(t){ return t ? t.charAt(0).toUpperCase()+t.slice(1) : t; }
+
 function nombreMesDe(fechaStr){
   if(!fechaStr || !/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) return '—';
   const d = new Date(fechaStr.slice(0,10)+'T00:00:00');
   if(isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('es-EC',{month:'long',year:'numeric'});
+  return capitalizar(d.toLocaleDateString('es-EC',{month:'long',year:'numeric'}));
 }
 
 function rangoFechas(inicio, fin){
   if(!inicio) return '—';
-  if(!fin || fin===inicio) return fechaCorta(inicio);
   const dIni = new Date(inicio+'T00:00:00');
-  const dFin = new Date(fin+'T00:00:00');
   const diaIni = String(dIni.getDate()).padStart(2,'0');
+  if(!fin || fin===inicio) return diaIni;
+  const dFin = new Date(fin+'T00:00:00');
   const diaFin = String(dFin.getDate()).padStart(2,'0');
+  const mesIni = String(dIni.getMonth()+1).padStart(2,'0');
+  const mesFin = String(dFin.getMonth()+1).padStart(2,'0');
   const mismoMes = dIni.getMonth()===dFin.getMonth() && dIni.getFullYear()===dFin.getFullYear();
   const mismoAnio = dIni.getFullYear()===dFin.getFullYear();
-  const mesFinNombre = dFin.toLocaleDateString('es-EC',{month:'long'});
-  const mesIniNombre = dIni.toLocaleDateString('es-EC',{month:'long'});
 
-  if(mismoMes) return `${diaIni} al ${diaFin} de ${mesFinNombre} ${dFin.getFullYear()}`;
-  if(mismoAnio) return `${diaIni} de ${mesIniNombre} al ${diaFin} de ${mesFinNombre} ${dFin.getFullYear()}`;
+  if(mismoMes) return `${diaIni} al ${diaFin}`;
+  if(mismoAnio) return `${diaIni}/${mesIni} al ${diaFin}/${mesFin}`;
   return `${fechaCorta(inicio)} al ${fechaCorta(fin)}`;
 }
 
@@ -301,6 +310,11 @@ document.querySelectorAll('.tab').forEach(btn=>{
 });
 
 // ---------- GENERAR SEMANAS ----------
+const anioActualReal = new Date().getFullYear();
+document.getElementById('botones_anios_rapidos').innerHTML = [anioActualReal, anioActualReal+1, anioActualReal+2, anioActualReal+3].map(a=>
+  `<button type="button" class="btn btn-ghost btn-sm" style="padding:4px 10px;margin-right:6px;" onclick="document.getElementById('gen_anio').value=${a};">${a}</button>`
+).join('');
+
 document.getElementById('btn_generar_anio').addEventListener('click', async ()=>{
   const anio = Number(document.getElementById('gen_anio').value) || 2026;
   const modalidad = document.getElementById('gen_modalidad_anio').value;
@@ -563,6 +577,10 @@ function renderCalendario(){
   if(docente) rows = rows.filter(c=>c.docente===docente);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
   if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
+  if(document.getElementById('filt_ocultar_pasados').checked){
+    const mesActualReal = new Date().toISOString().slice(0,7);
+    rows = rows.filter(c=>!c.fechaInicio || c.fechaInicio.slice(0,7)>=mesActualReal);
+  }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
   document.getElementById('calendario_head').innerHTML =
@@ -607,7 +625,7 @@ function renderCalendario(){
     </tr>`;
   }).join('');
 }
-['filt_modalidad','filt_mes','filt_docente','filt_honorario'].forEach(id=>{
+['filt_modalidad','filt_mes','filt_docente','filt_honorario','filt_ocultar_pasados'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
