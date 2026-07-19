@@ -44,9 +44,9 @@
   .btn-ghost:hover{background:var(--panel-2);color:var(--text);}
   .btn-sm{padding:7px 12px;font-size:12.5px;}
   .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
-  table{width:100%;border-collapse:collapse;font-size:13.5px;}
-  th{text-align:left;font-family:'Quicksand',sans-serif;text-transform:uppercase;letter-spacing:0.04em;font-size:11px;color:var(--text-dim);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
-  td{padding:9px 10px;border-bottom:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;}
+  th{text-align:left;font-family:'Quicksand',sans-serif;text-transform:uppercase;letter-spacing:0.04em;font-size:11.5px;color:var(--text);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap;position:sticky;top:0;background:var(--panel);z-index:5;}
+  td{padding:10px 10px;border-bottom:1px solid var(--line);color:var(--text);}
   .table-scroll{overflow-x:auto;}
   .num{text-align:right;font-variant-numeric:tabular-nums;}
   .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;text-transform:uppercase;font-weight:700;}
@@ -112,6 +112,7 @@
           <div class="field"><label>Modalidad</label><select id="filt_modalidad"><option value="">Todas</option><option selected>Virtual</option><option>Presencial</option></select></div>
           <div class="field"><label>Mes</label><select id="filt_mes"><option value="">Todos</option></select></div>
           <div class="field"><label>Docente</label><select id="filt_docente"><option value="">Todos</option></select></div>
+          <div class="field"><label>Capacitación</label><select id="filt_capacitacion"><option value="">Todas</option></select></div>
           <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option></select></div>
         </div>
         <div class="field" style="max-width:320px;margin-bottom:16px;">
@@ -654,12 +655,18 @@ function renderFiltros(){
   const selDoc = document.getElementById('filt_docente');
   const prevDoc = selDoc.value;
   selDoc.innerHTML = '<option value="">Todos</option>' + docentes.map(d=>`<option ${d===prevDoc?'selected':''}>${d}</option>`).join('');
+
+  const capacitaciones = [...new Set(CALENDARIO.map(c=>c.capacitacion).filter(Boolean))].sort();
+  const selCap = document.getElementById('filt_capacitacion');
+  const prevCap = selCap.value;
+  selCap.innerHTML = '<option value="">Todas</option>' + capacitaciones.map(c=>`<option ${c===prevCap?'selected':''}>${c}</option>`).join('');
 }
 
 function renderCalendario(){
   const modalidad = document.getElementById('filt_modalidad').value;
   const mes = document.getElementById('filt_mes').value;
   const docente = document.getElementById('filt_docente').value;
+  const capacitacion = document.getElementById('filt_capacitacion').value;
   const honorario = document.getElementById('filt_honorario').value;
   const mostrarModalidad = !modalidad;
 
@@ -667,6 +674,7 @@ function renderCalendario(){
   if(modalidad) rows = rows.filter(c=>c.modalidad===modalidad);
   if(mes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,7)===mes);
   if(docente) rows = rows.filter(c=>c.docente===docente);
+  if(capacitacion) rows = rows.filter(c=>c.capacitacion===capacitacion);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
   if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
   if(document.getElementById('filt_ocultar_pagados').checked){
@@ -694,10 +702,11 @@ function renderCalendario(){
     const esFeriado = c.esFeriado==='Sí';
     const fondoMes = esFeriado ? 'background:#FFF6D6;' : (colorAlterno ? 'background:#F3F5FA;' : 'background:#FFFFFF;');
     const nombreMes = nombreMesDe(c.fechaInicio);
+    const [soloMes, soloAnio] = nombreMes.split(' ');
     const observacion = esFeriado ? `🟡 Feriado: ${c.tema||''}` : (c.observacion||'—');
 
     return `<tr style="${fondoMes}">
-      <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
+      <td style="font-weight:700;">${soloMes||''}${soloAnio?`<br><span style="font-weight:400;color:var(--text-dim);font-size:12.5px;">${soloAnio}</span>`:''}</td>
       <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
       <td>${esFeriado?'—':(c.horario||'—')}</td>
       <td>${esFeriado?'—':(c.capacitacion||'—')}</td>
@@ -719,7 +728,7 @@ function renderCalendario(){
   }).join('');
 }
 let FILAS_CALENDARIO_ACTUAL = [];
-['filt_modalidad','filt_mes','filt_docente','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
+['filt_modalidad','filt_mes','filt_docente','filt_capacitacion','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
