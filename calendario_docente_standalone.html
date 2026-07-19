@@ -170,14 +170,13 @@
           <div class="field"><label>Fecha Fin</label><input id="r_fecha_fin" type="date"></div>
           <div class="field"><label>Modalidad</label><select id="r_modalidad"><option>Virtual</option><option>Presencial</option></select></div>
           <div class="field"><label>Horario</label>
-            <select id="r_horario_preset" onchange="document.getElementById('r_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none'; document.getElementById('r_horario').value = this.value==='__otro__' ? '' : this.value;">
+            <select id="r_horario_preset" onchange="document.getElementById('r_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none';">
               <option value="18h00 a 20h00">18h00 a 20h00</option>
               <option value="18h30 a 20h30">18h30 a 20h30</option>
               <option value="19h00 a 21h00">19h00 a 21h00</option>
               <option value="__otro__">Otro horario...</option>
             </select>
-            <input id="r_horario" value="18h00 a 20h00" style="display:none;">
-            <input id="r_horario_custom" placeholder="Ej. 20h00 a 22h00" style="display:none;margin-top:8px;" oninput="document.getElementById('r_horario').value = this.value;">
+            <input id="r_horario_custom" placeholder="Ej. 20h00 a 22h00" style="display:none;margin-top:8px;">
           </div>
           <div class="field"><label>Capacitación</label><input id="r_capacitacion" placeholder="Ej. Tutor Sombra 5, Neurodesarrollo..."></div>
           <div class="field"><label>Módulo</label><input id="r_modulo" placeholder="Ej. 3"></div>
@@ -461,7 +460,8 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   const fechaInicio = document.getElementById('r_fecha_inicio').value;
   const fechaFin = document.getElementById('r_fecha_fin').value || fechaInicio;
   const modalidad = document.getElementById('r_modalidad').value;
-  const horario = document.getElementById('r_horario').value.trim();
+  const horarioPresetVal = document.getElementById('r_horario_preset').value;
+  const horario = horarioPresetVal === '__otro__' ? document.getElementById('r_horario_custom').value.trim() : horarioPresetVal;
   const capacitacion = document.getElementById('r_capacitacion').value.trim();
   const modulo = document.getElementById('r_modulo').value.trim();
   const docente = document.getElementById('r_docente').value.trim();
@@ -488,7 +488,7 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
     }});
     showToast(esFeriado ? 'Feriado guardado.' : 'Sesión guardada.');
     document.getElementById('r_capacitacion').value=''; document.getElementById('r_modulo').value='';
-    document.getElementById('r_horario_preset').value='18h00 a 20h00'; document.getElementById('r_horario').value='18h00 a 20h00';
+    document.getElementById('r_horario_preset').value='18h00 a 20h00';
     document.getElementById('r_horario_custom').value=''; document.getElementById('r_horario_custom').style.display='none';
     document.getElementById('r_tema').value=''; document.getElementById('r_subtemas').value=''; document.getElementById('r_link').value='';
     await loadAll();
@@ -531,14 +531,13 @@ window.editarFechaSesion = function(indice){
     <div class="field" style="margin-top:12px;"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
     <div class="field" style="margin-top:12px;"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
     <div class="field" style="margin-top:12px;"><label>Horario</label>
-      <select id="edit_horario_preset" onchange="document.getElementById('edit_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none'; document.getElementById('edit_horario').value = this.value==='__otro__' ? '' : this.value;">
+      <select id="edit_horario_preset" onchange="document.getElementById('edit_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none';">
         <option value="18h00 a 20h00" ${entry.horario==='18h00 a 20h00'?'selected':''}>18h00 a 20h00</option>
         <option value="18h30 a 20h30" ${entry.horario==='18h30 a 20h30'?'selected':''}>18h30 a 20h30</option>
         <option value="19h00 a 21h00" ${entry.horario==='19h00 a 21h00'?'selected':''}>19h00 a 21h00</option>
         <option value="__otro__" ${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?'selected':''}>Otro horario...</option>
       </select>
-      <input id="edit_horario" value="${String(entry.horario||'').replace(/"/g,'&quot;')}" style="display:none;">
-      <input id="edit_horario_custom" value="${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?String(entry.horario||'').replace(/"/g,'&quot;'):''}" placeholder="Ej. 20h00 a 22h00" style="display:${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?'block':'none'};margin-top:8px;" oninput="document.getElementById('edit_horario').value = this.value;">
+      <input id="edit_horario_custom" value="${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?String(entry.horario||'').replace(/"/g,'&quot;'):''}" placeholder="Ej. 20h00 a 22h00" style="display:${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?'block':'none'};margin-top:8px;">
     </div>
     <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${String(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${String(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
@@ -573,7 +572,7 @@ window.guardarSesionEditada = async function(id, esFeriado){
     : {
         fechaInicio, fechaFin,
         modalidad: document.getElementById('edit_modalidad').value,
-        horario: document.getElementById('edit_horario').value.trim(),
+        horario: (document.getElementById('edit_horario_preset').value==='__otro__' ? document.getElementById('edit_horario_custom').value.trim() : document.getElementById('edit_horario_preset').value),
         capacitacion: document.getElementById('edit_capacitacion').value.trim(),
         modulo: document.getElementById('edit_modulo').value.trim(),
         docente: document.getElementById('edit_docente').value.trim(),
