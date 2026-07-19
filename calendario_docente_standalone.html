@@ -116,8 +116,8 @@
         </div>
         <div class="field" style="max-width:320px;margin-bottom:16px;">
           <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="filt_ocultar_pasados" style="width:18px;height:18px;">
-            Ocultar meses que ya pasaron
+            <input type="checkbox" id="filt_ocultar_pagados" style="width:18px;height:18px;">
+            Ocultar sesiones ya pagadas
           </label>
         </div>
         <div class="table-scroll">
@@ -278,7 +278,8 @@ function nombreMesDe(fechaStr){
   if(!fechaStr || !/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) return '—';
   const d = new Date(fechaStr.slice(0,10)+'T00:00:00');
   if(isNaN(d.getTime())) return '—';
-  return capitalizar(d.toLocaleDateString('es-EC',{month:'long',year:'numeric'}));
+  const soloMes = d.toLocaleDateString('es-EC',{month:'long'});
+  return `${capitalizar(soloMes)} ${d.getFullYear()}`;
 }
 
 function rangoFechas(inicio, fin){
@@ -478,24 +479,79 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
 window.editarFechaSesion = function(id){
   const entry = CALENDARIO.find(c=>c.id===id);
   if(!entry) return;
+  const esFeriado = entry.esFeriado==='Sí';
+
+  if(esFeriado){
+    const html = `
+      <h3 style="margin-top:0;">Editar Feriado</h3>
+      <div class="grid cols3">
+        <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${entry.fechaInicio||''}"></div>
+        <div class="field"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${entry.fechaFin||entry.fechaInicio||''}"></div>
+        <div class="field"><label>Nombre del Feriado</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', true)">Guardar Cambios</button></div>
+    `;
+    abrirModalDoc(html);
+    return;
+  }
+
   const html = `
-    <h3 style="margin-top:0;">Editar Fechas</h3>
-    <p class="hint">${entry.esFeriado==='Sí' ? 'Feriado: '+(entry.tema||'') : (entry.capacitacion||entry.tema||'Sesión')}</p>
+    <h3 style="margin-top:0;">Editar Sesión</h3>
     <div class="grid cols3">
       <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${entry.fechaInicio||''}"></div>
       <div class="field"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${entry.fechaFin||entry.fechaInicio||''}"></div>
+      <div class="field"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
+      <div class="field"><label>Horario</label><input id="edit_horario" value="${(entry.horario||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Capacitación</label><input id="edit_capacitacion" value="${(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Módulo</label><input id="edit_modulo" value="${(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Docente</label><input id="edit_docente" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
+      <div class="field"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
+      <div class="field"><label>Categoría</label>
+        <select id="edit_categoria">
+          <option ${entry.categoria==='Diplomado'?'selected':''}>Diplomado</option>
+          <option ${entry.categoria==='Taller'?'selected':''}>Taller</option>
+          <option ${entry.categoria==='Masterclass'?'selected':''}>Masterclass</option>
+          <option ${entry.categoria==='Seminario'?'selected':''}>Seminario</option>
+          <option ${entry.categoria==='Entrenamiento'?'selected':''}>Entrenamiento</option>
+        </select>
+      </div>
+      <div class="field"><label>Honorario</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
     </div>
-    <div class="actions"><button class="btn" onclick="guardarFechaEditada('${id}')">Guardar Fecha</button></div>
+    <div class="field" style="margin-top:14px;"><label>Tema</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:14px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
+    <div class="field" style="margin-top:14px;"><label>Link de Contenido</label><input id="edit_link" value="${(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:14px;"><label>Observación</label><input id="edit_observacion" value="${(entry.observacion||'').replace(/"/g,'&quot;')}"></div>
+    <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', false)">Guardar Cambios</button></div>
   `;
   abrirModalDoc(html);
 };
-window.guardarFechaEditada = async function(id){
+
+window.guardarSesionEditada = async function(id, esFeriado){
   const fechaInicio = document.getElementById('edit_fecha_inicio').value;
   const fechaFin = document.getElementById('edit_fecha_fin').value || fechaInicio;
   if(!fechaInicio){ showToast('Selecciona la fecha de inicio.'); return; }
+
+  const data = esFeriado
+    ? { fechaInicio, fechaFin, tema: document.getElementById('edit_tema').value.trim() }
+    : {
+        fechaInicio, fechaFin,
+        modalidad: document.getElementById('edit_modalidad').value,
+        horario: document.getElementById('edit_horario').value.trim(),
+        capacitacion: document.getElementById('edit_capacitacion').value.trim(),
+        modulo: document.getElementById('edit_modulo').value.trim(),
+        docente: document.getElementById('edit_docente').value.trim(),
+        encargado: document.getElementById('edit_encargado').value,
+        categoria: document.getElementById('edit_categoria').value,
+        honorario: document.getElementById('edit_honorario').value,
+        tema: document.getElementById('edit_tema').value.trim(),
+        subtemas: document.getElementById('edit_subtemas').value.trim(),
+        linkContenido: document.getElementById('edit_link').value.trim(),
+        observacion: document.getElementById('edit_observacion').value.trim()
+      };
+
   try{
-    await apiPost('CalendarioDocente','update',{id, data:{fechaInicio, fechaFin}});
-    showToast('Fecha actualizada.');
+    await apiPost('CalendarioDocente','update',{id, data});
+    showToast('Sesión actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
     await loadAll();
     renderAll();
@@ -577,9 +633,8 @@ function renderCalendario(){
   if(docente) rows = rows.filter(c=>c.docente===docente);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
   if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
-  if(document.getElementById('filt_ocultar_pasados').checked){
-    const mesActualReal = new Date().toISOString().slice(0,7);
-    rows = rows.filter(c=>!c.fechaInicio || c.fechaInicio.slice(0,7)>=mesActualReal);
+  if(document.getElementById('filt_ocultar_pagados').checked){
+    rows = rows.filter(c=>c.esFeriado==='Sí' || c.honorario!=='Pagado');
   }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
@@ -619,13 +674,13 @@ function renderCalendario(){
       <td style="white-space:normal;max-width:200px;">${esFeriado?'—':(c.tema||'—')}${c.linkContenido?` — <a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:''}</td>
       <td style="white-space:normal;max-width:180px;font-weight:${esFeriado?'700':'400'};">${observacion}</td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion('${c.id}')">Editar Fecha</button>
+        <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion('${c.id}')">✏️ Editar</button>
         <button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button>
       </td>
     </tr>`;
   }).join('');
 }
-['filt_modalidad','filt_mes','filt_docente','filt_honorario','filt_ocultar_pasados'].forEach(id=>{
+['filt_modalidad','filt_mes','filt_docente','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
