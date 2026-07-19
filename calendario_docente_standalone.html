@@ -58,7 +58,7 @@
   .setup-hint{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;font-size:13px;}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
   .modal-overlay.show{display:flex;}
-  .modal-box{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:0;}
+  .modal-box{background:#fff;border-radius:14px;max-width:640px;width:100%;padding:0;}
   .modal-box-inner{padding:28px;}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 28px;border-top:1px solid var(--line);}
   .pago-opcion{border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
@@ -508,30 +508,28 @@ window.editarFechaSesion = function(id){
 
   const html = `
     <h3 style="margin-top:0;">Editar Sesión</h3>
-    <div class="grid cols3">
-      <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${(entry.fechaInicio||'').slice(0,10)}"></div>
-      <div class="field"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
-      <div class="field"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
-      <div class="field"><label>Horario</label><input id="edit_horario" value="${(entry.horario||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Capacitación</label><input id="edit_capacitacion" value="${(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Módulo</label><input id="edit_modulo" value="${(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Docente</label><input id="edit_docente" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
-      <div class="field"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
-      <div class="field"><label>Categoría</label>
-        <select id="edit_categoria">
-          <option ${entry.categoria==='Diplomado'?'selected':''}>Diplomado</option>
-          <option ${entry.categoria==='Taller'?'selected':''}>Taller</option>
-          <option ${entry.categoria==='Masterclass'?'selected':''}>Masterclass</option>
-          <option ${entry.categoria==='Seminario'?'selected':''}>Seminario</option>
-          <option ${entry.categoria==='Entrenamiento'?'selected':''}>Entrenamiento</option>
-        </select>
-      </div>
-      <div class="field"><label>Honorario</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
+    <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${(entry.fechaInicio||'').slice(0,10)}"></div>
+    <div class="field" style="margin-top:12px;"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
+    <div class="field" style="margin-top:12px;"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Horario</label><input id="edit_horario" value="${(entry.horario||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Categoría</label>
+      <select id="edit_categoria">
+        <option ${entry.categoria==='Diplomado'?'selected':''}>Diplomado</option>
+        <option ${entry.categoria==='Taller'?'selected':''}>Taller</option>
+        <option ${entry.categoria==='Masterclass'?'selected':''}>Masterclass</option>
+        <option ${entry.categoria==='Seminario'?'selected':''}>Seminario</option>
+        <option ${entry.categoria==='Entrenamiento'?'selected':''}>Entrenamiento</option>
+      </select>
     </div>
-    <div class="field" style="margin-top:14px;"><label>Tema</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:14px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
-    <div class="field" style="margin-top:14px;"><label>Link de Contenido</label><input id="edit_link" value="${(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:14px;"><label>Observación</label><input id="edit_observacion" value="${(entry.observacion||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Honorario</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Tema</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
+    <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="edit_link" value="${(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Feriado (observación)</label><input id="edit_observacion" value="${(entry.observacion||'').replace(/"/g,'&quot;')}"></div>
     <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', false)">Guardar Cambios</button></div>
   `;
   abrirModalDoc(html);
@@ -650,9 +648,9 @@ function renderCalendario(){
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
   document.getElementById('calendario_head').innerHTML =
-    '<th>Mes y Año</th><th>Fechas</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th>'
+    '<th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th>'
     + (mostrarModalidad ? '<th>Modalidad</th>' : '')
-    + '<th>Honorario</th><th>Tema</th><th>Observación</th><th></th>';
+    + '<th>Honorario</th><th>Tema</th><th>Feriado</th><th></th>';
 
   const body = document.getElementById('tabla_calendario');
   const empty = document.getElementById('calendario_empty');
@@ -672,6 +670,7 @@ function renderCalendario(){
     return `<tr style="${fondoMes}">
       <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
+      <td>${esFeriado?'—':(c.horario||'—')}</td>
       <td>${esFeriado?'—':(c.capacitacion||'—')}</td>
       <td>${esFeriado?'—':(c.modulo||'—')}</td>
       <td>${esFeriado?'—':(c.docente||'—')}</td>
