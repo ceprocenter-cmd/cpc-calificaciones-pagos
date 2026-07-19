@@ -1077,10 +1077,28 @@ function fraseCertificadoFinal(curso){
   return `Por su asistencia y aprobación del ${curso}`;
 }
 
+function modulosConCalificacion(){
+  const modulosEnCurso = modulosDelCurso();
+  const conNota = new Set(CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL).map(c=>c.modulo));
+  return modulosEnCurso.filter(m=>conNota.has(m));
+}
+
+function promedioHonorEstudiante(estudiante){
+  const modulosActivos = modulosConCalificacion();
+  if(modulosActivos.length===0) return null;
+  const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
+  const suma = modulosActivos.reduce((s,m)=>{
+    const registro = vig.find(v=>v.modulo===m);
+    return s + (registro ? registro.nota : 0);
+  }, 0);
+  return suma / modulosActivos.length;
+}
+
 function obtenerTop3Honor(){
   return estudiantesDelCurso()
-    .filter(est=>cumpleAprobacionFinal(est))
-    .map(est=>({estudiante:est, promedio:promedioFinalEstudiante(est)}))
+    .filter(est=>notasVigentesCurso().some(v=>v.estudiante===est))
+    .map(est=>({estudiante:est, promedio:promedioHonorEstudiante(est)}))
+    .filter(t=>t.promedio!==null)
     .sort((a,b)=>b.promedio-a.promedio)
     .slice(0,3);
 }
