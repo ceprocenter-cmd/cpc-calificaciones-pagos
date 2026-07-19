@@ -110,8 +110,10 @@
         <h2>Calendario Académico</h2>
         <div class="grid cols4" style="margin-bottom:16px;">
           <div class="field"><label>Modalidad</label><select id="filt_modalidad"><option value="">Todas</option><option selected>Virtual</option><option>Presencial</option></select></div>
+          <div class="field"><label>Año</label><select id="filt_anio"><option value="">Todos</option></select></div>
           <div class="field"><label>Mes</label><select id="filt_mes"><option value="">Todos</option></select></div>
           <div class="field"><label>Docente</label><select id="filt_docente"><option value="">Todos</option></select></div>
+          <div class="field"><label>Encargado</label><select id="filt_encargado"><option value="">Todos</option><option>Jose</option><option>Sara</option></select></div>
           <div class="field"><label>Capacitación</label><select id="filt_capacitacion"><option value="">Todas</option></select></div>
           <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option></select></div>
         </div>
@@ -163,9 +165,10 @@
         <div class="grid cols4" style="margin-top:14px;">
           <div class="field"><label>Fecha Inicio</label><input id="r_fecha_inicio" type="date"></div>
           <div class="field"><label>Fecha Fin</label><input id="r_fecha_fin" type="date"></div>
-          <div class="field"><label>Modalidad</label><select id="r_modalidad"><option>Virtual</option><option>Presencial</option></select></div>
+          <div class="field"><label>Modalidad</label><select id="r_modalidad"><option value="">Selecciona una opción</option><option>Virtual</option><option>Presencial</option></select></div>
           <div class="field"><label>Horario</label>
             <select id="r_horario_preset" onchange="document.getElementById('r_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none';">
+              <option value="">Selecciona una opción</option>
               <option value="18h00 a 20h00">18h00 a 20h00</option>
               <option value="18h30 a 20h30">18h30 a 20h30</option>
               <option value="19h00 a 21h00">19h00 a 21h00</option>
@@ -180,7 +183,7 @@
             <select id="r_encargado"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option></select>
           </div>
           <div class="field"><label>Categoría</label>
-            <select id="r_categoria"><option>Diplomado</option><option>Taller</option><option>Masterclass</option><option>Seminario</option><option>Entrenamiento</option></select>
+            <select id="r_categoria"><option value="">Selecciona una opción</option><option>Diplomado</option><option>Taller</option><option>Masterclass</option><option>Seminario</option><option>Entrenamiento</option></select>
           </div>
         </div>
         <div class="field" style="margin-top:14px;"><label>Tema Central</label><input id="r_tema" placeholder="Título de la sesión"></div>
@@ -305,19 +308,8 @@ function nombreMesDe(fechaStr){
 
 function rangoFechas(inicio, fin){
   if(!inicio) return '—';
-  const dIni = new Date(inicio+'T00:00:00');
-  const diaIni = String(dIni.getDate()).padStart(2,'0');
-  if(!fin || fin===inicio) return diaIni;
-  const dFin = new Date(fin+'T00:00:00');
-  const diaFin = String(dFin.getDate()).padStart(2,'0');
-  const mesIni = String(dIni.getMonth()+1).padStart(2,'0');
-  const mesFin = String(dFin.getMonth()+1).padStart(2,'0');
-  const mismoMes = dIni.getMonth()===dFin.getMonth() && dIni.getFullYear()===dFin.getFullYear();
-  const mismoAnio = dIni.getFullYear()===dFin.getFullYear();
-
-  if(mismoMes) return `${diaIni} al ${diaFin}`;
-  if(mismoAnio) return `${diaIni}/${mesIni} al ${diaFin}/${mesFin}`;
-  return `${fechaCorta(inicio)} al ${fechaCorta(fin)}`;
+  if(!fin || fin===inicio) return fechaCorta(inicio);
+  return `${fechaCorta(inicio)}<br>al ${fechaCorta(fin)}`;
 }
 
 // ---------- TABS ----------
@@ -442,6 +434,11 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
     if(!capacitacion){ showToast('Escribe la capacitación.'); return; }
     if(!docente){ showToast('Escribe el docente.'); return; }
     if(!encargado){ showToast('Selecciona el encargado.'); return; }
+    if(!modalidad){ showToast('Selecciona la modalidad.'); return; }
+    if(!categoria){ showToast('Selecciona la categoría.'); return; }
+    const horarioPresetCheck = document.getElementById('r_horario_preset').value;
+    if(!horarioPresetCheck){ showToast('Selecciona el horario.'); return; }
+    if(horarioPresetCheck==='__otro__' && !document.getElementById('r_horario_custom').value.trim()){ showToast('Escribe el horario personalizado.'); return; }
   }
 
   try{
@@ -452,10 +449,15 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
       linkContenido: esFeriado?'':linkContenido, esFeriado: esFeriado?'Sí':'', honorario: esFeriado?'':'Pendiente'
     }});
     showToast(esFeriado ? 'Feriado guardado.' : 'Sesión guardada.');
+    document.getElementById('r_fecha_inicio').value=''; document.getElementById('r_fecha_fin').value='';
+    document.getElementById('r_modalidad').value=''; document.getElementById('r_categoria').value='';
     document.getElementById('r_capacitacion').value=''; document.getElementById('r_modulo').value='';
-    document.getElementById('r_horario_preset').value='18h00 a 20h00';
+    document.getElementById('r_docente').value=''; document.getElementById('r_encargado').value='';
+    document.getElementById('r_horario_preset').value='';
     document.getElementById('r_horario_custom').value=''; document.getElementById('r_horario_custom').style.display='none';
     document.getElementById('r_tema').value=''; document.getElementById('r_subtemas').value=''; document.getElementById('r_link').value='';
+    document.getElementById('r_es_feriado').value='no';
+    document.getElementById('r_es_feriado').dispatchEvent(new Event('change'));
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
@@ -606,6 +608,11 @@ function renderTicker(){
 }
 
 function renderFiltros(){
+  const anios = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))].sort();
+  const selAnio = document.getElementById('filt_anio');
+  const prevAnio = selAnio.value;
+  selAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}" ${a===prevAnio?'selected':''}>${a}</option>`).join('');
+
   const meses = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,7) : '').filter(Boolean))].sort();
   const selMes = document.getElementById('filt_mes');
   const prevMes = selMes.value;
@@ -628,16 +635,20 @@ function renderFiltros(){
 
 function renderCalendario(){
   const modalidad = document.getElementById('filt_modalidad').value;
+  const anio = document.getElementById('filt_anio').value;
   const mes = document.getElementById('filt_mes').value;
   const docente = document.getElementById('filt_docente').value;
+  const encargado = document.getElementById('filt_encargado').value;
   const capacitacion = document.getElementById('filt_capacitacion').value;
   const honorario = document.getElementById('filt_honorario').value;
   const mostrarModalidad = !modalidad;
 
   let rows = CALENDARIO.slice();
   if(modalidad) rows = rows.filter(c=>c.modalidad===modalidad);
+  if(anio) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,4)===anio);
   if(mes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,7)===mes);
   if(docente) rows = rows.filter(c=>c.docente===docente);
+  if(encargado) rows = rows.filter(c=>c.encargado===encargado);
   if(capacitacion) rows = rows.filter(c=>c.capacitacion===capacitacion);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
   if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
@@ -692,7 +703,7 @@ function renderCalendario(){
   }).join('');
 }
 let FILAS_CALENDARIO_ACTUAL = [];
-['filt_modalidad','filt_mes','filt_docente','filt_capacitacion','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
+['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
