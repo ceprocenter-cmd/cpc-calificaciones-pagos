@@ -302,7 +302,7 @@
           <h3 id="titulo_modulo_seleccionado" style="font-family:'Quicksand',sans-serif;font-size:16px;margin-bottom:10px;"></h3>
           <div class="table-scroll">
             <table>
-              <thead><tr><th>Estudiante</th><th class="num">Nota</th><th>Tipo</th><th>Retroalimentación</th><th>Estado</th></tr></thead>
+              <thead><tr><th>#</th><th>Estudiante</th><th class="num">Nota</th><th>Tipo</th><th>Retroalimentación</th><th>Estado</th><th></th></tr></thead>
               <tbody id="tabla_modulo_seleccionado"></tbody>
             </table>
           </div>
@@ -804,6 +804,7 @@ function datosModuloSeleccionado(){
     const n = vig.find(v=>v.estudiante===est);
     return {
       estudiante: est,
+      id: n ? n.id : null,
       nota: n ? n.nota : null,
       tipo: n ? n.tipo : '',
       retro: n ? (n.retroalimentacion||'') : '',
@@ -816,17 +817,55 @@ function renderDetalleModuloSeleccionado(){
   const wrap = document.getElementById('detalle_modulo_seleccionado');
   if(!MODULO_SELECCIONADO_REPORTE){ wrap.style.display='none'; return; }
   wrap.style.display='block';
-  document.getElementById('titulo_modulo_seleccionado').textContent = MODULO_SELECCIONADO_REPORTE;
+  document.getElementById('titulo_modulo_seleccionado').textContent = `${MODULO_SELECCIONADO_REPORTE} (${datosModuloSeleccionado().length} estudiantes)`;
 
   const filas = datosModuloSeleccionado();
-  document.getElementById('tabla_modulo_seleccionado').innerHTML = filas.map(f=>`
-    <tr><td>${f.estudiante}</td>
+  document.getElementById('tabla_modulo_seleccionado').innerHTML = filas.map((f,i)=>`
+    <tr><td>${i+1}</td><td>${f.estudiante}</td>
     <td class="num">${f.nota===null?'—':f.nota.toFixed(1)}</td>
     <td>${f.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':(f.tipo?'Regular':'—')}</td>
     <td style="white-space:normal;max-width:280px;">${f.retro||'—'}</td>
-    <td>${f.aprobado===null?'<span class="pill na">Sin nota</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td></tr>
-  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin datos</td></tr>';
+    <td>${f.aprobado===null?'<span class="pill na">Sin nota</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
+    <td>${f.id?`<button class="btn btn-ghost btn-sm" onclick="editarNotaModulo('${f.id}','${f.estudiante.replace(/'/g,"\\'")}')">✏️ Editar</button>`:''}</td></tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Sin datos</td></tr>';
 }
+
+window.editarNotaModulo = function(id, estudiante){
+  const registro = CALIFICACIONES.find(c=>c.id===id);
+  if(!registro){ showToast('No se encontró la calificación.'); return; }
+  const maxNota = registro.tipo==='Recuperativa' ? 9 : 10;
+  document.getElementById('print_individual_content').innerHTML = `
+    <h3 style="margin-top:0;">Editar Calificación</h3>
+    <p class="hint">${estudiante} — ${registro.modulo}</p>
+    <div class="grid cols3">
+      <div class="field"><label>Tipo</label>
+        <select id="edit_nota_tipo">
+          <option value="Regular" ${registro.tipo!=='Recuperativa'?'selected':''}>Regular</option>
+          <option value="Recuperativa" ${registro.tipo==='Recuperativa'?'selected':''}>Recuperativa</option>
+        </select>
+      </div>
+      <div class="field"><label>Nota (sobre ${maxNota})</label><input id="edit_nota_valor" type="number" step="0.1" min="0" max="${maxNota}" value="${registro.nota}"></div>
+    </div>
+    <div class="field" style="margin-top:14px;"><label>Retroalimentación</label><textarea id="edit_nota_retro" style="min-height:80px;">${registro.retroalimentacion||''}</textarea></div>
+    <div class="actions"><button class="btn btn-primary" onclick="guardarNotaEditada('${id}')">Guardar Cambios</button></div>
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+};
+
+window.guardarNotaEditada = async function(id){
+  const tipo = document.getElementById('edit_nota_tipo').value;
+  const maxNota = tipo==='Recuperativa' ? 9 : 10;
+  const nota = Number(document.getElementById('edit_nota_valor').value);
+  const retroalimentacion = document.getElementById('edit_nota_retro').value.trim();
+  if(isNaN(nota) || nota<0 || nota>maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}.`); return; }
+  try{
+    await apiPost('Calificaciones','update',{id, data:{tipo, nota, retroalimentacion}});
+    showToast('Calificación actualizada.');
+    document.getElementById('modal_overlay').classList.remove('show');
+    await loadAll();
+    renderAllCurso();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
 
 document.getElementById('btn_export_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
