@@ -506,7 +506,7 @@ window.editarFechaSesion = function(indice){
       <div class="grid cols3">
         <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${(entry.fechaInicio||'').slice(0,10)}"></div>
         <div class="field"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
-        <div class="field"><label>Nombre del Feriado</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
+        <div class="field"><label>Nombre del Feriado</label><input id="edit_tema" value="${String(entry.tema||'').replace(/"/g,'&quot;')}"></div>
       </div>
       <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', true)">Guardar Cambios</button></div>
     `;
@@ -519,10 +519,10 @@ window.editarFechaSesion = function(indice){
     <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${(entry.fechaInicio||'').slice(0,10)}"></div>
     <div class="field" style="margin-top:12px;"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
     <div class="field" style="margin-top:12px;"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
-    <div class="field" style="margin-top:12px;"><label>Horario</label><input id="edit_horario" value="${(entry.horario||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" list="lista_docentes" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Horario</label><input id="edit_horario" value="${String(entry.horario||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${String(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${String(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" list="lista_docentes" value="${String(entry.docente||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
     <div class="field" style="margin-top:12px;"><label>Categoría</label>
       <select id="edit_categoria">
@@ -534,10 +534,10 @@ window.editarFechaSesion = function(indice){
       </select>
     </div>
     <div class="field" style="margin-top:12px;"><label>Honorario</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
-    <div class="field" style="margin-top:12px;"><label>Tema</label><input id="edit_tema" value="${(entry.tema||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Tema</label><input id="edit_tema" value="${String(entry.tema||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
-    <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="edit_link" value="${(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Feriado (observación)</label><input id="edit_observacion" value="${(entry.observacion||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="edit_link" value="${String(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Feriado (observación)</label><input id="edit_observacion" value="${String(entry.observacion||'').replace(/"/g,'&quot;')}"></div>
     <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', false)">Guardar Cambios</button></div>
   `;
   abrirModalDoc(html);
