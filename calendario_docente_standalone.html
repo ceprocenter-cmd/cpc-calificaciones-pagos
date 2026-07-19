@@ -494,9 +494,10 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
   }catch(e){ showToast('Error: '+e.message); }
 };
 
-window.editarFechaSesion = function(id){
-  const entry = CALENDARIO.find(c=>c.id===id);
-  if(!entry) return;
+window.editarFechaSesion = function(indice){
+  const entry = FILAS_CALENDARIO_ACTUAL[indice];
+  if(!entry){ showToast('No se pudo abrir esta sesión, recarga la página e intenta de nuevo.'); return; }
+  const id = entry.id;
   const esFeriado = entry.esFeriado==='Sí';
 
   if(esFeriado){
@@ -655,7 +656,7 @@ function renderCalendario(){
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
   document.getElementById('calendario_head').innerHTML =
-    '<th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th><th>Categoría</th>'
+    '<th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th>'
     + (mostrarModalidad ? '<th>Modalidad</th>' : '')
     + '<th>Honorario</th><th>Tema</th><th>Feriado</th><th></th>';
 
@@ -664,9 +665,11 @@ function renderCalendario(){
   if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
+  FILAS_CALENDARIO_ACTUAL = rows;
+
   let mesAnterior = null;
   let colorAlterno = false;
-  body.innerHTML = rows.map(c=>{
+  body.innerHTML = rows.map((c,i)=>{
     const mesActual = c.fechaInicio ? c.fechaInicio.slice(0,7) : '';
     if(mesActual !== mesAnterior){ colorAlterno = !colorAlterno; mesAnterior = mesActual; }
     const esFeriado = c.esFeriado==='Sí';
@@ -682,7 +685,6 @@ function renderCalendario(){
       <td>${esFeriado?'—':(c.modulo||'—')}</td>
       <td>${esFeriado?'—':(c.docente||'—')}</td>
       <td>${esFeriado?'—':(c.encargado||'—')}</td>
-      <td>${esFeriado?'—':(c.categoria||'—')}</td>
       ${mostrarModalidad ? `<td>${esFeriado?'—':(c.modalidad||'—')}</td>` : ''}
       <td>${esFeriado?'—':`<select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
         <option value="Pendiente" ${c.honorario!=='Pagado'?'selected':''}>Pendiente</option>
@@ -691,12 +693,13 @@ function renderCalendario(){
       <td style="white-space:normal;max-width:200px;">${esFeriado?'—':(c.tema||'—')}${c.linkContenido?` — <a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:''}</td>
       <td style="white-space:normal;max-width:180px;font-weight:${esFeriado?'700':'400'};">${observacion}</td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion('${c.id}')">✏️ Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion(${i})">✏️ Editar</button>
         <button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button>
       </td>
     </tr>`;
   }).join('');
 }
+let FILAS_CALENDARIO_ACTUAL = [];
 ['filt_modalidad','filt_mes','filt_docente','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
