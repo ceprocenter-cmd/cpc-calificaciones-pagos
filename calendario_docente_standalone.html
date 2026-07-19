@@ -121,7 +121,7 @@
             Ocultar sesiones ya pagadas
           </label>
         </div>
-        <div class="table-scroll">
+        <div class="table-scroll" style="max-height:640px;overflow-y:auto;">
           <table>
             <thead><tr id="calendario_head"></tr></thead>
             <tbody id="tabla_calendario"></tbody>
@@ -133,12 +133,6 @@
 
     <!-- REGISTRAR -->
     <div id="tab-registrar" style="display:none;">
-      <div class="panel">
-        <h2>Feriados de Ecuador</h2>
-        <p class="hint">Carga de una vez los feriados nacionales oficiales de 2026. Si necesitas agregar uno propio de Ceprocenter (como "Día del Padre"), usa el formulario de abajo con "¿Es Feriado?" en Sí.</p>
-        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_cargar_feriados">Cargar Feriados Oficiales de Ecuador 2026</button></div>
-      </div>
-
       <div class="panel">
         <h2>Generar Calendario del Año</h2>
         <p class="hint">Carga de una vez todas las semanas del año (lunes a viernes de cada semana), listas para que solo llenes los datos de cada una — no hace falta ir mes por mes.</p>
@@ -419,39 +413,9 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
   }catch(e){ showToast('Error al generar: '+e.message); }
 });
 
-// ---------- FERIADOS OFICIALES DE ECUADOR 2026 ----------
-const FERIADOS_ECUADOR_2026 = [
-  {fecha:'2026-01-01', fin:'2026-01-02', nombre:'Año Nuevo'},
-  {fecha:'2026-02-16', fin:'2026-02-17', nombre:'Carnaval'},
-  {fecha:'2026-04-03', fin:'2026-04-03', nombre:'Viernes Santo'},
-  {fecha:'2026-05-01', fin:'2026-05-01', nombre:'Día del Trabajo'},
-  {fecha:'2026-05-25', fin:'2026-05-25', nombre:'Batalla de Pichincha'},
-  {fecha:'2026-08-10', fin:'2026-08-10', nombre:'Primer Grito de la Independencia'},
-  {fecha:'2026-10-09', fin:'2026-10-09', nombre:'Independencia de Guayaquil'},
-  {fecha:'2026-11-02', fin:'2026-11-03', nombre:'Día de los Difuntos / Independencia de Cuenca'},
-  {fecha:'2026-12-25', fin:'2026-12-25', nombre:'Navidad'}
-];
-
-document.getElementById('btn_cargar_feriados').addEventListener('click', async ()=>{
-  const yaCargados = new Set(CALENDARIO.filter(c=>c.esFeriado==='Sí').map(c=>c.fechaInicio));
-  const faltantes = FERIADOS_ECUADOR_2026.filter(f=>!yaCargados.has(f.fecha));
-  if(faltantes.length===0){ showToast('Ya tienes cargados todos los feriados oficiales de 2026.'); return; }
-
-  try{
-    for(const f of faltantes){
-      await apiPost('CalendarioDocente','add',{data:{
-        id:uid(), modalidad:'', fechaInicio:f.fecha, fechaFin:f.fin, horario:'', capacitacion:'', modulo:'',
-        docente:'', encargado:'', categoria:'', tema:f.nombre, subtemas:'', linkContenido:'', esFeriado:'Sí', honorario:''
-      }});
-    }
-    showToast(`${faltantes.length} feriado(s) oficial(es) cargado(s).`);
-    await loadAll();
-    renderAll();
-  }catch(e){ showToast('Error al cargar feriados: '+e.message); }
-});
 document.getElementById('r_es_feriado').addEventListener('change', ()=>{
   const esFeriado = document.getElementById('r_es_feriado').value === 'si';
-  ['r_horario','r_capacitacion','r_modulo','r_docente','r_encargado','r_categoria','r_subtemas','r_link'].forEach(id=>{
+  ['r_horario_preset','r_capacitacion','r_modulo','r_docente','r_encargado','r_categoria','r_subtemas','r_link'].forEach(id=>{
     document.getElementById(id).closest('.field').style.display = esFeriado ? 'none' : 'block';
   });
 });
