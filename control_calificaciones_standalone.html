@@ -286,7 +286,7 @@
         <div id="reporte_resumen"></div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
-            <thead><tr><th>Estudiante</th><th class="num">Promedio</th><th>Estado</th><th class="num">Módulos Evaluados</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th>Estudiante</th><th class="num">Promedio</th><th>Estado</th><th class="num">Módulos Evaluados</th><th></th></tr></thead>
             <tbody id="tabla_resumen_curso"></tbody>
           </table>
         </div>
@@ -755,8 +755,9 @@ function renderReporteCurso(){
   const bajas = filas.filter(f=>f.baja).length;
   resumenBox.innerHTML = `<p class="hint" style="margin:0;">${totalEst} estudiantes en nómina — ${aprobados} aprobados, ${filas.filter(f=>f.aprobado===false).length} reprobados, ${sinNotas} sin notas aún (mínimo: ${NOTA_MINIMA})${bajas>0?`, ${bajas} no continuaron`:''}.</p>`;
 
-  tblResumen.innerHTML = filas.map(f=>`
+  tblResumen.innerHTML = filas.map((f,i)=>`
     <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}">
+    <td>${i+1}</td>
     <td>${f.estudiante}${f.baja?' <span class="pill na">No continuó</span>':''}</td>
     <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
     <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
@@ -767,7 +768,7 @@ function renderReporteCurso(){
         ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', false)">No Continúa</button>`
         : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', true)">Reactivar</button>`}
     </td></tr>
-  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
 
   renderListaModulosReporte();
 }
