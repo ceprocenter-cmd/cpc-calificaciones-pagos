@@ -496,7 +496,12 @@ function getCursoInfo(curso){
 function nombreParaCertificado(curso, estudiante){
   const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante);
   const conCertificado = registros.filter(m=>m.certificado && m.certificado.trim());
-  if(conCertificado.length>0) return conCertificado[conCertificado.length-1].certificado.trim();
+  if(conCertificado.length>0){
+    const titulo = conCertificado[conCertificado.length-1].certificado.trim();
+    // Si el título ya forma parte del nombre guardado, no lo dupliques.
+    if(estudiante.toLowerCase().startsWith(titulo.toLowerCase())) return estudiante;
+    return `${titulo} ${estudiante}`;
+  }
   return estudiante;
 }
 
