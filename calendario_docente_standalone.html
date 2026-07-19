@@ -268,8 +268,15 @@ async function apiPost(sheet, action, payload){
 }
 
 let CALENDARIO = [];
+let FACILITADORES_REALES = [];
+
 async function loadAll(){
-  CALENDARIO = await apiGet('CalendarioDocente');
+  const [cal, facil] = await Promise.all([
+    apiGet('CalendarioDocente'),
+    apiGet('Facilitadores').catch(()=>[])
+  ]);
+  CALENDARIO = cal;
+  FACILITADORES_REALES = [...new Set(facil.map(f=>f.tutor).filter(Boolean))];
 }
 function fechaCorta(f){
   if(!f) return '—';
@@ -514,7 +521,7 @@ window.editarFechaSesion = function(id){
     <div class="field" style="margin-top:12px;"><label>Horario</label><input id="edit_horario" value="${(entry.horario||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" list="lista_docentes" value="${(entry.docente||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
     <div class="field" style="margin-top:12px;"><label>Categoría</label>
       <select id="edit_categoria">
@@ -695,7 +702,7 @@ function renderCalendario(){
 });
 
 function renderDatalistDocentes(){
-  const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
+  const docentes = [...new Set([...CALENDARIO.map(c=>c.docente), ...FACILITADORES_REALES].filter(Boolean))].sort();
   document.getElementById('lista_docentes').innerHTML = docentes.map(d=>`<option value="${d.replace(/"/g,'&quot;')}">`).join('');
 }
 
