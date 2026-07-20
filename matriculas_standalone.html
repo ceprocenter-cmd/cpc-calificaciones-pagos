@@ -391,7 +391,7 @@
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
-const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
@@ -1698,9 +1698,19 @@ function buscarExalumnos(){
     deMatriculas[key].cursos.add(m.curso);
   });
 
-  const deImportados = EXALUMNOS.filter(e=>
+  const coincidenImportados = EXALUMNOS.filter(e=>
     normalizarBusquedaExal(e.nombre).includes(q) || normalizarBusquedaExal(e.cedula).includes(q)
   );
+  const deImportadosAgrupados = {};
+  coincidenImportados.forEach(e=>{
+    const key = String(e.cedula||e.nombre).toLowerCase();
+    if(!deImportadosAgrupados[key]) deImportadosAgrupados[key] = {nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, cursos:new Set()};
+    if(e.curso) deImportadosAgrupados[key].cursos.add(e.curso);
+    // Si algún registro trae correo/teléfono y otro no, nos quedamos con el que sí tenga.
+    if(!deImportadosAgrupados[key].correo && e.correo) deImportadosAgrupados[key].correo = e.correo;
+    if(!deImportadosAgrupados[key].telefono && e.telefono) deImportadosAgrupados[key].telefono = e.telefono;
+  });
+  const deImportados = Object.values(deImportadosAgrupados).map(r=>({...r, curso:[...r.cursos].join(', ')}));
 
   const filasMatriculas = Object.values(deMatriculas).map(r=>`
     <tr><td>${r.nombre}</td><td>${r.cedula||'—'}</td><td>${r.correo||'—'}</td><td>${r.telefono||'—'}</td>
