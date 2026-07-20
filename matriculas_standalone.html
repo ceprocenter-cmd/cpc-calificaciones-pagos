@@ -391,7 +391,7 @@
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
-const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
@@ -1679,7 +1679,7 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
 
 // ---------- BASE DE EX-ALUMNOS ----------
 function normalizarBusquedaExal(t){
-  return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
 function buscarExalumnos(){
@@ -1693,7 +1693,7 @@ function buscarExalumnos(){
   MATRICULAS.forEach(m=>{
     const coincide = normalizarBusquedaExal(m.estudiante).includes(q) || normalizarBusquedaExal(m.cedula).includes(q);
     if(!coincide) return;
-    const key = (m.cedula||m.estudiante).toLowerCase();
+    const key = String(m.cedula||m.estudiante).toLowerCase();
     if(!deMatriculas[key]) deMatriculas[key] = {nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, cursos:new Set()};
     deMatriculas[key].cursos.add(m.curso);
   });
