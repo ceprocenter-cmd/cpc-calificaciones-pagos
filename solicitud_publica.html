@@ -59,8 +59,8 @@
     <div class="field"><label>Nombres y apellidos completos <span class="req">*</span></label><input id="f_estudiante" placeholder="Como aparece en tu cédula"></div>
     <div class="field"><label>Cédula <span class="req">*</span></label><input id="f_cedula" placeholder="Número de cédula"></div>
     <div class="field"><label>Correo electrónico <span class="req">*</span></label><input id="f_correo" type="email" placeholder="correo@ejemplo.com"></div>
+    <div class="field"><label>País <span class="req">*</span></label><input id="f_pais" list="lista_paises" placeholder="País"><datalist id="lista_paises"></datalist></div>
     <div class="field"><label>Teléfono <span class="req">*</span></label><input id="f_telefono" placeholder="+593 ..."></div>
-    <div class="field"><label>País <span class="req">*</span></label><input id="f_pais" placeholder="País"></div>
     <div class="field"><label>Ciudad <span class="req">*</span></label><input id="f_ciudad" placeholder="Ciudad"></div>
     <div class="field"><label>Profesión <span class="req">*</span></label><input id="f_profesion" placeholder="Profesión"></div>
     <div class="field"><label>Usuario de Instagram</label><input id="f_instagram" placeholder="@usuario"></div>
@@ -100,7 +100,7 @@
     <div class="field"><label>N° de Referencia del Pago</label><input id="f_referencia_pago" placeholder="Número de comprobante o transacción"></div>
     <div class="field"><label>Comprobante de pago <span class="req">*</span></label><input id="f_file_comprobante" type="file" accept="image/*,.pdf"></div>
     <div class="field"><label>Foto de tu cédula</label><input id="f_file_cedula" type="file" accept="image/*,.pdf"></div>
-    <div class="field"><label>Título o constancia de estudios (si aplica)</label><input id="f_file_titulo" type="file" accept="image/*,.pdf"></div>
+    <div class="field"><label>Título o constancia de estudios <span class="req">*</span></label><input id="f_file_titulo" type="file" accept="image/*,.pdf"></div>
 
     <div class="field" style="display:flex;align-items:flex-start;gap:10px;margin-top:24px;">
       <input type="checkbox" id="f_autorizo" style="width:20px;height:20px;margin-top:2px;flex-shrink:0;">
@@ -127,6 +127,37 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGeepxsP_jie58658PL-jnQXtiVqqAT7283HpXWRs7HOWkNJ/exec';
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3600); }
+
+const CODIGOS_PAIS = {
+  'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
+  'argentina':'+54','chile':'+56','bolivia':'+591','paraguay':'+595','uruguay':'+598',
+  'brasil':'+55','panama':'+507','costa rica':'+506','guatemala':'+502','honduras':'+504',
+  'el salvador':'+503','nicaragua':'+505','republica dominicana':'+1','cuba':'+53',
+  'espana':'+34','estados unidos':'+1','canada':'+1','puerto rico':'+1'
+};
+function normalizarPais(t){ return (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+document.getElementById('lista_paises').innerHTML = ['Ecuador','Colombia','Venezuela','Perú','México','Argentina','Chile','Bolivia','Paraguay','Uruguay','Brasil','Panamá','Costa Rica','Guatemala','Honduras','El Salvador','Nicaragua','República Dominicana','Cuba','España','Estados Unidos','Canadá','Puerto Rico'].map(p=>`<option value="${p}">`).join('');
+
+function actualizarCodigoPaisSolicitud(){
+  const codigo = CODIGOS_PAIS[normalizarPais(document.getElementById('f_pais').value)];
+  if(!codigo) return;
+  const telInput = document.getElementById('f_telefono');
+  const actual = telInput.value.trim();
+  if(!actual){
+    telInput.value = codigo + ' ';
+  }else if(/^\+\d+/.test(actual)){
+    telInput.value = actual.replace(/^\+\d+\s*/, codigo + ' ');
+  }else{
+    telInput.value = codigo + ' ' + actual;
+  }
+}
+document.getElementById('f_pais').addEventListener('change', actualizarCodigoPaisSolicitud);
+document.getElementById('f_pais').addEventListener('blur', actualizarCodigoPaisSolicitud);
+// Si la persona escribe el teléfono antes que el país, igual le agregamos el código en cuanto elija el país,
+// y si ya hay país elegido cuando empieza a escribir el número, se lo ponemos de una vez al entrar al campo.
+document.getElementById('f_telefono').addEventListener('focus', ()=>{
+  if(!document.getElementById('f_telefono').value.trim()) actualizarCodigoPaisSolicitud();
+});
 
 async function apiGet(sheet){
   const res = await fetch(`${API_URL}?sheet=${sheet}`);
@@ -190,6 +221,7 @@ document.getElementById('btn_enviar').addEventListener('click', async ()=>{
   if(!fileComprobante){ showToast('El comprobante de pago es obligatorio.'); return; }
   const fileCedula = document.getElementById('f_file_cedula').files[0];
   const fileTitulo = document.getElementById('f_file_titulo').files[0];
+  if(!fileTitulo){ showToast('El título o constancia de estudios es obligatorio.'); return; }
 
   const btn = document.getElementById('btn_enviar');
   btn.disabled = true;
