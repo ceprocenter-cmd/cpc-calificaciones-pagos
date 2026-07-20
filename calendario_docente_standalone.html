@@ -242,6 +242,8 @@ const esVistaTutor = !!paramsIniciales.get('tutor');
 let API_URL = esVistaTutor
   ? (API_URL_PUBLICO.indexOf('PEGA_AQUI')===0 ? '' : API_URL_PUBLICO)
   : (localStorage.getItem('cepro_api_url_academico') || '');
+// Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script. La vista pública del tutor nunca la usa (solo lee).
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 if(esVistaTutor){
   document.getElementById('setup_banner').style.display = 'none';
@@ -267,7 +269,7 @@ function normNum(v){ return Number(v)||0; }
 
 async function apiGet(sheet){ const res = await fetch(`${API_URL}?sheet=${sheet}`); return await res.json(); }
 async function apiPost(sheet, action, payload){
-  const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({sheet, action, ...payload}) });
+  const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({sheet, action, clave: CLAVE_ADMIN, ...payload}) });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
   return json;
