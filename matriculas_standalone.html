@@ -391,7 +391,7 @@
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
-const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
@@ -1167,7 +1167,7 @@ function renderCXC(){
   empty.style.display='none';
 
   const items = itemsDe(curso);
-  let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
   const activos = estudiantes.filter(est=>nominaActivaCXC(curso, est)).length;
   const inactivos = estudiantes.length - activos;
@@ -1559,7 +1559,7 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
 
 window.pdfDeudoresModulo = function(curso, modulo){
   const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
-  let estudiantes = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante).sort();
+  let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
   const deudores = [];
   let totalGeneral = 0;
