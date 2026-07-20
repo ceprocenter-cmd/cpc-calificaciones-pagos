@@ -390,6 +390,8 @@
 
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
+// Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
@@ -519,7 +521,7 @@ async function apiGet(sheet){
 async function apiPost(sheet, action, extra){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({sheet, action, ...extra})
+    body: JSON.stringify({sheet, action, clave: CLAVE_ADMIN, ...extra})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -528,7 +530,7 @@ async function apiPost(sheet, action, extra){
 async function apiMatricular(data){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'matricular', data})
+    body: JSON.stringify({action:'matricular', clave: CLAVE_ADMIN, data})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -537,7 +539,7 @@ async function apiMatricular(data){
 async function apiConfirmarSolicitud(data){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'confirmarSolicitud', data})
+    body: JSON.stringify({action:'confirmarSolicitud', clave: CLAVE_ADMIN, data})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -546,7 +548,7 @@ async function apiConfirmarSolicitud(data){
 async function apiConfirmarPagoBanco(pagoId, esHistorica){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({action:'confirmarPagoBanco', pagoId, esHistorica: !!esHistorica})
+    body: JSON.stringify({action:'confirmarPagoBanco', clave: CLAVE_ADMIN, pagoId, esHistorica: !!esHistorica})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
