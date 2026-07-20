@@ -404,6 +404,8 @@
 
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
+// Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 let NOTA_MINIMA = Number(localStorage.getItem('cepro_nota_minima')) || 7;
 let NOMINA = [];
 let MODULOS = [];
@@ -444,7 +446,7 @@ async function apiGet(sheet){
 async function apiPost(sheet, action, extra){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify({sheet, action, ...extra})
+    body: JSON.stringify({sheet, action, clave: CLAVE_ADMIN, ...extra})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
