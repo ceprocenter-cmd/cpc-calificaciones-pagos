@@ -391,7 +391,7 @@
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
-const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
@@ -1181,6 +1181,8 @@ function renderCXC(){
   head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th>';
 
   let filasDeuda = [];
+  CXC_CURSO_ACTUAL = curso;
+  CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
     let saldoTotal = 0;
     const estados = [];
@@ -1205,7 +1207,7 @@ function renderCXC(){
     const btnBaja = `<td>${activo
       ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
-    const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">↔️ Transferir</button></td>`;
+    const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante(${i})">↔️ Transferir</button></td>`;
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
     return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}</tr>`;
   }).join('') || '<tr><td colspan="14" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
@@ -1466,7 +1468,13 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
 });
 window.onafterprint = function(){ document.body.classList.remove('printing-doc'); };
 
-window.abrirTransferirEstudiante = function(cursoOrigen, estudiante){
+let CXC_CURSO_ACTUAL = '';
+let CXC_ESTUDIANTES_ACTUAL = [];
+
+window.abrirTransferirEstudiante = function(indice){
+  const estudiante = CXC_ESTUDIANTES_ACTUAL[indice];
+  const cursoOrigen = CXC_CURSO_ACTUAL;
+  if(!estudiante || !cursoOrigen){ showToast('No se pudo abrir esta transferencia, recarga la página e intenta de nuevo.'); return; }
   const opciones = cursosUnicos().filter(c=>c!==cursoOrigen);
   const html = `
     <h3 style="margin-top:0;">Transferir Estudiante</h3>
@@ -1479,12 +1487,15 @@ window.abrirTransferirEstudiante = function(cursoOrigen, estudiante){
       </select>
     </div>
     <p class="hint" style="margin-top:12px;">Esto mueve al estudiante en Nómina, Matrículas y Pagos, y también mueve su carpeta de documentos en Drive al curso correcto — no se pierde ningún archivo ya subido.</p>
-    <div class="actions"><button class="btn btn-primary" onclick="confirmarTransferirEstudiante('${cursoOrigen.replace(/'/g,"\\'")}','${estudiante.replace(/'/g,"\\'")}')">Confirmar Transferencia</button></div>
+    <div class="actions"><button class="btn btn-primary" onclick="confirmarTransferirEstudiante()">Confirmar Transferencia</button></div>
   `;
   abrirModalDoc(html);
+  window._transferenciaActual = {estudiante, cursoOrigen};
 };
 
-window.confirmarTransferirEstudiante = async function(cursoOrigen, estudiante){
+window.confirmarTransferirEstudiante = async function(){
+  const {estudiante, cursoOrigen} = window._transferenciaActual || {};
+  if(!estudiante || !cursoOrigen){ showToast('Algo salió mal, cierra esta ventana e inténtalo de nuevo.'); return; }
   const cursoDestino = document.getElementById('transf_curso_destino').value;
   if(!cursoDestino){ showToast('Selecciona el curso correcto.'); return; }
   if(!confirm(`¿Transferir a ${estudiante} de "${cursoOrigen}" a "${cursoDestino}"? Esta acción mueve sus datos y su carpeta de documentos.`)) return;
@@ -1503,6 +1514,7 @@ window.confirmarTransferirEstudiante = async function(cursoOrigen, estudiante){
   }catch(e){ showToast('Error al transferir: '+e.message); }
 };
 
+window.pdfEstudianteIndividual = function(curso, estudiante){
   const items = itemsDe(curso);
   let saldoTotal = 0;
   const filasModulo = items.map(it=>{
