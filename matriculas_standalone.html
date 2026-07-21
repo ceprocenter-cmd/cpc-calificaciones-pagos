@@ -408,7 +408,6 @@ function actualizarCodigoPais(){
   if(!codigo) return;
   const telInput = document.getElementById('m_telefono');
   const actual = telInput.value.trim();
-  // Si está vacío, o ya empieza con un código de país (+...), lo reemplaza/agrega sin duplicar
   if(!actual){
     telInput.value = codigo + ' ';
   }else if(/^\+\d+/.test(actual)){
@@ -462,7 +461,6 @@ function buscarDatosPrevios(estudiante){
   const nombreNorm = normalizarNombreEst(estudiante);
   const coincidencias = MATRICULAS.filter(m => normalizarNombreEst(m.estudiante||'') === nombreNorm);
   if(coincidencias.length===0) return null;
-  // toma la más reciente (última en la lista, asumiendo orden de inserción/fecha)
   return coincidencias[coincidencias.length-1];
 }
 
@@ -552,6 +550,15 @@ async function apiConfirmarPagoBanco(pagoId, esHistorica){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({action:'confirmarPagoBanco', clave: CLAVE_ADMIN, pagoId, esHistorica: !!esHistorica})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+async function apiActualizarEstudiante(curso, estudiante, data){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'actualizarDatosEstudiante', clave: CLAVE_ADMIN, curso, estudiante, data})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -1178,7 +1185,7 @@ function renderCXC(){
     return activoA ? -1 : 1;
   });
 
-  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th>';
+  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th>';
 
   let filasDeuda = [];
   CXC_CURSO_ACTUAL = curso;
@@ -1208,9 +1215,10 @@ function renderCXC(){
       ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
     const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante(${i})">↔️ Transferir</button></td>`;
+    const btnEditar = `<td><button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✏️ Editar</button></td>`;
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
-    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}</tr>`;
-  }).join('') || '<tr><td colspan="14" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}</tr>`;
+  }).join('') || '<tr><td colspan="15" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
 
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
@@ -1514,6 +1522,46 @@ window.confirmarTransferirEstudiante = async function(){
   }catch(e){ showToast('Error al transferir: '+e.message); }
 };
 
+window.abrirEditarEstudiante = function(curso, estudiante){
+  const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
+  const html = `
+    <h3 style="margin-top:0;">Editar Datos — ${estudiante}</h3>
+    <p class="hint">Curso: <b>${curso}</b>. El nombre y el historial de pagos no se pueden tocar aquí — solo datos de contacto y perfil.</p>
+    <div class="grid cols3">
+      <div class="field"><label>Cédula</label><input id="edit_cedula" value="${registro.cedula||''}"></div>
+      <div class="field"><label>Correo</label><input id="edit_correo" type="email" value="${registro.correo||''}"></div>
+      <div class="field"><label>Teléfono</label><input id="edit_telefono" value="${registro.telefono||''}"></div>
+      <div class="field"><label>País</label><input id="edit_pais" value="${registro.pais||''}"></div>
+      <div class="field"><label>Ciudad</label><input id="edit_ciudad" value="${registro.ciudad||''}"></div>
+      <div class="field"><label>Profesión</label><input id="edit_profesion" value="${registro.profesion||''}"></div>
+      <div class="field"><label>Usuario de Instagram</label><input id="edit_instagram" value="${registro.instagram||''}"></div>
+      <div class="field"><label>Certificado a Nombre de</label><input id="edit_certificado" value="${registro.certificado||''}"></div>
+    </div>
+    <div class="actions"><button class="btn btn-primary" onclick="guardarEdicionEstudiante('${curso.replace(/'/g,"\\'")}','${estudiante.replace(/'/g,"\\'")}')">Guardar Cambios</button></div>
+  `;
+  abrirModalDoc(html);
+};
+
+window.guardarEdicionEstudiante = async function(curso, estudiante){
+  const data = {
+    cedula: document.getElementById('edit_cedula').value.trim(),
+    correo: document.getElementById('edit_correo').value.trim(),
+    telefono: document.getElementById('edit_telefono').value.trim(),
+    pais: document.getElementById('edit_pais').value.trim(),
+    ciudad: document.getElementById('edit_ciudad').value.trim(),
+    profesion: document.getElementById('edit_profesion').value.trim(),
+    instagram: document.getElementById('edit_instagram').value.trim(),
+    certificado: document.getElementById('edit_certificado').value.trim(),
+  };
+  try{
+    await apiActualizarEstudiante(curso, estudiante, data);
+    showToast('Datos actualizados correctamente.');
+    document.getElementById('modal_overlay').classList.remove('show');
+    await loadAll();
+    renderCXC();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
+
 window.pdfEstudianteIndividual = function(curso, estudiante){
   const items = itemsDe(curso);
   let saldoTotal = 0;
@@ -1740,7 +1788,6 @@ function buscarExalumnos(){
   const empty = document.getElementById('exalumnos_empty');
   if(!q){ body.innerHTML=''; empty.style.display='block'; empty.textContent='Escribe un nombre o cédula para buscar.'; return; }
 
-  // Agrupa coincidencias de Matriculas por persona (puede tener varios cursos)
   const deMatriculas = {};
   MATRICULAS.forEach(m=>{
     const coincide = normalizarBusquedaExal(m.estudiante).includes(q) || normalizarBusquedaExal(m.cedula).includes(q);
@@ -1758,7 +1805,6 @@ function buscarExalumnos(){
     const key = String(e.cedula||e.nombre).toLowerCase();
     if(!deImportadosAgrupados[key]) deImportadosAgrupados[key] = {nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, cursos:new Set()};
     if(e.curso) deImportadosAgrupados[key].cursos.add(e.curso);
-    // Si algún registro trae correo/teléfono y otro no, nos quedamos con el que sí tenga.
     if(!deImportadosAgrupados[key].correo && e.correo) deImportadosAgrupados[key].correo = e.correo;
     if(!deImportadosAgrupados[key].telefono && e.telefono) deImportadosAgrupados[key].telefono = e.telefono;
   });
