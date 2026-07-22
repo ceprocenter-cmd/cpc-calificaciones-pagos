@@ -1130,7 +1130,7 @@ function renderVistaTutor(nombreTutor){
     <div class="toast" id="toast"></div>
   `;
 
-  const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
+  const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí' && c.honorario!=='Pagado').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
 
   if(sesiones.length===0){
