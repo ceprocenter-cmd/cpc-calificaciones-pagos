@@ -995,8 +995,8 @@ function renderVistaTutor(nombreTutor){
       <td style="white-space:nowrap;">${horarioDosLineas(c.horario)}</td>
       <td>${c.modalidad||'—'}</td>
       <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
-      <td>${badgeHonorario}</td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
+      <td>${badgeHonorario}</td>
     </tr>`;
   }).join('');
 
