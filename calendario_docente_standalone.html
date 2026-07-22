@@ -33,7 +33,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
   .grid.cols3{grid-template-columns:repeat(3,1fr);}
   .grid.cols4{grid-template-columns:repeat(4,1fr);}
-  @media (max-width:800px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
+  @media (max-width:px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
   @media (max-width:520px){.grid.cols3,.grid.cols4{grid-template-columns:1fr;}}
   .field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
   .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14.5px;}
@@ -221,6 +221,7 @@
       <div class="panel">
         <h2>Lista de Facilitadores</h2>
         <p class="hint">El link de cada uno, listo para copiar y mandar por WhatsApp — así no hay riesgo de escribir mal el nombre.</p>
+        <div class="field" style="max-width:200px;margin-bottom:16px;"><label>Ver Sesiones del Año</label><select id="facil_anio"></select></div>
         <div class="table-scroll">
           <table>
             <thead><tr><th>Docente</th><th class="num">Sesiones</th><th></th></tr></thead>
@@ -1020,13 +1021,26 @@ function renderSelectTutor(){
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">Selecciona un docente</option>' + docentes.map(d=>`<option ${d===prev?'selected':''}>${d}</option>`).join('');
 
+  const selAnio = document.getElementById('facil_anio');
+  const prevAnio = selAnio.value;
+  const aniosDisponibles = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))].sort().reverse();
+  const anioActualStr = String(new Date().getFullYear());
+  if(!aniosDisponibles.includes(anioActualStr)) aniosDisponibles.unshift(anioActualStr);
+  selAnio.innerHTML = '<option value="">Todos los años</option>' + aniosDisponibles.map(a=>`<option value="${a}" ${a===(prevAnio||anioActualStr)?'selected':''}>${a}</option>`).join('');
+
   renderTablaFacilitadores(docentes);
 }
 
+document.getElementById('facil_anio').addEventListener('change', ()=>{
+  const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
+  renderTablaFacilitadores(docentes);
+});
+
 function renderTablaFacilitadores(docentes){
   const baseUrl = window.location.origin + window.location.pathname;
+  const anioFiltro = document.getElementById('facil_anio').value;
   document.getElementById('tabla_facilitadores').innerHTML = docentes.map(d=>{
-    const sesiones = CALENDARIO.filter(c=>c.docente===d && c.esFeriado!=='Sí').length;
+    const sesiones = CALENDARIO.filter(c=>c.docente===d && c.esFeriado!=='Sí' && (!anioFiltro || (c.fechaInicio && c.fechaInicio.slice(0,4)===anioFiltro))).length;
     const link = `${baseUrl}?tutor=${encodeURIComponent(d)}`;
     return `<tr>
       <td>${d}</td>
@@ -1134,7 +1148,7 @@ function renderVistaTutor(nombreTutor){
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
 
   if(sesiones.length===0){
-    document.getElementById('vista_tutor_panel').innerHTML = '<p class="hint">Todavía no tienes sesiones registradas en el calendario. Consulta con Ceprocenter.</p>';
+    document.getElementById('vista_tutor_panel').innerHTML = '<p class="hint">Todavía no tienes sesiones pendientes registradas en el calendario. Consulta con Ceprocenter.</p>';
     return;
   }
 
