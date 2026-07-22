@@ -322,6 +322,13 @@ function rangoFechas(inicio, fin){
   return `${fechaCorta(inicio)}<br>al ${fechaCorta(fin)}`;
 }
 
+function horarioDosLineas(h){
+  if(!h) return '—';
+  const partes = String(h).split(' a ');
+  if(partes.length!==2) return h;
+  return `${partes[0]} a<br>${partes[1]}`;
+}
+
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -515,6 +522,34 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
   }catch(e){ showToast('Error: '+e.message); }
 };
 
+function buscarDocentesDeSesion(entry){
+  return CALENDARIO.filter(c =>
+    c.esFeriado!=='Sí' &&
+    c.fechaInicio === entry.fechaInicio &&
+    (c.fechaFin||c.fechaInicio) === (entry.fechaFin||entry.fechaInicio) &&
+    String(c.capacitacion||'').trim() === String(entry.capacitacion||'').trim() &&
+    String(c.modulo||'').trim() === String(entry.modulo||'').trim()
+  );
+}
+
+let DOCENTES_EDICION_ACTUAL = [];
+let IDS_ORIGINALES_EDICION = [];
+
+function renderChipsDocentesEdicion(){
+  const box = document.getElementById('edit_chips_docentes');
+  if(!box) return;
+  box.innerHTML = DOCENTES_EDICION_ACTUAL.map((d,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent-dark);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:700;">
+      ${d.nombre}
+      <span style="cursor:pointer;font-weight:700;" onclick="quitarDocenteEdicion(${i})">✕</span>
+    </span>
+  `).join('') || '<span class="hint" style="margin:0;">Sin docentes — agrega al menos uno.</span>';
+}
+window.quitarDocenteEdicion = function(i){
+  DOCENTES_EDICION_ACTUAL.splice(i,1);
+  renderChipsDocentesEdicion();
+};
+
 window.editarFechaSesion = function(indice){
   const entry = FILAS_CALENDARIO_ACTUAL[indice];
   if(!entry){ showToast('No se pudo abrir esta sesión, recarga la página e intenta de nuevo.'); return; }
@@ -535,8 +570,13 @@ window.editarFechaSesion = function(indice){
     return;
   }
 
+  const siblings = buscarDocentesDeSesion(entry);
+  DOCENTES_EDICION_ACTUAL = siblings.map(s=>({id:s.id, nombre:s.docente||'(sin nombre)'}));
+  IDS_ORIGINALES_EDICION = siblings.map(s=>s.id);
+
   const html = `
     <h3 style="margin-top:0;">Editar Sesión</h3>
+    <p class="hint" style="margin:0 0 14px;">Los datos de fecha, horario, capacitación, etc. se aplican a todos los docentes de esta sesión. El honorario solo se actualiza para el docente sobre el que diste clic en "Editar".</p>
     <div class="field"><label>Fecha Inicio</label><input id="edit_fecha_inicio" type="date" value="${(entry.fechaInicio||'').slice(0,10)}"></div>
     <div class="field" style="margin-top:12px;"><label>Fecha Fin</label><input id="edit_fecha_fin" type="date" value="${(entry.fechaFin||entry.fechaInicio||'').slice(0,10)}"></div>
     <div class="field" style="margin-top:12px;"><label>Modalidad</label><select id="edit_modalidad"><option ${entry.modalidad==='Virtual'?'selected':''}>Virtual</option><option ${entry.modalidad==='Presencial'?'selected':''}>Presencial</option></select></div>
@@ -551,7 +591,14 @@ window.editarFechaSesion = function(indice){
     </div>
     <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${String(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${String(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Docente</label><input id="edit_docente" list="lista_docentes" value="${String(entry.docente||'').replace(/"/g,'&quot;')}"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>Docente(s) de esta Sesión</label>
+      <div id="edit_chips_docentes" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="edit_docente_input" list="lista_docentes" placeholder="Agregar otro docente" style="flex:1;">
+        <button type="button" class="btn btn-ghost btn-sm" id="edit_btn_agregar_docente" style="white-space:nowrap;">+ Agregar</button>
+      </div>
+    </div>
     <div class="field" style="margin-top:12px;"><label>Encargado</label><select id="edit_encargado"><option value="">Selecciona</option><option ${entry.encargado==='Jose'?'selected':''}>Jose</option><option ${entry.encargado==='Sara'?'selected':''}>Sara</option></select></div>
     <div class="field" style="margin-top:12px;"><label>Categoría</label>
       <select id="edit_categoria">
@@ -562,7 +609,7 @@ window.editarFechaSesion = function(indice){
         <option ${entry.categoria==='Entrenamiento'?'selected':''}>Entrenamiento</option>
       </select>
     </div>
-    <div class="field" style="margin-top:12px;"><label>Honorario</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Honorario (solo del docente que abriste)</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
     <div class="field" style="margin-top:12px;"><label>Tema</label><input id="edit_tema" value="${String(entry.tema||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
     <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="edit_link" value="${String(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
@@ -570,6 +617,21 @@ window.editarFechaSesion = function(indice){
     <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', false)">Guardar Cambios</button></div>
   `;
   abrirModalDoc(html);
+
+  renderChipsDocentesEdicion();
+  document.getElementById('edit_btn_agregar_docente').addEventListener('click', ()=>{
+    const input = document.getElementById('edit_docente_input');
+    const nombre = input.value.trim();
+    if(!nombre){ showToast('Escribe el nombre del docente primero.'); return; }
+    if(DOCENTES_EDICION_ACTUAL.some(d=>d.nombre.toLowerCase()===nombre.toLowerCase())){ showToast('Ese docente ya está en la lista.'); return; }
+    DOCENTES_EDICION_ACTUAL.push({id:null, nombre});
+    input.value = '';
+    input.focus();
+    renderChipsDocentesEdicion();
+  });
+  document.getElementById('edit_docente_input').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); document.getElementById('edit_btn_agregar_docente').click(); }
+  });
 };
 
 window.guardarSesionEditada = async function(id, esFeriado){
@@ -577,26 +639,54 @@ window.guardarSesionEditada = async function(id, esFeriado){
   const fechaFin = document.getElementById('edit_fecha_fin').value || fechaInicio;
   if(!fechaInicio){ showToast('Selecciona la fecha de inicio.'); return; }
 
-  const data = esFeriado
-    ? { fechaInicio, fechaFin, tema: document.getElementById('edit_tema').value.trim() }
-    : {
-        fechaInicio, fechaFin,
-        modalidad: document.getElementById('edit_modalidad').value,
-        horario: (document.getElementById('edit_horario_preset').value==='__otro__' ? document.getElementById('edit_horario_custom').value.trim() : document.getElementById('edit_horario_preset').value),
-        capacitacion: document.getElementById('edit_capacitacion').value.trim(),
-        modulo: document.getElementById('edit_modulo').value.trim(),
-        docente: document.getElementById('edit_docente').value.trim(),
-        encargado: document.getElementById('edit_encargado').value,
-        categoria: document.getElementById('edit_categoria').value,
-        honorario: document.getElementById('edit_honorario').value,
-        tema: document.getElementById('edit_tema').value.trim(),
-        subtemas: document.getElementById('edit_subtemas').value.trim(),
-        linkContenido: document.getElementById('edit_link').value.trim(),
-        observacion: document.getElementById('edit_observacion').value.trim()
-      };
+  if(esFeriado){
+    const data = { fechaInicio, fechaFin, tema: document.getElementById('edit_tema').value.trim() };
+    try{
+      await apiPost('CalendarioDocente','update',{id, data});
+      showToast('Feriado actualizado.');
+      document.getElementById('modal_overlay').classList.remove('show');
+      await loadAll();
+      renderAll();
+    }catch(e){ showToast('Error: '+e.message); }
+    return;
+  }
+
+  if(DOCENTES_EDICION_ACTUAL.length===0){ showToast('Agrega al menos un docente.'); return; }
+
+  const sharedData = {
+    fechaInicio, fechaFin,
+    modalidad: document.getElementById('edit_modalidad').value,
+    horario: (document.getElementById('edit_horario_preset').value==='__otro__' ? document.getElementById('edit_horario_custom').value.trim() : document.getElementById('edit_horario_preset').value),
+    capacitacion: document.getElementById('edit_capacitacion').value.trim(),
+    modulo: document.getElementById('edit_modulo').value.trim(),
+    encargado: document.getElementById('edit_encargado').value,
+    categoria: document.getElementById('edit_categoria').value,
+    tema: document.getElementById('edit_tema').value.trim(),
+    subtemas: document.getElementById('edit_subtemas').value.trim(),
+    linkContenido: document.getElementById('edit_link').value.trim(),
+    observacion: document.getElementById('edit_observacion').value.trim()
+  };
+  const honorarioEditado = document.getElementById('edit_honorario').value;
 
   try{
-    await apiPost('CalendarioDocente','update',{id, data});
+    for(const d of DOCENTES_EDICION_ACTUAL){
+      if(!d.id) continue;
+      const dataFila = {...sharedData, docente: d.nombre};
+      if(d.id === id) dataFila.honorario = honorarioEditado;
+      await apiPost('CalendarioDocente','update',{id:d.id, data:dataFila});
+    }
+    for(const d of DOCENTES_EDICION_ACTUAL){
+      if(d.id) continue;
+      await apiPost('CalendarioDocente','add',{data:{
+        id:uid(), ...sharedData, docente:d.nombre, esFeriado:'', honorario:'Pendiente'
+      }});
+    }
+    const idsActuales = DOCENTES_EDICION_ACTUAL.map(d=>d.id).filter(Boolean);
+    const idsAEliminar = IDS_ORIGINALES_EDICION.filter(origId => !idsActuales.includes(origId));
+    for(const idEliminar of idsAEliminar){
+      await apiPost('CalendarioDocente','delete',{id:idEliminar});
+    }
+
     showToast('Sesión actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
     await loadAll();
@@ -859,12 +949,12 @@ async function initApp(){
 
 function renderVistaTutor(nombreTutor){
   document.body.innerHTML = `
-    <div class="wrap" style="max-width:760px;">
+    <div class="wrap" style="max-width:100%;padding:16px 8px 60px;">
       <div class="top">
         <h1>Tu Calendario <span class="accent">Ceprocenter</span></h1>
         <div class="sub">${nombreTutor}</div>
       </div>
-      <div class="panel" id="vista_tutor_panel"></div>
+      <div id="vista_tutor_panel"></div>
     </div>
     <div class="toast" id="toast"></div>
   `;
@@ -873,7 +963,7 @@ function renderVistaTutor(nombreTutor){
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
 
   if(sesiones.length===0){
-    document.getElementById('vista_tutor_panel').innerHTML = '<p class="hint">Todavía no tienes sesiones registradas en el calendario. Consulta con Ceprocenter.</p>';
+    document.getElementById('vista_tutor_panel').innerHTML = '<div class="panel"><p class="hint" style="margin:0;">Todavía no tienes sesiones registradas en el calendario. Consulta con Ceprocenter.</p></div>';
     return;
   }
 
@@ -893,30 +983,34 @@ function renderVistaTutor(nombreTutor){
     const nombreMes = nombreMesDe(c.fechaInicio);
 
     if(c.tipo==='feriado'){
-      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td><td colspan="6">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;font-size:11.5px;">${nombreMes}</td><td colspan="5" style="font-size:12.5px;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
     }
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorTutor;
     const badgeHonorario = c.honorario==='Pagado'
-      ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;">Pagado</span>'
-      : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
+      ? '<span style="display:inline-block;font-size:9.5px;padding:2px 7px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;white-space:nowrap;">Pagado</span>'
+      : '<span style="display:inline-block;font-size:9.5px;padding:2px 7px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;white-space:nowrap;">Pendiente</span>';
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
-      <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
-      <td style="white-space:nowrap;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
-      <td style="white-space:nowrap;">${c.horario||'—'}</td>
-      <td>${c.modalidad||'—'}</td>
-      <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
+      <td style="font-weight:700;text-transform:capitalize;font-size:11.5px;">${nombreMes}</td>
+      <td style="font-size:12px;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
+      <td style="font-size:12px;">${horarioDosLineas(c.horario)}</td>
+      <td style="font-size:12px;">${c.modalidad||'—'}</td>
+      <td style="font-size:12px;white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — M'+c.modulo:''}<br><span style="color:var(--text-dim);font-size:11px;">${c.tema||''}</span></td>
       <td>${badgeHonorario}</td>
-      <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
     </tr>`;
   }).join('');
 
   document.getElementById('vista_tutor_panel').innerHTML = `
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Modalidad</th><th>Capacitación / Tema</th><th>Honorario</th><th>Contenido</th></tr></thead>
-        <tbody>${filasHtml}</tbody>
-      </table>
-    </div>
+    <table style="table-layout:fixed;width:100%;">
+      <thead><tr>
+        <th style="width:9%;font-size:9.5px;">Mes</th>
+        <th style="width:16%;font-size:9.5px;">Fechas</th>
+        <th style="width:12%;font-size:9.5px;">Horario</th>
+        <th style="width:12%;font-size:9.5px;">Modal.</th>
+        <th style="font-size:9.5px;">Capacitación / Tema</th>
+        <th style="width:14%;font-size:9.5px;">Honorario</th>
+      </tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
   `;
 }
 initApp();
