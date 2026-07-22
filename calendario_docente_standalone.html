@@ -178,7 +178,15 @@
           </div>
           <div class="field"><label>Capacitación</label><input id="r_capacitacion" placeholder="Ej. Tutor Sombra 5, Neurodesarrollo..."></div>
           <div class="field"><label>Módulo</label><input id="r_modulo" placeholder="Ej. 3"></div>
-          <div class="field"><label>Docente</label><input id="r_docente" list="lista_docentes" placeholder="Nombre del docente"><datalist id="lista_docentes"></datalist></div>
+          <div class="field" style="grid-column: span 2;">
+            <label>Docente(s) de esta Sesión</label>
+            <div style="display:flex;gap:8px;">
+              <input id="r_docente_input" list="lista_docentes" placeholder="Nombre del docente" style="flex:1;">
+              <datalist id="lista_docentes"></datalist>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn_agregar_docente" style="white-space:nowrap;">+ Agregar</button>
+            </div>
+            <div id="chips_docentes_sesion" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"></div>
+          </div>
           <div class="field"><label>Encargado</label>
             <select id="r_encargado"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option></select>
           </div>
@@ -243,7 +251,7 @@ let API_URL = esVistaTutor
   ? (API_URL_PUBLICO.indexOf('PEGA_AQUI')===0 ? '' : API_URL_PUBLICO)
   : (localStorage.getItem('cepro_api_url_academico') || '');
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script. La vista pública del tutor nunca la usa (solo lee).
-const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+const CLAVE_ADMIN = 'ceprocenter-2026-clave-segura-cambiame';
 
 if(esVistaTutor){
   document.getElementById('setup_banner').style.display = 'none';
@@ -409,9 +417,38 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
 
 document.getElementById('r_es_feriado').addEventListener('change', ()=>{
   const esFeriado = document.getElementById('r_es_feriado').value === 'si';
-  ['r_horario_preset','r_capacitacion','r_modulo','r_docente','r_encargado','r_categoria','r_subtemas','r_link'].forEach(id=>{
+  ['r_horario_preset','r_capacitacion','r_modulo','r_docente_input','r_encargado','r_categoria','r_subtemas','r_link'].forEach(id=>{
     document.getElementById(id).closest('.field').style.display = esFeriado ? 'none' : 'block';
   });
+});
+
+let DOCENTES_SESION_ACTUAL = [];
+
+function renderChipsDocentesSesion(){
+  const box = document.getElementById('chips_docentes_sesion');
+  box.innerHTML = DOCENTES_SESION_ACTUAL.map((d,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent-dark);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:700;">
+      ${d}
+      <span style="cursor:pointer;font-weight:700;" onclick="quitarDocenteSesion(${i})">✕</span>
+    </span>
+  `).join('') || '<span class="hint" style="margin:0;">Aún no has agregado ningún docente.</span>';
+}
+window.quitarDocenteSesion = function(i){
+  DOCENTES_SESION_ACTUAL.splice(i,1);
+  renderChipsDocentesSesion();
+};
+document.getElementById('btn_agregar_docente').addEventListener('click', ()=>{
+  const input = document.getElementById('r_docente_input');
+  const nombre = input.value.trim();
+  if(!nombre){ showToast('Escribe el nombre del docente primero.'); return; }
+  if(DOCENTES_SESION_ACTUAL.some(d=>d.toLowerCase()===nombre.toLowerCase())){ showToast('Ese docente ya está agregado.'); return; }
+  DOCENTES_SESION_ACTUAL.push(nombre);
+  input.value = '';
+  input.focus();
+  renderChipsDocentesSesion();
+});
+document.getElementById('r_docente_input').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('btn_agregar_docente').click(); }
 });
 
 document.getElementById('btn_guardar_sesion').addEventListener('click', async ()=>{
@@ -423,7 +460,6 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   const horario = horarioPresetVal === '__otro__' ? document.getElementById('r_horario_custom').value.trim() : horarioPresetVal;
   const capacitacion = document.getElementById('r_capacitacion').value.trim();
   const modulo = document.getElementById('r_modulo').value.trim();
-  const docente = document.getElementById('r_docente').value.trim();
   const encargado = document.getElementById('r_encargado').value;
   const categoria = document.getElementById('r_categoria').value;
   const tema = document.getElementById('r_tema').value.trim();
@@ -434,7 +470,7 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   if(!tema){ showToast(esFeriado ? 'Escribe el nombre del feriado.' : 'Escribe el tema.'); return; }
   if(!esFeriado){
     if(!capacitacion){ showToast('Escribe la capacitación.'); return; }
-    if(!docente){ showToast('Escribe el docente.'); return; }
+    if(DOCENTES_SESION_ACTUAL.length===0){ showToast('Agrega al menos un docente.'); return; }
     if(!encargado){ showToast('Selecciona el encargado.'); return; }
     if(!modalidad){ showToast('Selecciona la modalidad.'); return; }
     if(!categoria){ showToast('Selecciona la categoría.'); return; }
@@ -444,17 +480,22 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   }
 
   try{
-    await apiPost('CalendarioDocente','add',{data:{
-      id:uid(), modalidad: esFeriado?'':modalidad, fechaInicio, fechaFin, horario: esFeriado?'':horario,
-      capacitacion: esFeriado?'':capacitacion, modulo: esFeriado?'':modulo, docente: esFeriado?'':docente,
-      encargado: esFeriado?'':encargado, categoria: esFeriado?'':categoria, tema, subtemas: esFeriado?'':subtemas,
-      linkContenido: esFeriado?'':linkContenido, esFeriado: esFeriado?'Sí':'', honorario: esFeriado?'':'Pendiente'
-    }});
-    showToast(esFeriado ? 'Feriado guardado.' : 'Sesión guardada.');
+    const listaDocentes = esFeriado ? [''] : DOCENTES_SESION_ACTUAL;
+    for(const docenteActual of listaDocentes){
+      await apiPost('CalendarioDocente','add',{data:{
+        id:uid(), modalidad: esFeriado?'':modalidad, fechaInicio, fechaFin, horario: esFeriado?'':horario,
+        capacitacion: esFeriado?'':capacitacion, modulo: esFeriado?'':modulo, docente: esFeriado?'':docenteActual,
+        encargado: esFeriado?'':encargado, categoria: esFeriado?'':categoria, tema, subtemas: esFeriado?'':subtemas,
+        linkContenido: esFeriado?'':linkContenido, esFeriado: esFeriado?'Sí':'', honorario: esFeriado?'':'Pendiente'
+      }});
+    }
+    showToast(esFeriado ? 'Feriado guardado.' : (listaDocentes.length>1 ? `Sesión guardada para ${listaDocentes.length} docentes.` : 'Sesión guardada.'));
     document.getElementById('r_fecha_inicio').value=''; document.getElementById('r_fecha_fin').value='';
     document.getElementById('r_modalidad').value=''; document.getElementById('r_categoria').value='';
     document.getElementById('r_capacitacion').value=''; document.getElementById('r_modulo').value='';
-    document.getElementById('r_docente').value=''; document.getElementById('r_encargado').value='';
+    DOCENTES_SESION_ACTUAL = []; renderChipsDocentesSesion();
+    document.getElementById('r_docente_input').value='';
+    document.getElementById('r_encargado').value='';
     document.getElementById('r_horario_preset').value='';
     document.getElementById('r_horario_custom').value=''; document.getElementById('r_horario_custom').style.display='none';
     document.getElementById('r_tema').value=''; document.getElementById('r_subtemas').value=''; document.getElementById('r_link').value='';
@@ -769,7 +810,7 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   const filasHtml = filas.map(c=>{
     const mesNombre = nombreMesDe(c.fechaInicio).toUpperCase();
     if(c.tipo==='feriado'){
-      return `<tr style="background:#FFF6D6;"><td>${mesNombre}</td><td colspan="5" style="font-weight:700;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — FERIADO: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td>${mesNombre}</td><td colspan="6" style="font-weight:700;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — FERIADO: ${c.tema||'—'}</td></tr>`;
     }
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValor;
     const badgeHonorario = c.honorario==='Pagado'
@@ -779,6 +820,7 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
       <td>${mesNombre}</td>
       <td>${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
       <td>${c.horario||'—'}</td>
+      <td>${c.modalidad||'—'}</td>
       <td>${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span>${c.subtemas?'<br><span style="color:var(--text-dim);font-size:12px;">'+c.subtemas+'</span>':''}</td>
       <td>${badgeHonorario}</td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
@@ -792,7 +834,7 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
     </div>
     <div class="hint">Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
     <table class="doc-table">
-      <thead><tr><th>Mes y Año</th><th>Días</th><th>Horario</th><th>Diplomado / Tema</th><th>Honorario</th><th>Contenido</th></tr></thead>
+      <thead><tr><th>Mes y Año</th><th>Días</th><th>Horario</th><th>Modalidad</th><th>Diplomado / Tema</th><th>Honorario</th><th>Contenido</th></tr></thead>
       <tbody>${filasHtml}</tbody>
     </table>
   `;
@@ -851,7 +893,7 @@ function renderVistaTutor(nombreTutor){
     const nombreMes = nombreMesDe(c.fechaInicio);
 
     if(c.tipo==='feriado'){
-      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td><td colspan="5">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td><td colspan="6">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
     }
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorTutor;
     const badgeHonorario = c.honorario==='Pagado'
@@ -861,6 +903,7 @@ function renderVistaTutor(nombreTutor){
       <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td style="white-space:nowrap;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
       <td style="white-space:nowrap;">${c.horario||'—'}</td>
+      <td>${c.modalidad||'—'}</td>
       <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
       <td>${badgeHonorario}</td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
@@ -870,7 +913,7 @@ function renderVistaTutor(nombreTutor){
   document.getElementById('vista_tutor_panel').innerHTML = `
     <div class="table-scroll">
       <table>
-        <thead><tr><th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Capacitación / Tema</th><th>Honorario</th><th>Contenido</th></tr></thead>
+        <thead><tr><th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Modalidad</th><th>Capacitación / Tema</th><th>Honorario</th><th>Contenido</th></tr></thead>
         <tbody>${filasHtml}</tbody>
       </table>
     </div>
