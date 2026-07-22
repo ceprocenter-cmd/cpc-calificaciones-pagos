@@ -707,13 +707,157 @@ window.guardarSesionEditada = async function(id, esFeriado){
 };
 
 window.eliminarSesion = async function(id){
-  if(!confirm('¿Eliminar esta sesión del calendario?')) return;
+  const entry = CALENDARIO.find(c=>c.id===id);
+  if(!entry){ showToast('No se encontró esta sesión, recarga la página e intenta de nuevo.'); return; }
+
+  if(entry.esFeriado==='Sí'){
+    if(!confirm('¿Eliminar este feriado del calendario?')) return;
+    try{
+      await apiPost('CalendarioDocente','delete',{id});
+      showToast('Feriado eliminado.');
+      await loadAll();
+      renderAll();
+    }catch(e){ showToast('Error: '+e.message); }
+    return;
+  }
+
+  const mismaSemana = CALENDARIO.filter(c =>
+    c.esFeriado!=='Sí' &&
+    c.fechaInicio === entry.fechaInicio &&
+    (c.fechaFin||c.fechaInicio) === (entry.fechaFin||entry.fechaInicio)
+  );
+
+  if(mismaSemana.length > 1){
+    // Hay más cursos en esa misma fecha — se puede borrar esta fila sin perder la semana
+    if(!confirm('Ya hay otra sesión registrada en esta misma fecha, así que se eliminará esta fila por completo. ¿Continuar?')) return;
+    try{
+      await apiPost('CalendarioDocente','delete',{id});
+      showToast('Sesión eliminada.');
+      await loadAll();
+      renderAll();
+    }catch(e){ showToast('Error: '+e.message); }
+  }else{
+    // Es la única sesión de esa semana — se borra solo la información, la fecha queda disponible
+    if(!confirm('Esto borra la información de la sesión (docente, tema, capacitación, etc.) pero deja la semana disponible para planificar más adelante. ¿Continuar?')) return;
+    try{
+      await apiPost('CalendarioDocente','update',{id, data:{
+        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'',
+        tema:'', subtemas:'', linkContenido:'', honorario:'', observacion:''
+      }});
+      showToast('Información eliminada — la semana quedó disponible para planificar.');
+      await loadAll();
+      renderAll();
+    }catch(e){ showToast('Error: '+e.message); }
+  }
+};
+
+window.abrirAnadirSesion = function(indice){
+  const entry = FILAS_CALENDARIO_ACTUAL[indice];
+  if(!entry){ showToast('No se pudo abrir esta semana, recarga la página e intenta de nuevo.'); return; }
+
+  const html = `
+    <h3 style="margin-top:0;">Añadir Otra Sesión en esta Semana</h3>
+    <p class="hint" style="margin:0 0 14px;">${rangoFechas(entry.fechaInicio, entry.fechaFin)} — se guardará como una sesión nueva, sin afectar la que ya existe.</p>
+    <div class="field"><label>Modalidad</label><select id="add_modalidad"><option value="">Selecciona una opción</option><option>Virtual</option><option>Presencial</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Horario</label>
+      <select id="add_horario_preset" onchange="document.getElementById('add_horario_custom').style.display = this.value==='__otro__' ? 'block' : 'none';">
+        <option value="">Selecciona una opción</option>
+        <option value="18h00 a 20h00">18h00 a 20h00</option>
+        <option value="18h30 a 20h30">18h30 a 20h30</option>
+        <option value="19h00 a 21h00">19h00 a 21h00</option>
+        <option value="__otro__">Otro horario...</option>
+      </select>
+      <input id="add_horario_custom" placeholder="Ej. 20h00 a 22h00" style="display:none;margin-top:8px;">
+    </div>
+    <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="add_capacitacion" placeholder="Ej. Tutor Sombra 5, Neurodesarrollo..."></div>
+    <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="add_modulo" placeholder="Ej. 3"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>Docente(s) de esta Sesión</label>
+      <div id="add_chips_docentes" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="add_docente_input" list="lista_docentes" placeholder="Nombre del docente" style="flex:1;">
+        <button type="button" class="btn btn-ghost btn-sm" id="add_btn_agregar_docente" style="white-space:nowrap;">+ Agregar</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px;"><label>Encargado</label><select id="add_encargado"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Categoría</label>
+      <select id="add_categoria"><option value="">Selecciona una opción</option><option>Diplomado</option><option>Taller</option><option>Masterclass</option><option>Seminario</option><option>Entrenamiento</option></select>
+    </div>
+    <div class="field" style="margin-top:12px;"><label>Tema Central</label><input id="add_tema" placeholder="Título de la sesión"></div>
+    <div class="field" style="margin-top:12px;"><label>Subtemas</label><textarea id="add_subtemas" style="min-height:60px;"></textarea></div>
+    <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="add_link" placeholder="https://..."></div>
+    <div class="actions"><button class="btn" onclick="guardarSesionAnadida('${entry.fechaInicio}', '${entry.fechaFin||entry.fechaInicio}')">Guardar Sesión</button></div>
+  `;
+  abrirModalDoc(html);
+
+  DOCENTES_ANADIR_ACTUAL = [];
+  renderChipsDocentesAnadir();
+  document.getElementById('add_btn_agregar_docente').addEventListener('click', ()=>{
+    const input = document.getElementById('add_docente_input');
+    const nombre = input.value.trim();
+    if(!nombre){ showToast('Escribe el nombre del docente primero.'); return; }
+    if(DOCENTES_ANADIR_ACTUAL.some(d=>d.toLowerCase()===nombre.toLowerCase())){ showToast('Ese docente ya está agregado.'); return; }
+    DOCENTES_ANADIR_ACTUAL.push(nombre);
+    input.value = '';
+    input.focus();
+    renderChipsDocentesAnadir();
+  });
+  document.getElementById('add_docente_input').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); document.getElementById('add_btn_agregar_docente').click(); }
+  });
+};
+
+let DOCENTES_ANADIR_ACTUAL = [];
+
+function renderChipsDocentesAnadir(){
+  const box = document.getElementById('add_chips_docentes');
+  if(!box) return;
+  box.innerHTML = DOCENTES_ANADIR_ACTUAL.map((d,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent-dark);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:700;">
+      ${d}
+      <span style="cursor:pointer;font-weight:700;" onclick="quitarDocenteAnadir(${i})">✕</span>
+    </span>
+  `).join('') || '<span class="hint" style="margin:0;">Aún no has agregado ningún docente.</span>';
+}
+window.quitarDocenteAnadir = function(i){
+  DOCENTES_ANADIR_ACTUAL.splice(i,1);
+  renderChipsDocentesAnadir();
+};
+
+window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
+  const modalidad = document.getElementById('add_modalidad').value;
+  const horarioPresetVal = document.getElementById('add_horario_preset').value;
+  const horario = horarioPresetVal === '__otro__' ? document.getElementById('add_horario_custom').value.trim() : horarioPresetVal;
+  const capacitacion = document.getElementById('add_capacitacion').value.trim();
+  const modulo = document.getElementById('add_modulo').value.trim();
+  const encargado = document.getElementById('add_encargado').value;
+  const categoria = document.getElementById('add_categoria').value;
+  const tema = document.getElementById('add_tema').value.trim();
+  const subtemas = document.getElementById('add_subtemas').value.trim();
+  const linkContenido = document.getElementById('add_link').value.trim();
+
+  if(!tema){ showToast('Escribe el tema.'); return; }
+  if(!capacitacion){ showToast('Escribe la capacitación.'); return; }
+  if(DOCENTES_ANADIR_ACTUAL.length===0){ showToast('Agrega al menos un docente.'); return; }
+  if(!encargado){ showToast('Selecciona el encargado.'); return; }
+  if(!modalidad){ showToast('Selecciona la modalidad.'); return; }
+  if(!categoria){ showToast('Selecciona la categoría.'); return; }
+  if(!horarioPresetVal){ showToast('Selecciona el horario.'); return; }
+  if(horarioPresetVal==='__otro__' && !document.getElementById('add_horario_custom').value.trim()){ showToast('Escribe el horario personalizado.'); return; }
+
   try{
-    await apiPost('CalendarioDocente','delete',{id});
-    showToast('Eliminada.');
+    for(const docenteActual of DOCENTES_ANADIR_ACTUAL){
+      await apiPost('CalendarioDocente','add',{data:{
+        id:uid(), modalidad, fechaInicio, fechaFin, horario, capacitacion, modulo,
+        docente: docenteActual, encargado, categoria, tema, subtemas, linkContenido,
+        esFeriado:'', honorario:'Pendiente'
+      }});
+    }
+    showToast(DOCENTES_ANADIR_ACTUAL.length>1 ? `Sesión añadida para ${DOCENTES_ANADIR_ACTUAL.length} docentes.` : 'Sesión añadida.');
+    document.getElementById('modal_overlay').classList.remove('show');
     await loadAll();
     renderAll();
-  }catch(e){ showToast('Error: '+e.message); }
+  }catch(e){ showToast('Error al guardar: '+e.message); }
 };
 
 // ---------- DOCUMENTO / IMPRIMIR ----------
@@ -855,6 +999,7 @@ function renderCalendario(){
       <td>
         <button class="btn btn-ghost btn-sm" onclick="editarFechaSesion(${i})">✏️ Editar</button>
         <button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button>
+        ${esFeriado?'':`<button class="btn btn-ghost btn-sm" onclick="abrirAnadirSesion(${i})">+ Añadir</button>`}
       </td>
     </tr>`;
   }).join('');
