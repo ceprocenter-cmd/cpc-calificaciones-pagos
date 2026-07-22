@@ -115,13 +115,21 @@
           <div class="field"><label>Docente</label><select id="filt_docente"><option value="">Todos</option></select></div>
           <div class="field"><label>Encargado</label><select id="filt_encargado"><option value="">Todos</option><option>Jose</option><option>Sara</option></select></div>
           <div class="field"><label>Capacitación</label><select id="filt_capacitacion"><option value="">Todas</option></select></div>
-          <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option></select></div>
+          <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option><option value="no_aplica">No Aplica</option></select></div>
         </div>
-        <div class="field" style="max-width:320px;margin-bottom:16px;">
-          <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
-            <input type="checkbox" id="filt_ocultar_pagados" style="width:18px;height:18px;">
-            Ocultar sesiones ya pagadas
-          </label>
+        <div class="grid" style="max-width:640px;margin-bottom:16px;grid-template-columns:1fr 1fr;">
+          <div class="field" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="filt_ocultar_pagados" style="width:18px;height:18px;">
+              Ocultar sesiones ya pagadas
+            </label>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="filt_ocultar_vacias" style="width:18px;height:18px;" checked>
+              Ocultar semanas vacías ya pasadas
+            </label>
+          </div>
         </div>
         <div class="table-scroll" style="max-height:640px;overflow-y:auto;">
           <table>
@@ -365,7 +373,7 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
       filas.push({
         id: uid(), modalidad,
         fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
-        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:'Pendiente'
+        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:''
       });
       fecha.setDate(fecha.getDate()+7);
     }
@@ -378,7 +386,7 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
       filas.push({
         id: uid(), modalidad,
         fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
-        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:'Pendiente'
+        horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', subtemas:'', linkContenido:'', esFeriado:'', honorario:''
       });
       fecha.setDate(fecha.getDate()+7);
     }
@@ -409,7 +417,7 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
     filas.push({
       id: uid(), modalidad,
       fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
-      capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', honorario:'Pendiente'
+      capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', honorario:''
     });
     dia = finDia + 3; // salta el fin de semana, deja unos días libres antes de la próxima semana
   }
@@ -609,7 +617,11 @@ window.editarFechaSesion = function(indice){
         <option ${entry.categoria==='Entrenamiento'?'selected':''}>Entrenamiento</option>
       </select>
     </div>
-    <div class="field" style="margin-top:12px;"><label>Honorario (solo del docente que abriste)</label><select id="edit_honorario"><option value="Pendiente" ${entry.honorario!=='Pagado'?'selected':''}>Pendiente</option><option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option></select></div>
+    <div class="field" style="margin-top:12px;"><label>Honorario (solo del docente que abriste)</label><select id="edit_honorario">
+      <option value="Pendiente" ${entry.honorario!=='Pagado' && entry.honorario!=='No Aplica'?'selected':''}>Pendiente</option>
+      <option value="Pagado" ${entry.honorario==='Pagado'?'selected':''}>Pagado</option>
+      <option value="No Aplica" ${entry.honorario==='No Aplica'?'selected':''}>No Aplica</option>
+    </select></div>
     <div class="field" style="margin-top:12px;"><label>Tema</label><input id="edit_tema" value="${String(entry.tema||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;"><label>Subtemas</label><textarea id="edit_subtemas" style="min-height:60px;">${entry.subtemas||''}</textarea></div>
     <div class="field" style="margin-top:12px;"><label>Link de Contenido</label><input id="edit_link" value="${String(entry.linkContenido||'').replace(/"/g,'&quot;')}"></div>
@@ -730,12 +742,14 @@ function renderAll(){
 function renderTicker(){
   const total = CALENDARIO.length;
   const pagadas = CALENDARIO.filter(c=>c.honorario==='Pagado').length;
-  const pendientes = total - pagadas;
+  const noAplica = CALENDARIO.filter(c=>c.honorario==='No Aplica').length;
+  const pendientes = CALENDARIO.filter(c=>c.esFeriado!=='Sí' && c.docente && c.honorario!=='Pagado' && c.honorario!=='No Aplica').length;
   const docentesUnicos = new Set(CALENDARIO.map(c=>c.docente).filter(Boolean)).size;
   document.getElementById('ticker').innerHTML = `
     <div class="tick"><div class="n">${total}</div><div class="l">Sesiones Registradas</div></div>
     <div class="tick"><div class="n">${pagadas}</div><div class="l">Honorarios Pagados</div></div>
     <div class="tick"><div class="n">${pendientes}</div><div class="l">Honorarios Pendientes</div></div>
+    <div class="tick"><div class="n">${noAplica}</div><div class="l">Sin Honorario</div></div>
     <div class="tick"><div class="n">${docentesUnicos}</div><div class="l">Docentes Activos</div></div>
   `;
 }
@@ -784,9 +798,18 @@ function renderCalendario(){
   if(encargado) rows = rows.filter(c=>c.encargado===encargado);
   if(capacitacion) rows = rows.filter(c=>c.capacitacion===capacitacion);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
-  if(honorario==='pendiente') rows = rows.filter(c=>c.honorario!=='Pagado');
+  if(honorario==='pendiente') rows = rows.filter(c=>c.docente && c.honorario!=='Pagado' && c.honorario!=='No Aplica');
+  if(honorario==='no_aplica') rows = rows.filter(c=>c.honorario==='No Aplica');
   if(document.getElementById('filt_ocultar_pagados').checked){
     rows = rows.filter(c=>c.esFeriado==='Sí' || c.honorario!=='Pagado');
+  }
+  if(document.getElementById('filt_ocultar_vacias').checked){
+    const hoyValorCal = fechaValor(new Date().toISOString().slice(0,10));
+    rows = rows.filter(c=>{
+      if(c.esFeriado==='Sí' || !!c.docente) return true;
+      const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorCal;
+      return !yaPaso; // oculta solo si está vacía Y ya pasó
+    });
   }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
@@ -822,9 +845,10 @@ function renderCalendario(){
       <td>${esFeriado?'—':(c.docente||'—')}</td>
       <td>${esFeriado?'—':(c.encargado||'—')}</td>
       ${mostrarModalidad ? `<td>${esFeriado?'—':(c.modalidad||'—')}</td>` : ''}
-      <td>${esFeriado?'—':`<select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
-        <option value="Pendiente" ${c.honorario!=='Pagado'?'selected':''}>Pendiente</option>
+      <td>${(esFeriado || !c.docente)?'—':`<select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;${c.honorario==='Pagado'?'background:var(--accent-soft);color:var(--accent-dark);border-color:transparent;':c.honorario==='No Aplica'?'background:var(--panel-2);color:var(--text-dim);border-color:transparent;':'background:var(--danger-soft);color:var(--danger);border-color:transparent;'}">
+        <option value="Pendiente" ${c.honorario!=='Pagado' && c.honorario!=='No Aplica'?'selected':''}>Pendiente</option>
         <option value="Pagado" ${c.honorario==='Pagado'?'selected':''}>Pagado</option>
+        <option value="No Aplica" ${c.honorario==='No Aplica'?'selected':''}>No Aplica</option>
       </select>`}</td>
       <td style="white-space:normal;max-width:200px;">${esFeriado?'—':(c.tema||'—')}${c.linkContenido?` — <a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:''}</td>
       <td style="white-space:normal;max-width:180px;font-weight:${esFeriado?'700':'400'};">${observacion}</td>
@@ -836,7 +860,7 @@ function renderCalendario(){
   }).join('');
 }
 let FILAS_CALENDARIO_ACTUAL = [];
-['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados'].forEach(id=>{
+['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados','filt_ocultar_vacias'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
@@ -905,6 +929,8 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValor;
     const badgeHonorario = c.honorario==='Pagado'
       ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;">Pagado</span>'
+      : c.honorario==='No Aplica'
+      ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No Aplica</span>'
       : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
       <td>${mesNombre}</td>
@@ -949,7 +975,7 @@ async function initApp(){
 
 function renderVistaTutor(nombreTutor){
   document.body.innerHTML = `
-    <div class="wrap" style="max-width:900px;">
+    <div class="wrap" style="max-width:960px;">
       <div class="top">
         <h1>Tu Calendario <span class="accent">Ceprocenter</span></h1>
         <div class="sub">${nombreTutor}</div>
@@ -988,6 +1014,8 @@ function renderVistaTutor(nombreTutor){
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorTutor;
     const badgeHonorario = c.honorario==='Pagado'
       ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;">Pagado</span>'
+      : c.honorario==='No Aplica'
+      ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No Aplica</span>'
       : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
       <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
@@ -1003,7 +1031,7 @@ function renderVistaTutor(nombreTutor){
   document.getElementById('vista_tutor_panel').innerHTML = `
     <div class="table-scroll">
       <table>
-<thead><tr><th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Modalidad</th><th>Capacitación / Tema</th><th>Contenido</th><th>Honorario</th></tr></thead>
+        <thead><tr><th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Modalidad</th><th>Capacitación / Tema</th><th>Contenido</th><th>Honorario</th></tr></thead>
         <tbody>${filasHtml}</tbody>
       </table>
     </div>
