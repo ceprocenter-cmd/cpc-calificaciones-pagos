@@ -33,7 +33,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
   .grid.cols3{grid-template-columns:repeat(3,1fr);}
   .grid.cols4{grid-template-columns:repeat(4,1fr);}
-  @media (max-width:px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
+  @media (max-width:800px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
   @media (max-width:520px){.grid.cols3,.grid.cols4{grid-template-columns:1fr;}}
   .field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
   .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14.5px;}
@@ -52,6 +52,7 @@
   .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;text-transform:uppercase;font-weight:700;}
   .pill.ok{background:var(--accent-soft);color:var(--accent-dark);}
   .pill.fail{background:var(--danger-soft);color:var(--danger);}
+  .pill.recup{background:rgba(201,138,60,0.15);color:#C98A3C;}
   .empty{text-align:center;color:var(--text-dim);padding:24px;font-size:13.5px;}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -61,8 +62,6 @@
   .modal-box{background:#fff;border-radius:14px;max-width:640px;width:100%;padding:0;}
   .modal-box-inner{padding:28px;}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;padding:16px 28px;border-top:1px solid var(--line);}
-  .pago-opcion{border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
-  .pago-opcion:hover{border-color:var(--accent-dark);background:var(--panel-2);}
   .doc-header{text-align:center;margin-bottom:16px;}
   .doc-header .brand{font-family:'Quicksand',sans-serif;font-weight:700;font-size:18px;color:var(--accent-dark);}
   .doc-header .title{font-family:'Quicksand',sans-serif;font-weight:600;font-size:14px;color:var(--text-dim);margin-top:2px;}
@@ -102,6 +101,7 @@
       <button class="tab active" data-tab="calendario">Calendario</button>
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
       <button class="tab" data-tab="tutor">Calendario por Tutor</button>
+      <button class="tab" data-tab="tareas">Tareas Equipo</button>
     </div>
 
     <!-- CALENDARIO -->
@@ -231,10 +231,43 @@
       </div>
     </div>
 
+    <!-- TAREAS EQUIPO -->
+    <div id="tab-tareas" style="display:none;">
+      <div class="panel">
+        <h2>Registrar Tarea Pendiente</h2>
+        <p class="hint">Al guardar, se envía un correo automático a la persona asignada, y también un recordatorio un día antes de que venza.</p>
+        <div class="grid cols3">
+          <div class="field"><label>Asignar a</label><select id="tp_asignado"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option><option>Kin</option></select></div>
+          <div class="field"><label>Fecha Límite</label><input id="tp_fecha_limite" type="date"></div>
+          <div class="field"><label>Tarea</label><input id="tp_tarea" placeholder="Ej. Subir notas del módulo 3 a Moodle"></div>
+        </div>
+        <div class="field" style="margin-top:14px;"><label>Observación (opcional)</label><textarea id="tp_observacion" placeholder="Detalles adicionales..." style="min-height:70px;"></textarea></div>
+        <div class="actions"><button class="btn" id="btn_guardar_tarea">Registrar y Notificar</button></div>
+      </div>
+
+      <div class="panel">
+        <h2>Tareas del Equipo</h2>
+        <div class="grid cols3" style="margin-bottom:16px;">
+          <div class="field"><label>Asignado a</label><select id="tp_filtro_asignado"><option value="">Todos</option><option>Jose</option><option>Sara</option><option>Kin</option></select></div>
+          <div class="field" style="display:flex;align-items:flex-end;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="tp_ocultar_completadas" style="width:18px;height:18px;" checked>
+              Ocultar completadas
+            </label>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Asignado a</th><th>Tarea</th><th>Fecha Límite</th><th>Estado</th><th>Observación</th><th></th></tr></thead>
+            <tbody id="tabla_tareas"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="tareas_empty" style="display:none;">No hay tareas registradas.</div>
+      </div>
+    </div>
+
   </div>
 </div>
-
-
 
 <div class="modal-overlay" id="modal_overlay">
   <div class="modal-box">
@@ -249,8 +282,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// Para el link público del tutor (?tutor=...), pega aquí la misma URL de tu Apps Script una sola vez.
-// Así el tutor no necesita configurar nada al abrir su link.
 const API_URL_PUBLICO = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGeepxsP_jie58658PL-jnQXtiVqqAT7283HpXWRs7HOWkNJ/exec';
 
 const paramsIniciales = new URLSearchParams(window.location.search);
@@ -259,7 +290,6 @@ const esVistaTutor = !!paramsIniciales.get('tutor');
 let API_URL = esVistaTutor
   ? (API_URL_PUBLICO.indexOf('PEGA_AQUI')===0 ? '' : API_URL_PUBLICO)
   : (localStorage.getItem('cepro_api_url_academico') || '');
-// Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script. La vista pública del tutor nunca la usa (solo lee).
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
 
 if(esVistaTutor){
@@ -281,8 +311,6 @@ document.getElementById('btn_guardar_config').addEventListener('click', ()=>{
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3400); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function fmt(n){ return '$' + (Number(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-function normNum(v){ return Number(v)||0; }
 
 async function apiGet(sheet){ const res = await fetch(`${API_URL}?sheet=${sheet}`); return await res.json(); }
 async function apiPost(sheet, action, payload){
@@ -294,6 +322,7 @@ async function apiPost(sheet, action, payload){
 
 let CALENDARIO = [];
 let FACILITADORES_REALES = [];
+let TAREAS = [];
 
 async function loadAll(){
   const [cal, facil] = await Promise.all([
@@ -343,7 +372,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['calendario','registrar','tutor'].forEach(t=>{
+    ['calendario','registrar','tutor','tareas'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
   });
@@ -366,11 +395,10 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
   const filas = [];
   let fecha = new Date(anio, 0, 1);
   if(modalidad === 'Presencial'){
-    // arranca en el primer sábado del año
     while(fecha.getDay() !== 6){ fecha.setDate(fecha.getDate()+1); }
     while(fecha.getFullYear() === anio){
       const inicio = new Date(fecha);
-      const fin = new Date(fecha); fin.setDate(fin.getDate()+1); // sábado a domingo
+      const fin = new Date(fecha); fin.setDate(fin.getDate()+1);
       filas.push({
         id: uid(), modalidad,
         fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
@@ -379,11 +407,10 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
       fecha.setDate(fecha.getDate()+7);
     }
   }else{
-    // arranca en el primer lunes del año
     while(fecha.getDay() !== 1){ fecha.setDate(fecha.getDate()+1); }
     while(fecha.getFullYear() === anio){
       const inicio = new Date(fecha);
-      const fin = new Date(fecha); fin.setDate(fin.getDate()+4); // lunes a viernes
+      const fin = new Date(fecha); fin.setDate(fin.getDate()+4);
       filas.push({
         id: uid(), modalidad,
         fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
@@ -420,7 +447,7 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
       fechaInicio: inicio.toISOString().slice(0,10), fechaFin: fin.toISOString().slice(0,10),
       capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'', tema:'', honorario:''
     });
-    dia = finDia + 3; // salta el fin de semana, deja unos días libres antes de la próxima semana
+    dia = finDia + 3;
   }
 
   try{
@@ -522,7 +549,6 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 
-// ---------- VINCULAR / DESVINCULAR PAGO ----------
 window.cambiarHonorario = async function(calId, nuevoEstado){
   try{
     await apiPost('CalendarioDocente','update',{id:calId, data:{honorario:nuevoEstado}});
@@ -729,7 +755,6 @@ window.eliminarSesion = async function(id){
   );
 
   if(mismaSemana.length > 1){
-    // Hay más cursos en esa misma fecha — se puede borrar esta fila sin perder la semana
     if(!confirm('Ya hay otra sesión registrada en esta misma fecha, así que se eliminará esta fila por completo. ¿Continuar?')) return;
     try{
       await apiPost('CalendarioDocente','delete',{id});
@@ -738,7 +763,6 @@ window.eliminarSesion = async function(id){
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
   }else{
-    // Es la única sesión de esa semana — se borra solo la información, la fecha queda disponible
     if(!confirm('Esto borra la información de la sesión (docente, tema, capacitación, etc.) pero deja la semana disponible para planificar más adelante. ¿Continuar?')) return;
     try{
       await apiPost('CalendarioDocente','update',{id, data:{
@@ -861,7 +885,6 @@ window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
   }catch(e){ showToast('Error al guardar: '+e.message); }
 };
 
-// ---------- DOCUMENTO / IMPRIMIR ----------
 function abrirModalDoc(html){
   document.getElementById('doc_content').innerHTML = html;
   document.getElementById('modal_overlay').classList.add('show');
@@ -875,7 +898,6 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
 });
 window.onafterprint = function(){ document.body.classList.remove('printing'); };
 
-// ---------- RENDER ----------
 function renderAll(){
   renderTicker();
   renderFiltros();
@@ -953,7 +975,7 @@ function renderCalendario(){
     rows = rows.filter(c=>{
       if(c.esFeriado==='Sí' || !!c.docente) return true;
       const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorCal;
-      return !yaPaso; // oculta solo si está vacía Y ya pasó
+      return !yaPaso;
     });
   }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
@@ -1116,7 +1138,6 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   abrirModalDoc(html);
 });
 
-// ---------- VISTA PÚBLICA PARA EL TUTOR (?tutor=Nombre) ----------
 const tutorEnLink = paramsIniciales.get('tutor');
 
 async function initApp(){
@@ -1127,6 +1148,8 @@ async function initApp(){
       renderVistaTutor(tutorEnLink);
     }else{
       renderAll();
+      TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
+      renderTareas();
     }
   }
   catch(e){ showToast('No se pudo conectar: ' + e.message); }
@@ -1196,6 +1219,86 @@ function renderVistaTutor(nombreTutor){
     </div>
   `;
 }
+
+// ---------- TAREAS PENDIENTES DEL EQUIPO ----------
+document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=>{
+  const asignadoA = document.getElementById('tp_asignado').value;
+  const fechaLimite = document.getElementById('tp_fecha_limite').value;
+  const tarea = document.getElementById('tp_tarea').value.trim();
+  const observacion = document.getElementById('tp_observacion').value.trim();
+
+  if(!asignadoA){ showToast('Selecciona a quién se asigna.'); return; }
+  if(!tarea){ showToast('Escribe la tarea.'); return; }
+
+  try{
+    await apiPost(null, 'crearTareaPendiente', {data:{asignadoA, tarea, fechaLimite, observacion}});
+    showToast(`Tarea registrada y correo enviado a ${asignadoA}.`);
+    document.getElementById('tp_asignado').value='';
+    document.getElementById('tp_fecha_limite').value='';
+    document.getElementById('tp_tarea').value='';
+    document.getElementById('tp_observacion').value='';
+    TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
+    renderTareas();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+
+window.marcarTareaCompletada = async function(id){
+  try{
+    await apiPost('TareasPendientes','update',{id, data:{completada:true}});
+    showToast('Marcada como completada.');
+    TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
+    renderTareas();
+  }catch(e){ showToast('Error: '+e.message); }
+};
+
+window.eliminarTarea = async function(id){
+  if(!confirm('¿Eliminar esta tarea?')) return;
+  await apiPost('TareasPendientes','delete',{id});
+  showToast('Eliminada.');
+  TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
+  renderTareas();
+};
+
+function renderTareas(){
+  const filtroAsignado = document.getElementById('tp_filtro_asignado').value;
+  const ocultarCompletadas = document.getElementById('tp_ocultar_completadas').checked;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  let filas = TAREAS.map(t=>({...t, completada: t.completada===true || String(t.completada).trim().toUpperCase()==='TRUE'}));
+  if(filtroAsignado) filas = filas.filter(t=>t.asignadoA===filtroAsignado);
+  if(ocultarCompletadas) filas = filas.filter(t=>!t.completada);
+  filas.sort((a,b)=>new Date(a.fechaLimite||'2100-01-01')-new Date(b.fechaLimite||'2100-01-01'));
+
+  const body = document.getElementById('tabla_tareas');
+  const empty = document.getElementById('tareas_empty');
+  if(filas.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  body.innerHTML = filas.map(t=>{
+    let estadoHtml;
+    if(t.completada){
+      estadoHtml = '<span class="pill ok">Completada</span>';
+    }else{
+      const fechaLim = t.fechaLimite ? new Date(t.fechaLimite+'T00:00:00') : null;
+      if(fechaLim && fechaLim < hoy) estadoHtml = '<span class="pill fail">¡Vencida!</span>';
+      else estadoHtml = '<span class="pill recup">Pendiente</span>';
+    }
+    return `<tr${t.completada?' style="opacity:0.5;"':''}>
+      <td>${t.asignadoA}</td>
+      <td style="white-space:normal;max-width:220px;">${t.tarea}</td>
+      <td>${t.fechaLimite ? fechaCorta(t.fechaLimite) : '—'}</td>
+      <td>${estadoHtml}</td>
+      <td style="white-space:normal;max-width:200px;">${t.observacion||'—'}</td>
+      <td>
+        ${t.completada?'':`<button class="btn btn-ghost btn-sm" onclick="marcarTareaCompletada('${t.id}')">✓ Completada</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="eliminarTarea('${t.id}')">Eliminar</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+document.getElementById('tp_filtro_asignado').addEventListener('change', renderTareas);
+document.getElementById('tp_ocultar_completadas').addEventListener('change', renderTareas);
+
 initApp();
 </script>
 </body>
