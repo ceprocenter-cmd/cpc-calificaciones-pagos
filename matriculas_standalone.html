@@ -367,7 +367,7 @@
         </div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
-            <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
             <tbody id="tabla_exalumnos_resultado"></tbody>
           </table>
         </div>
@@ -1880,10 +1880,10 @@ function renderBaseEstudiantes(){
   }
   empty.style.display = 'none';
 
-  body.innerHTML = filas.map(e=>`
-    <tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
-    <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
-  `).join('');
+  body.innerHTML = filas.map((e,i)=>`
+  <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
+  <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
+`).join('');
 }
 document.getElementById('exal_buscar').addEventListener('input', renderBaseEstudiantes);
 document.getElementById('exal_filtro_pais').addEventListener('change', renderBaseEstudiantes);
@@ -1902,17 +1902,17 @@ document.getElementById('btn_pdf_exalumnos').addEventListener('click', ()=>{
   const filas = window._exalumnosFiltrados || [];
   if(filas.length===0){ showToast('No hay estudiantes para exportar con este filtro.'); return; }
   const filasHtml = filas.map(e=>`<tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
-  document.getElementById('print_doc_content').innerHTML = `
-    <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
-      <div class="title">Base de Datos de Estudiantes</div>
-    </div>
-    <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
-    <table class="doc-table">
-      <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
-      <tbody>${filasHtml}</tbody>
-    </table>
-  `;
+document.getElementById('print_doc_content').innerHTML = `
+  <div class="doc-header">
+    <div class="brand">Ceprocenter</div>
+    <div class="title">Base de Datos de Estudiantes</div>
+  </div>
+  <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+  <table class="doc-table">
+    <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+    <tbody>${filasHtml}</tbody>
+  </table>
+`;
   document.getElementById('print_orientation_override').textContent = '@page{ size: landscape; margin: 12mm; }';
   document.getElementById('modal_overlay').classList.add('show');
 });
