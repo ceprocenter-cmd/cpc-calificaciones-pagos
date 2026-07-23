@@ -9,6 +9,7 @@
 <title>Ceprocenter · Matrículas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="print_orientation_override"></style>
 <style>
   :root{
     --bg: #EEF0F5; --panel: #FFFFFF; --panel-2: #F5F6FA; --line: #DEE2EA;
@@ -353,16 +354,24 @@
     <!-- BASE DE EX-ALUMNOS -->
     <div id="tab-exalumnos" style="display:none;">
       <div class="panel">
-        <h2>Buscar Estudiante</h2>
-        <p class="hint">Busca por nombre o cédula — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
-        <div class="field" style="max-width:400px;"><label>Nombre o Cédula</label><input id="exal_buscar" placeholder="Escribe para buscar..."></div>
+        <h2>Base de Datos de Estudiantes <span id="exal_contador" style="font-weight:400;color:var(--text-dim);font-size:14px;"></span></h2>
+        <p class="hint">Filtra por nombre, cédula, país o curso — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
+        <div class="grid cols3" style="margin-bottom:16px;">
+          <div class="field"><label>Nombre o Cédula</label><input id="exal_buscar" placeholder="Escribe para buscar..."></div>
+          <div class="field"><label>País</label><select id="exal_filtro_pais"><option value="">Todos</option></select></div>
+          <div class="field"><label>Curso</label><select id="exal_filtro_curso"><option value="">Todos</option></select></div>
+        </div>
+        <div class="actions" style="margin-top:0;margin-bottom:16px;">
+          <button class="btn btn-ghost btn-sm" id="btn_export_exalumnos_csv">Descargar Base de Datos (CSV)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_exalumnos">Descargar Base de Datos (PDF)</button>
+        </div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
-            <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
             <tbody id="tabla_exalumnos_resultado"></tbody>
           </table>
         </div>
-        <div class="empty" id="exalumnos_empty" style="display:none;">Escribe un nombre o cédula para buscar.</div>
+        <div class="empty" id="exalumnos_empty" style="display:none;">Escribe un nombre/cédula, o filtra por país o curso para ver resultados.</div>
       </div>
 
       <div class="panel">
@@ -390,7 +399,6 @@
 
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
-// Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
 
 const CODIGOS_PAIS = {
@@ -416,7 +424,6 @@ function actualizarCodigoPais(){
     telInput.value = codigo + ' ' + actual;
   }
 }
-// Clave de acceso al Reporte Mensual — cámbiala aquí cuando quieras.
 const REPORTE_CLAVE_CORRECTA = '25069546CPC';
 
 if(sessionStorage.getItem('reporte_desbloqueado') === 'si'){
@@ -619,6 +626,7 @@ function renderAll(){
   renderSolicitudes();
   renderCXC();
   renderReporteMensual();
+  renderBaseEstudiantes();
 }
 
 function renderTickerReporte(){
@@ -1474,7 +1482,10 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
   document.body.classList.add('printing-doc');
   window.print();
 });
-window.onafterprint = function(){ document.body.classList.remove('printing-doc'); };
+window.onafterprint = function(){
+  document.body.classList.remove('printing-doc');
+  document.getElementById('print_orientation_override').textContent = '';
+};
 
 let CXC_CURSO_ACTUAL = '';
 let CXC_ESTUDIANTES_ACTUAL = [];
@@ -1677,6 +1688,40 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
       <div class="brand">Ceprocenter</div>
       <div class="title">Reporte de Deudores</div>
     </div>
+    <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
+  const data = window._cxcDeudoresActual;
+  if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
+  if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
+  const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
+
+  const filasOrdenadas = data.filas.slice().sort((a,b)=>{
+    const activoA = a[a.length-1]==='Sí', activoB = b[b.length-1]==='Sí';
+    if(activoA===activoB) return 0;
+    return activoA ? -1 : 1;
+  });
+  const totalGeneral = filasOrdenadas.filter(f=>f[f.length-1]==='Sí').reduce((s,f)=>s+Number(f[f.length-2]),0);
+
+  const tarjetas = filasOrdenadas.map(f=>{
+    const estudiante = f[0];
+    const asesorTarjeta = f[1];
+    const activoFila = f[f.length-1]==='Sí';
+    const saldo = f[f.length-2];
+    const estadosModulos = f.slice(2, f.length-2);
+    const filasModulo = data.items.map((modulo,i)=>`<tr><td>${modulo}</td><td>${estadosModulos[i]}</td></tr>`).join('');
+    return `
+      <div class="deudor-card"${activoFila?'':' style="opacity:0.55;"'}>
+        <div class="deudor-nombre"><span>${estudiante} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${asesorTarjeta})${activoFila?'':' — No continuó, no cuenta en el total'}</span></span><span class="saldo">${fmt(saldo)}</span></div>
+        <table class="deudor-modulos">${filasModulo}</table>
+      </div>
+    `;
+  }).join('');
+
+  const soloNombresGeneral = filasOrdenadas.map(f=>f[0]).join('<br>');
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Reporte de Deudores</div>
+    </div>
     <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
     ${tarjetas}
     <h3 style="font-family:'Quicksand',sans-serif;font-size:14px;margin:22px 0 10px;color:var(--text-dim);">${nombreCursoSinEspecializacion(data.curso)}</h3>
@@ -1777,77 +1822,128 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
   showToast('Datos de ejemplo cargados. Carlos entró con promo: Inscripción a $30 (no $50) y Módulo 1 acordado en $120 (no $150) — mira "Cuentas por Cobrar" para ver cómo se respeta su precio real.');
 });
 
-// ---------- BASE DE EX-ALUMNOS ----------
+// ---------- BASE DE DATOS DE ESTUDIANTES (Historial) ----------
 function normalizarBusquedaExal(t){
   return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 
-function buscarExalumnos(){
-  const q = normalizarBusquedaExal(document.getElementById('exal_buscar').value);
-  const body = document.getElementById('tabla_exalumnos_resultado');
-  const empty = document.getElementById('exalumnos_empty');
-  if(!q){ body.innerHTML=''; empty.style.display='block'; empty.textContent='Escribe un nombre o cédula para buscar.'; return; }
-
+function construirBaseEstudiantes(){
   const deMatriculas = {};
   MATRICULAS.forEach(m=>{
-    const coincide = normalizarBusquedaExal(m.estudiante).includes(q) || normalizarBusquedaExal(m.cedula).includes(q);
-    if(!coincide) return;
     const key = String(m.cedula||m.estudiante).toLowerCase();
-    if(!deMatriculas[key]) deMatriculas[key] = {nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, cursos:new Set()};
+    if(!deMatriculas[key]) deMatriculas[key] = {nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, pais:m.pais, cursos:new Set(), origen:'Ya matriculado'};
     deMatriculas[key].cursos.add(m.curso);
+    if(!deMatriculas[key].pais && m.pais) deMatriculas[key].pais = m.pais;
+    if(!deMatriculas[key].correo && m.correo) deMatriculas[key].correo = m.correo;
+    if(!deMatriculas[key].telefono && m.telefono) deMatriculas[key].telefono = m.telefono;
   });
 
-  const coincidenImportados = EXALUMNOS.filter(e=>
-    normalizarBusquedaExal(e.nombre).includes(q) || normalizarBusquedaExal(e.cedula).includes(q)
-  );
-  const deImportadosAgrupados = {};
-  coincidenImportados.forEach(e=>{
+  const deImportados = {};
+  EXALUMNOS.forEach(e=>{
     const key = String(e.cedula||e.nombre).toLowerCase();
-    if(!deImportadosAgrupados[key]) deImportadosAgrupados[key] = {nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, cursos:new Set()};
-    if(e.curso) deImportadosAgrupados[key].cursos.add(e.curso);
-    if(!deImportadosAgrupados[key].correo && e.correo) deImportadosAgrupados[key].correo = e.correo;
-    if(!deImportadosAgrupados[key].telefono && e.telefono) deImportadosAgrupados[key].telefono = e.telefono;
+    if(!deImportados[key]) deImportados[key] = {nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, pais:e.pais, cursos:new Set(), origen:'Base importada'};
+    if(e.curso) deImportados[key].cursos.add(e.curso);
+    if(!deImportados[key].correo && e.correo) deImportados[key].correo = e.correo;
+    if(!deImportados[key].telefono && e.telefono) deImportados[key].telefono = e.telefono;
+    if(!deImportados[key].pais && e.pais) deImportados[key].pais = e.pais;
   });
-  const deImportados = Object.values(deImportadosAgrupados).map(r=>({...r, curso:[...r.cursos].join(', ')}));
 
-  const filasMatriculas = Object.values(deMatriculas).map(r=>`
-    <tr><td>${r.nombre}</td><td>${r.cedula||'—'}</td><td>${r.correo||'—'}</td><td>${r.telefono||'—'}</td>
-    <td>${[...r.cursos].join(', ')}</td><td><span class="pill ok">Ya matriculado</span></td></tr>
-  `);
-  const filasImportados = deImportados.map(e=>`
-    <tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
-    <td>${e.curso||'—'}</td><td><span class="pill na">Base importada</span></td></tr>
-  `);
-
-  const todas = [...filasMatriculas, ...filasImportados];
-  if(todas.length===0){ body.innerHTML=''; empty.style.display='block'; empty.textContent='No se encontraron coincidencias.'; return; }
-  empty.style.display='none';
-  body.innerHTML = todas.join('');
-}
-document.getElementById('exal_buscar').addEventListener('input', buscarExalumnos);
-
-function parseCSV(texto){
-  const lineas = texto.split(/\r?\n/).filter(l=>l.trim());
-  if(lineas.length<2) return [];
-  const parseLinea = (linea)=>{
-    const cols = []; let actual=''; let entreComillas=false;
-    for(let i=0;i<linea.length;i++){
-      const c = linea[i];
-      if(c==='"'){ entreComillas = !entreComillas; }
-      else if(c===',' && !entreComillas){ cols.push(actual); actual=''; }
-      else{ actual+=c; }
+  Object.entries(deImportados).forEach(([key, val])=>{
+    if(deMatriculas[key]){
+      val.cursos.forEach(c=>deMatriculas[key].cursos.add(c));
+      if(!deMatriculas[key].pais && val.pais) deMatriculas[key].pais = val.pais;
     }
-    cols.push(actual);
-    return cols.map(c=>c.trim());
-  };
-  const headers = parseLinea(lineas[0]).map(h=>h.toLowerCase().trim());
-  return lineas.slice(1).map(linea=>{
-    const valores = parseLinea(linea);
-    const obj = {};
-    headers.forEach((h,i)=>{ obj[h] = valores[i]||''; });
-    return obj;
   });
+
+  const yaMatriculados = Object.entries(deMatriculas).map(([key,val])=>({...val, curso:[...val.cursos].join(', ')}));
+  const soloImportados = Object.entries(deImportados)
+    .filter(([key])=>!deMatriculas[key])
+    .map(([key,val])=>({...val, curso:[...val.cursos].join(', ')}));
+
+  return [...yaMatriculados, ...soloImportados];
 }
+
+function renderBaseEstudiantes(){
+  const base = construirBaseEstudiantes();
+
+  const selPais = document.getElementById('exal_filtro_pais');
+  const prevPais = selPais.value;
+  const paises = [...new Set(base.map(e=>e.pais).filter(Boolean))].sort();
+  selPais.innerHTML = '<option value="">Todos</option>' + paises.map(p=>`<option value="${p}" ${p===prevPais?'selected':''}>${p}</option>`).join('');
+
+  const selCurso = document.getElementById('exal_filtro_curso');
+  const prevCurso = selCurso.value;
+  const cursos = [...new Set(base.flatMap(e=>e.curso.split(', ')).filter(Boolean))].sort();
+  selCurso.innerHTML = '<option value="">Todos</option>' + cursos.map(c=>`<option value="${c}" ${c===prevCurso?'selected':''}>${c}</option>`).join('');
+
+  document.getElementById('exal_contador').textContent = `(${base.length} estudiante${base.length!==1?'s':''} inscritos en total)`;
+
+  const q = normalizarBusquedaExal(document.getElementById('exal_buscar').value);
+  const paisF = selPais.value;
+  const cursoF = selCurso.value;
+  const hayFiltroActivo = q || paisF || cursoF;
+
+  const body = document.getElementById('tabla_exalumnos_resultado');
+  const empty = document.getElementById('exalumnos_empty');
+
+  if(!hayFiltroActivo){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Escribe un nombre/cédula, o filtra por país o curso para ver resultados.';
+    window._exalumnosFiltrados = [];
+    return;
+  }
+
+  let filas = base;
+  if(q) filas = filas.filter(e=>normalizarBusquedaExal(e.nombre).includes(q) || normalizarBusquedaExal(e.cedula).includes(q));
+  if(paisF) filas = filas.filter(e=>e.pais===paisF);
+  if(cursoF) filas = filas.filter(e=>e.curso.split(', ').includes(cursoF));
+
+  window._exalumnosFiltrados = filas;
+  if(filas.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'No se encontraron estudiantes con este filtro.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  body.innerHTML = filas.map(e=>`
+    <tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
+    <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
+  `).join('');
+}
+document.getElementById('exal_buscar').addEventListener('input', renderBaseEstudiantes);
+document.getElementById('exal_filtro_pais').addEventListener('change', renderBaseEstudiantes);
+document.getElementById('exal_filtro_curso').addEventListener('change', renderBaseEstudiantes);
+
+document.getElementById('btn_export_exalumnos_csv').addEventListener('click', ()=>{
+  const filas = window._exalumnosFiltrados || [];
+  if(filas.length===0){ showToast('No hay estudiantes para exportar con este filtro.'); return; }
+  const headers = ['Nombre','Cedula','Correo','Telefono','Pais','Curso(s)','Origen'];
+  const rows = [headers.join(',')];
+  filas.forEach(e=>rows.push([e.nombre,e.cedula,e.correo,e.telefono,e.pais,e.curso,e.origen].map(csvEscape).join(',')));
+  downloadCSV(rows.join('\n'), 'base_estudiantes_ceprocenter');
+});
+
+document.getElementById('btn_pdf_exalumnos').addEventListener('click', ()=>{
+  const filas = window._exalumnosFiltrados || [];
+  if(filas.length===0){ showToast('No hay estudiantes para exportar con este filtro.'); return; }
+  const filasHtml = filas.map(e=>`<tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
+  document.getElementById('print_doc_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Base de Datos de Estudiantes</div>
+    </div>
+    <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <table class="doc-table">
+      <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('print_orientation_override').textContent = '@page{ size: landscape; margin: 12mm; }';
+  document.getElementById('modal_overlay').classList.add('show');
+});
 
 document.getElementById('btn_importar_exalumnos').addEventListener('click', async ()=>{
   const archivo = document.getElementById('exal_archivo').files[0];
@@ -1876,10 +1972,34 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
     resultadoBox.textContent = `Importación completa: ${exitosos} de ${validas.length} registros guardados.`;
     showToast(`${exitosos} ex-alumno(s) importado(s).`);
     await loadAll();
+    renderBaseEstudiantes();
   }catch(e){
     resultadoBox.textContent = 'Error al leer el archivo: ' + e.message;
   }
 });
+
+function parseCSV(texto){
+  const lineas = texto.split(/\r?\n/).filter(l=>l.trim());
+  if(lineas.length<2) return [];
+  const parseLinea = (linea)=>{
+    const cols = []; let actual=''; let entreComillas=false;
+    for(let i=0;i<linea.length;i++){
+      const c = linea[i];
+      if(c==='"'){ entreComillas = !entreComillas; }
+      else if(c===',' && !entreComillas){ cols.push(actual); actual=''; }
+      else{ actual+=c; }
+    }
+    cols.push(actual);
+    return cols.map(c=>c.trim());
+  };
+  const headers = parseLinea(lineas[0]).map(h=>h.toLowerCase().trim());
+  return lineas.slice(1).map(linea=>{
+    const valores = parseLinea(linea);
+    const obj = {};
+    headers.forEach((h,i)=>{ obj[h] = valores[i]||''; });
+    return obj;
+  });
+}
 
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(tab=>{
