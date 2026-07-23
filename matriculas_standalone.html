@@ -1901,7 +1901,7 @@ document.getElementById('btn_export_exalumnos_csv').addEventListener('click', ()
 document.getElementById('btn_pdf_exalumnos').addEventListener('click', ()=>{
   const filas = window._exalumnosFiltrados || [];
   if(filas.length===0){ showToast('No hay estudiantes para exportar con este filtro.'); return; }
-  const filasHtml = filas.map(e=>`<tr><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
+  const filasHtml = filas.map((e,i)=>`<tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
 document.getElementById('print_doc_content').innerHTML = `
   <div class="doc-header">
     <div class="brand">Ceprocenter</div>
@@ -1909,7 +1909,7 @@ document.getElementById('print_doc_content').innerHTML = `
   </div>
   <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
   <table class="doc-table">
-    <thead><tr><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+    <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
     <tbody>${filasHtml}</tbody>
   </table>
 `;
