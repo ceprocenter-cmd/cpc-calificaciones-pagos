@@ -1688,7 +1688,8 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
       <div class="brand">Ceprocenter</div>
       <div class="title">Reporte de Deudores</div>
     </div>
-    <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
+    <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-
+                                                                                                                                                         document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
