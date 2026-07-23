@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Matriculas Cepro">
 <title>Ceprocenter · Matrículas</title>
@@ -1462,6 +1462,12 @@ function fechaCorta(fechaStr){
   return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
 }
 
+function fechaValor(f){
+  if(!f) return 0;
+  const d = new Date(f);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
 window.confirmarPagoBanco = async function(pagoId, esHistorica){
   try{
     await apiConfirmarPagoBanco(pagoId, !!esHistorica);
@@ -1655,41 +1661,6 @@ window.pdfDeudoresModulo = function(curso, modulo){
 };
 
 document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
-  const data = window._cxcDeudoresActual;
-  if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
-  if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
-  const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
-
-  const filasOrdenadas = data.filas.slice().sort((a,b)=>{
-    const activoA = a[a.length-1]==='Sí', activoB = b[b.length-1]==='Sí';
-    if(activoA===activoB) return 0;
-    return activoA ? -1 : 1;
-  });
-  const totalGeneral = filasOrdenadas.filter(f=>f[f.length-1]==='Sí').reduce((s,f)=>s+Number(f[f.length-2]),0);
-
-  const tarjetas = filasOrdenadas.map(f=>{
-    const estudiante = f[0];
-    const asesorTarjeta = f[1];
-    const activoFila = f[f.length-1]==='Sí';
-    const saldo = f[f.length-2];
-    const estadosModulos = f.slice(2, f.length-2);
-    const filasModulo = data.items.map((modulo,i)=>`<tr><td>${modulo}</td><td>${estadosModulos[i]}</td></tr>`).join('');
-    return `
-      <div class="deudor-card"${activoFila?'':' style="opacity:0.55;"'}>
-        <div class="deudor-nombre"><span>${estudiante} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${asesorTarjeta})${activoFila?'':' — No continuó, no cuenta en el total'}</span></span><span class="saldo">${fmt(saldo)}</span></div>
-        <table class="deudor-modulos">${filasModulo}</table>
-      </div>
-    `;
-  }).join('');
-
-  const soloNombresGeneral = filasOrdenadas.map(f=>f[0]).join('<br>');
-  const html = `
-    <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
-      <div class="title">Reporte de Deudores</div>
-    </div>
-    <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-
-                                                                                                                                                         document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   const data = window._cxcDeudoresActual;
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
