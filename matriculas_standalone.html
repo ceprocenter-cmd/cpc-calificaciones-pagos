@@ -353,9 +353,15 @@
 
     <!-- BASE DE EX-ALUMNOS -->
     <div id="tab-exalumnos" style="display:none;">
-      <div class="panel">
-        <h2>Base de Datos de Estudiantes <span id="exal_contador" style="font-weight:400;color:var(--text-dim);font-size:14px;"></span></h2>
-        <p class="hint">Filtra por nombre, cédula, país o curso — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
+  <div class="panel">
+    <h2>Base de Datos de Estudiantes</h2>
+    <div class="ticker" style="margin-bottom:20px;">
+      <div class="tick" style="border:2px solid var(--accent-dark);">
+        <div class="n" id="exal_total_destacado">0</div>
+        <div class="l">Estudiantes Inscritos en Total</div>
+      </div>
+    </div>
+    <p class="hint">Filtra por nombre, cédula, país o curso — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
         <div class="grid cols3" style="margin-bottom:16px;">
           <div class="field"><label>Nombre o Cédula</label><input id="exal_buscar" placeholder="Escribe para buscar..."></div>
           <div class="field"><label>País</label><select id="exal_filtro_pais"><option value="">Todos</option></select></div>
@@ -1848,7 +1854,7 @@ function renderBaseEstudiantes(){
   const cursos = [...new Set(base.flatMap(e=>e.curso.split(', ')).filter(Boolean))].sort();
   selCurso.innerHTML = '<option value="">Todos</option>' + cursos.map(c=>`<option value="${c}" ${c===prevCurso?'selected':''}>${c}</option>`).join('');
 
-  document.getElementById('exal_contador').textContent = `(${base.length} estudiante${base.length!==1?'s':''} inscritos en total)`;
+  document.getElementById('exal_total_destacado').textContent = base.length;
 
   const q = normalizarBusquedaExal(document.getElementById('exal_buscar').value);
   const paisF = selPais.value;
