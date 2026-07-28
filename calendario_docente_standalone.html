@@ -1221,18 +1221,21 @@ window.verNominaCurso = function(curso){
   if(bloques.length===0) bloques.push([]);
 
   const html = bloques.map((bloque, idxBloque)=>{
+    const filasEncabezado = `<tr><td style="font-weight:700;text-transform:uppercase;font-size:11px;color:var(--text-dim);background:var(--panel-2);">#</td><td style="font-weight:700;text-transform:uppercase;font-size:11px;color:var(--text-dim);background:var(--panel-2);">Nombre y Apellido</td><td style="font-weight:700;text-transform:uppercase;font-size:11px;color:var(--text-dim);background:var(--panel-2);">Profesión</td></tr>`;
     const filasHtml = bloque.map((e,i)=>`<tr><td>${idxBloque*POR_PAGINA+i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>`).join('');
     const esUltimo = idxBloque === bloques.length-1;
     return `
-  <div style="${esUltimo?'':'page-break-after:always; break-after:page;'}">
+      <div style="${esUltimo?'':'page-break-after:always; break-after:page;'}">
         <div class="doc-header">
           <div class="brand">Ceprocenter</div>
           <div class="title">Nómina de Estudiantes — ${curso}</div>
         </div>
         <div class="doc-meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}${bloques.length>1?' — Página '+(idxBloque+1)+' de '+bloques.length:''}</div>
         <table class="doc-table">
-          <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
-          <tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody>
+          <tbody>
+            ${filasEncabezado}
+            ${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}
+          </tbody>
         </table>
       </div>
     `;
