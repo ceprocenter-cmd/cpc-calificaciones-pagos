@@ -73,6 +73,8 @@
   body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
   body.printing .modal-box{position:static;width:100%;max-width:100%;box-shadow:none;}
   body.printing .modal-actions{display:none;}
+  body.printing .modal-overlay{display:block !important;}
+  body.printing .modal-box{display:block !important;}
   .doc-table tbody tr{page-break-inside:avoid;}
   @page{size:portrait;margin:15mm;}
 }
@@ -1211,7 +1213,7 @@ async function initApp(){
 
 window.verNominaCurso = function(curso){
   const estudiantes = nominaDelCurso(curso);
-  const POR_PAGINA = 20;
+  const POR_PAGINA = 15;
   const bloques = [];
   for(let i=0; i<estudiantes.length; i+=POR_PAGINA){
     bloques.push(estudiantes.slice(i, i+POR_PAGINA));
@@ -1222,7 +1224,7 @@ window.verNominaCurso = function(curso){
     const filasHtml = bloque.map((e,i)=>`<tr><td>${idxBloque*POR_PAGINA+i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>`).join('');
     const esUltimo = idxBloque === bloques.length-1;
     return `
-      <div style="${esUltimo?'':'page-break-after:always;'}">
+  <div style="${esUltimo?'':'page-break-after:always; break-after:page;'}">
         <div class="doc-header">
           <div class="brand">Ceprocenter</div>
           <div class="title">Nómina de Estudiantes — ${curso}</div>
