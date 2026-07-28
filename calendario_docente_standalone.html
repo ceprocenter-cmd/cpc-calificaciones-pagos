@@ -191,7 +191,7 @@
             <input id="r_horario_custom" placeholder="Ej. 20h00 a 22h00" style="display:none;margin-top:8px;">
           </div>
           <div class="field"><label>Capacitación</label><input id="r_capacitacion" placeholder="Ej. Tutor Sombra 5, Neurodesarrollo..."></div>
-          <div class="field"><label>Curso en Matrículas (para mostrar la nómina al docente)</label><select id="r_curso_matricula"></select></div>
+          <div class="field"><label>Curso en Matrículas (para el link de nómina del docente)</label><select id="r_curso_matricula"></select></div>
           <div class="field"><label>Módulo</label><input id="r_modulo" placeholder="Ej. 3"></div>
           <div class="field" style="grid-column: span 2;">
             <label>Docente(s) de esta Sesión</label>
@@ -651,7 +651,7 @@ window.editarFechaSesion = function(indice){
       <input id="edit_horario_custom" value="${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?String(entry.horario||'').replace(/"/g,'&quot;'):''}" placeholder="Ej. 20h00 a 22h00" style="display:${!['18h00 a 20h00','18h30 a 20h30','19h00 a 21h00',''].includes(String(entry.horario||''))?'block':'none'};margin-top:8px;">
     </div>
     <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="edit_capacitacion" value="${String(entry.capacitacion||'').replace(/"/g,'&quot;')}"></div>
-    <div class="field" style="margin-top:12px;"><label>Curso en Matrículas (para mostrar la nómina al docente)</label><select id="edit_curso_matricula"></select></div>
+    <div class="field" style="margin-top:12px;"><label>Curso en Matrículas (para el link de nómina del docente)</label><select id="edit_curso_matricula"></select></div>
     <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="edit_modulo" value="${String(entry.modulo||'').replace(/"/g,'&quot;')}"></div>
     <div class="field" style="margin-top:12px;">
       <label>Docente(s) de esta Sesión</label>
@@ -826,7 +826,7 @@ window.abrirAnadirSesion = function(indice){
       <input id="add_horario_custom" placeholder="Ej. 20h00 a 22h00" style="display:none;margin-top:8px;">
     </div>
     <div class="field" style="margin-top:12px;"><label>Capacitación</label><input id="add_capacitacion" placeholder="Ej. Tutor Sombra 5, Neurodesarrollo..."></div>
-    <div class="field" style="margin-top:12px;"><label>Curso en Matrículas (para mostrar la nómina al docente)</label><select id="add_curso_matricula"></select></div>
+    <div class="field" style="margin-top:12px;"><label>Curso en Matrículas (para el link de nómina del docente)</label><select id="add_curso_matricula"></select></div>
     <div class="field" style="margin-top:12px;"><label>Módulo</label><input id="add_modulo" placeholder="Ej. 3"></div>
     <div class="field" style="margin-top:12px;">
       <label>Docente(s) de esta Sesión</label>
@@ -1208,6 +1208,23 @@ async function initApp(){
   catch(e){ showToast('No se pudo conectar: ' + e.message); }
 }
 
+window.verNominaCurso = function(curso){
+  const estudiantes = nominaDelCurso(curso);
+  const filasHtml = estudiantes.map((e,i)=>`<tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>`).join('');
+  document.getElementById('nomina_doc_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Nómina de Estudiantes — ${curso}</div>
+    </div>
+    <div class="doc-meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}</div>
+    <table class="doc-table">
+      <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
+      <tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody>
+    </table>
+  `;
+  document.getElementById('modal_overlay_tutor').classList.add('show');
+};
+
 function renderVistaTutor(nombreTutor){
   document.body.innerHTML = `
     <div class="wrap" style="max-width:1060px;">
@@ -1217,8 +1234,18 @@ function renderVistaTutor(nombreTutor){
       </div>
       <div class="panel" id="vista_tutor_panel"></div>
     </div>
+    <div class="modal-overlay" id="modal_overlay_tutor">
+      <div class="modal-box">
+        <div class="modal-box-inner" id="nomina_doc_content"></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="document.getElementById('modal_overlay_tutor').classList.remove('show');">Cerrar</button>
+          <button class="btn" onclick="document.body.classList.add('printing'); window.print();">Imprimir / Guardar PDF</button>
+        </div>
+      </div>
+    </div>
     <div class="toast" id="toast"></div>
   `;
+  window.onafterprint = function(){ document.body.classList.remove('printing'); };
 
   const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí' && c.honorario!=='Pagado').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
@@ -1253,9 +1280,8 @@ function renderVistaTutor(nombreTutor){
       ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No Aplica</span>'
       : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
 
-    const estudiantesCurso = c.cursoMatricula ? nominaDelCurso(c.cursoMatricula) : [];
-    const listaEstudiantesHtml = estudiantesCurso.length>0
-      ? estudiantesCurso.map(e=>`${e.nombre} <span style="color:var(--text-dim);font-size:11px;">(${e.profesion})</span>`).join('<br>')
+    const celdaEstudiantes = c.cursoMatricula
+      ? `<a href="#" onclick="event.preventDefault(); verNominaCurso('${c.cursoMatricula.replace(/'/g,"\\'")}');">Ver Nómina (PDF)</a>`
       : '—';
 
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
@@ -1265,7 +1291,7 @@ function renderVistaTutor(nombreTutor){
       <td>${c.modalidad||'—'}</td>
       <td style="white-space:normal;">${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}<br><span style="color:var(--text-dim);font-size:12px;">${c.tema||''}</span></td>
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
-      <td style="white-space:normal;max-width:220px;font-size:12.5px;">${listaEstudiantesHtml}</td>
+      <td style="white-space:nowrap;">${celdaEstudiantes}</td>
       <td>${badgeHonorario}</td>
     </tr>`;
   }).join('');
