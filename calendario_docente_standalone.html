@@ -33,7 +33,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
   .grid.cols3{grid-template-columns:repeat(3,1fr);}
   .grid.cols4{grid-template-columns:repeat(4,1fr);}
-  @media (max-width:800px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
+  @media (max-width:1000px){.grid.cols3,.grid.cols4{grid-template-columns:1fr 1fr;}}
   @media (max-width:520px){.grid.cols3,.grid.cols4{grid-template-columns:1fr;}}
   .field label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
   .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14.5px;}
@@ -46,7 +46,7 @@
   .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
   table{width:100%;border-collapse:collapse;font-size:14.5px;}
   th{text-align:left;font-family:'Quicksand',sans-serif;text-transform:uppercase;letter-spacing:0.04em;font-size:11.5px;color:var(--text);padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap;}
-.table-scroll th{position:sticky;top:0;background:var(--panel);z-index:5;}
+  .table-scroll th{position:sticky;top:0;background:var(--panel);z-index:5;}
   td{padding:10px 10px;border-bottom:1px solid var(--line);color:var(--text);}
   .table-scroll{overflow-x:auto;}
   .num{text-align:right;font-variant-numeric:tabular-nums;}
@@ -70,16 +70,13 @@
   .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
   .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13.5px;word-wrap:break-word;overflow-wrap:break-word;}
   @media print{
-  body.printing > *{display:none !important;}
-  body.printing #modal_overlay_tutor,
-  body.printing #modal_overlay_tutor *{display:revert !important;}
-  body.printing #modal_overlay_tutor{position:static !important;display:block !important;background:none !important;padding:0 !important;}
-  body.printing #modal_overlay_tutor .modal-box{position:static !important;width:100% !important;max-width:100% !important;box-shadow:none !important;}
-  body.printing #modal_overlay_tutor .modal-actions{display:none !important;}
-  body.printing .nomina-fila{display:grid !important;grid-template-columns:40px 1fr 1fr !important;}
-  .doc-table tbody tr{page-break-inside:avoid;}
-  @page{size:portrait;margin:15mm;}
-}
+    body.printing *{visibility:hidden;}
+    body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
+    body.printing .modal-box{position:static;width:100%;max-width:100%;box-shadow:none;}
+    body.printing .modal-actions{display:none;}
+    .doc-table tbody tr{page-break-inside:avoid;}
+    @page{size:portrait;margin:15mm;}
+  }
 </style>
 </head>
 <body>
@@ -1216,27 +1213,42 @@ async function initApp(){
 window.verNominaCurso = function(curso){
   const estudiantes = nominaDelCurso(curso);
   const filasHtml = estudiantes.map((e,i)=>`
-  <div class="nomina-fila" style="display:grid;grid-template-columns:40px 1fr 1fr;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);page-break-inside:avoid;">
-    <div>${i+1}</div>
-    <div>${e.nombre}</div>
-    <div>${e.profesion}</div>
-  </div>
-`).join('');
+    <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>
+  `).join('');
 
-document.getElementById('nomina_doc_content').innerHTML = `
-  <div class="doc-header">
-    <div class="brand">Ceprocenter</div>
-    <div class="title">Nómina de Estudiantes — ${curso}</div>
-  </div>
-  <div class="doc-meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}</div>
-  <div class="nomina-fila" style="display:grid;grid-template-columns:40px 1fr 1fr;gap:10px;padding:8px 10px;border-bottom:2px solid var(--line);font-weight:700;text-transform:uppercase;font-size:11px;color:var(--text-dim);background:var(--panel-2);">
-    <div>#</div>
-    <div>Nombre y Apellido</div>
-    <div>Profesión</div>
-  </div>
-  ${filasHtml || '<div style="padding:12px 10px;">Sin estudiantes registrados en este curso.</div>'}
-`;
-  document.getElementById('modal_overlay_tutor').classList.add('show');
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+    <meta charset="UTF-8">
+    <title>Nómina — ${curso}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#24273A;padding:20px;}
+      .brand{color:#7A9A1E;font-size:20px;font-weight:700;text-align:center;}
+      .title{font-size:14px;color:#767C93;text-align:center;margin-top:4px;}
+      .meta{font-size:13px;color:#767C93;margin:16px 0;}
+      table{width:100%;border-collapse:collapse;margin-top:10px;}
+      th{text-align:left;background:#F5F6FA;font-size:11px;text-transform:uppercase;color:#767C93;padding:8px 10px;}
+      td{padding:8px 10px;border-bottom:1px solid #DEE2EA;font-size:13px;}
+      tr{page-break-inside:avoid;}
+    </style>
+    </head>
+    <body>
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Nómina de Estudiantes — ${curso}</div>
+      <div class="meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}</div>
+      <table>
+        <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
+        <tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody>
+      </table>
+      <script>window.onload = function(){ window.print(); };</script>
+    </body>
+    </html>
+  `;
+
+  const ventana = window.open('', '_blank');
+  ventana.document.write(html);
+  ventana.document.close();
 };
 
 function renderVistaTutor(nombreTutor){
@@ -1248,18 +1260,8 @@ function renderVistaTutor(nombreTutor){
       </div>
       <div class="panel" id="vista_tutor_panel"></div>
     </div>
-    <div class="modal-overlay" id="modal_overlay_tutor">
-      <div class="modal-box">
-        <div class="modal-box-inner" id="nomina_doc_content"></div>
-        <div class="modal-actions">
-          <button class="btn btn-ghost" onclick="document.getElementById('modal_overlay_tutor').classList.remove('show');">Cerrar</button>
-          <button class="btn" onclick="document.body.classList.add('printing'); window.print();">Imprimir / Guardar PDF</button>
-        </div>
-      </div>
-    </div>
     <div class="toast" id="toast"></div>
   `;
-  window.onafterprint = function(){ document.body.classList.remove('printing'); };
 
   const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí' && c.honorario!=='Pagado').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
