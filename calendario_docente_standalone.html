@@ -117,7 +117,7 @@
           <div class="field"><label>Capacitación</label><select id="filt_capacitacion"><option value="">Todas</option></select></div>
           <div class="field"><label>Honorario</label><select id="filt_honorario"><option value="">Todos</option><option value="pagado">Pagado</option><option value="pendiente">Pendiente</option><option value="no_aplica">No Aplica</option></select></div>
         </div>
-        <div class="grid" style="max-width:640px;margin-bottom:16px;grid-template-columns:1fr 1fr;">
+        <div class="grid cols3" style="max-width:900px;margin-bottom:16px;">
           <div class="field" style="margin-bottom:0;">
             <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
               <input type="checkbox" id="filt_ocultar_pagados" style="width:18px;height:18px;">
@@ -128,6 +128,12 @@
             <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
               <input type="checkbox" id="filt_ocultar_vacias" style="width:18px;height:18px;" checked>
               Ocultar semanas vacías ya pasadas
+            </label>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="filt_ocultar_pasadas" style="width:18px;height:18px;">
+              Ocultar sesiones ya pasadas
             </label>
           </div>
         </div>
@@ -235,8 +241,9 @@
     <div id="tab-tareas" style="display:none;">
       <div class="panel">
         <h2>Registrar Tarea Pendiente</h2>
-        <p class="hint">Al guardar, se envía un correo automático a la persona asignada, y también un recordatorio un día antes de que venza.</p>
-        <div class="grid cols3">
+        <p class="hint">Al guardar, se envía un correo automático a la persona asignada, y un recordatorio un día antes de que venza. Cuando la persona asignada la marque como completada, quien la creó recibe un aviso.</p>
+        <div class="grid cols4">
+          <div class="field"><label>Creado por</label><select id="tp_creado_por"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option><option>Kin</option></select></div>
           <div class="field"><label>Asignar a</label><select id="tp_asignado"><option value="">Selecciona una opción</option><option>Jose</option><option>Sara</option><option>Kin</option></select></div>
           <div class="field"><label>Fecha Límite</label><input id="tp_fecha_limite" type="date"></div>
           <div class="field"><label>Tarea</label><input id="tp_tarea" placeholder="Ej. Subir notas del módulo 3 a Moodle"></div>
@@ -258,7 +265,7 @@
         </div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Asignado a</th><th>Tarea</th><th>Fecha Límite</th><th>Estado</th><th>Observación</th><th></th></tr></thead>
+            <thead><tr><th>Creado por</th><th>Asignado a</th><th>Tarea</th><th>Fecha Límite</th><th>Estado</th><th>Observación</th><th></th></tr></thead>
             <tbody id="tabla_tareas"></tbody>
           </table>
         </div>
@@ -978,6 +985,13 @@ function renderCalendario(){
       return !yaPaso;
     });
   }
+  if(document.getElementById('filt_ocultar_pasadas').checked){
+    const hoyValorCal2 = fechaValor(new Date().toISOString().slice(0,10));
+    rows = rows.filter(c=>{
+      const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValorCal2;
+      return !yaPaso;
+    });
+  }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
 
   document.getElementById('calendario_head').innerHTML =
@@ -1028,7 +1042,7 @@ function renderCalendario(){
   }).join('');
 }
 let FILAS_CALENDARIO_ACTUAL = [];
-['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados','filt_ocultar_vacias'].forEach(id=>{
+['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados','filt_ocultar_vacias','filt_ocultar_pasadas'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
 
@@ -1138,6 +1152,7 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   abrirModalDoc(html);
 });
 
+// ---------- VISTA PÚBLICA PARA EL TUTOR (?tutor=Nombre) ----------
 const tutorEnLink = paramsIniciales.get('tutor');
 
 async function initApp(){
@@ -1222,17 +1237,20 @@ function renderVistaTutor(nombreTutor){
 
 // ---------- TAREAS PENDIENTES DEL EQUIPO ----------
 document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=>{
+  const creadoPor = document.getElementById('tp_creado_por').value;
   const asignadoA = document.getElementById('tp_asignado').value;
   const fechaLimite = document.getElementById('tp_fecha_limite').value;
   const tarea = document.getElementById('tp_tarea').value.trim();
   const observacion = document.getElementById('tp_observacion').value.trim();
 
+  if(!creadoPor){ showToast('Selecciona quién crea la tarea.'); return; }
   if(!asignadoA){ showToast('Selecciona a quién se asigna.'); return; }
   if(!tarea){ showToast('Escribe la tarea.'); return; }
 
   try{
-    await apiPost(null, 'crearTareaPendiente', {data:{asignadoA, tarea, fechaLimite, observacion}});
+    await apiPost(null, 'crearTareaPendiente', {data:{creadoPor, asignadoA, tarea, fechaLimite, observacion}});
     showToast(`Tarea registrada y correo enviado a ${asignadoA}.`);
+    document.getElementById('tp_creado_por').value='';
     document.getElementById('tp_asignado').value='';
     document.getElementById('tp_fecha_limite').value='';
     document.getElementById('tp_tarea').value='';
@@ -1244,8 +1262,8 @@ document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=
 
 window.marcarTareaCompletada = async function(id){
   try{
-    await apiPost('TareasPendientes','update',{id, data:{completada:true}});
-    showToast('Marcada como completada.');
+    await apiPost(null, 'completarTareaPendiente', {id});
+    showToast('Marcada como completada — se avisó a quien la creó.');
     TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
     renderTareas();
   }catch(e){ showToast('Error: '+e.message); }
@@ -1284,6 +1302,7 @@ function renderTareas(){
       else estadoHtml = '<span class="pill recup">Pendiente</span>';
     }
     return `<tr${t.completada?' style="opacity:0.5;"':''}>
+      <td>${t.creadoPor||'—'}</td>
       <td>${t.asignadoA}</td>
       <td style="white-space:normal;max-width:220px;">${t.tarea}</td>
       <td>${t.fechaLimite ? fechaCorta(t.fechaLimite) : '—'}</td>
