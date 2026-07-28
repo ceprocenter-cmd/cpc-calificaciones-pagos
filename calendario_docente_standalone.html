@@ -69,12 +69,14 @@
   .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
   .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13.5px;}
   @media print{
-    body.printing *{visibility:hidden;}
-    body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
-    body.printing .modal-box{position:absolute;top:0;left:0;width:100%;max-width:100%;}
-    body.printing .modal-actions{display:none;}
-    @page{size:portrait;margin:15mm;}
-  }
+  body.printing *{visibility:hidden;}
+  body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
+  body.printing .modal-box{position:static;width:100%;max-width:100%;box-shadow:none;}
+  body.printing .modal-actions{display:none;}
+  .doc-table thead{display:table-header-group;}
+  .doc-table tr{page-break-inside:avoid;}
+  @page{size:portrait;margin:15mm;}
+}
 </style>
 </head>
 <body>
