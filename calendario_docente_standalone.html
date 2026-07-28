@@ -74,7 +74,7 @@
   body.printing .modal-box{position:static;width:100%;max-width:100%;box-shadow:none;}
   body.printing .modal-actions{display:none;}
   .doc-table thead{display:table-header-group;}
-  .doc-table tr{page-break-inside:avoid;}
+  .doc-table tbody tr{page-break-inside:avoid;}
   @page{size:portrait;margin:15mm;}
 }
 </style>
@@ -1214,13 +1214,12 @@ window.verNominaCurso = function(curso){
   const estudiantes = nominaDelCurso(curso);
   const filasHtml = estudiantes.map((e,i)=>`<tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>`).join('');
   document.getElementById('nomina_doc_content').innerHTML = `
-    <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
-      <div class="title">Nómina de Estudiantes — ${curso}</div>
-    </div>
-    <div class="doc-meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}</div>
     <table class="doc-table">
-      <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
+      <thead>
+        <tr><th colspan="3" style="font-size:15px;color:var(--accent-dark);font-weight:700;">Ceprocenter — Nómina de Estudiantes</th></tr>
+        <tr><th colspan="3" style="font-size:13px;text-transform:none;color:var(--text);font-weight:700;">${curso} — Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}</th></tr>
+        <tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr>
+      </thead>
       <tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody>
     </table>
   `;
