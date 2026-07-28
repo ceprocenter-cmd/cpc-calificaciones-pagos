@@ -70,13 +70,12 @@
   .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
   .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13.5px;word-wrap:break-word;overflow-wrap:break-word;}
   @media print{
-  body.printing *{visibility:hidden;}
-  body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
-  body.printing .modal-box{position:static;width:100%;max-width:100%;box-shadow:none;}
-  body.printing .modal-actions{display:none;}
-  body.printing .modal-overlay{display:block !important;}
-  body.printing .modal-box{display:block !important;}
-  th{position:static !important;}   /* ← agrega esta línea */
+  body.printing > *{display:none !important;}
+  body.printing #modal_overlay_tutor,
+  body.printing #modal_overlay_tutor *{display:revert !important;}
+  body.printing #modal_overlay_tutor{position:static !important;display:block !important;background:none !important;padding:0 !important;}
+  body.printing #modal_overlay_tutor .modal-box{position:static !important;width:100% !important;max-width:100% !important;box-shadow:none !important;}
+  body.printing #modal_overlay_tutor .modal-actions{display:none !important;}
   .doc-table tbody tr{page-break-inside:avoid;}
   @page{size:portrait;margin:15mm;}
 }
