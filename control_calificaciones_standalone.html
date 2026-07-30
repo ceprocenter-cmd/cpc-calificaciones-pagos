@@ -329,6 +329,7 @@
           <div class="actions" style="margin-top:10px;">
             <button class="btn btn-primary btn-sm" id="btn_detectar_zoom">Detectar Presentes del Chat</button>
           </div>
+          <div id="as_detectar_resultado" style="display:none;margin-top:14px;"></div>
         </div>
         <div id="as_lista_estudiantes" style="margin-top:16px;"></div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_asistencia">Guardar Asistencia del Día</button></div>
@@ -1218,40 +1219,64 @@ function coincideNombre(nombreZoom, nombreEstudiante){
   const partesA = a.split(/\s+/).filter(p=>p.length>2);
   const partesB = b.split(/\s+/).filter(p=>p.length>2);
   const coincidentes = partesA.filter(pa=>partesB.includes(pa)).length;
-  // Exige al menos 2 palabras en común (ej. nombre y apellido) — una sola palabra
-  // suelta como "María" nunca es suficiente si hay varias personas con ese nombre.
-  return coincidentes >= 2;
+  // Basta con 1 palabra en común (nombre o apellido) para considerarlo candidato —
+  // por ejemplo "Juan Pérez presente" ya alcanza. Si esa palabra la comparten varios
+  // estudiantes, se marca como "ambiguo" más abajo en vez de adivinar mal.
+  return coincidentes >= 1;
+}
+function renderResultadoDeteccionZoom({encontrados, ambiguos, noEncontrados, totalPresente}){
+  const box = document.getElementById('as_detectar_resultado');
+  if(!box) return;
+  let html = `<div style="background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:14px 16px;">`;
+  html += `<p style="margin:0 0 6px;font-weight:700;color:${encontrados.length===totalPresente?'var(--accent-dark)':'var(--text)'};">✔ ${encontrados.length} de ${totalPresente} marcados como Presente automáticamente.</p>`;
+  if(ambiguos.length>0){
+    html += `<p style="margin:10px 0 4px;font-weight:700;color:var(--warn);">⚠ Nombres ambiguos — coinciden con más de un estudiante, revisa a mano:</p>`;
+    html += `<ul style="margin:0 0 4px 18px;padding:0;font-size:13px;">` + ambiguos.map(a=>`<li>"${a.texto}" → podría ser: ${a.candidatos.join(', ')}</li>`).join('') + `</ul>`;
+  }
+  if(noEncontrados.length>0){
+    html += `<p style="margin:10px 0 4px;font-weight:700;color:var(--danger);">✕ No encontrados en la nómina de este curso:</p>`;
+    html += `<ul style="margin:0;padding:0 0 0 18px;font-size:13px;">` + noEncontrados.map(n=>`<li>${n}</li>`).join('') + `</ul>`;
+  }
+  if(ambiguos.length===0 && noEncontrados.length===0){
+    html += `<p style="margin:6px 0 0;font-size:13px;color:var(--text-dim);">Todos los que escribieron "presente" fueron encontrados en la nómina.</p>`;
+  }
+  html += `</div>`;
+  box.innerHTML = html;
+  box.style.display = 'block';
 }
 document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
   const texto = document.getElementById('as_zoom_chat').value.trim();
-  if(!texto){ showToast('Pega el chat de Zoom primero.'); return; }
+  const box = document.getElementById('as_detectar_resultado');
+  if(!texto){ showToast('Pega el chat de Zoom primero.'); if(box) box.style.display='none'; return; }
   const detecciones = detectarPresentesEnChat(texto);
-  if(detecciones.length===0){ showToast('No se encontró a nadie escribiendo "presente" en ese texto.'); return; }
+  const detectadosPresente = detecciones.filter(d=>d.tipo==='presente');
+  if(detectadosPresente.length===0){
+    showToast('No se encontró a nadie escribiendo "presente" en ese texto.');
+    if(box){ box.style.display='block'; box.innerHTML = `<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:9px;padding:14px 16px;font-size:13px;">No se detectó la palabra "presente" en ninguna línea del chat pegado. Verifica que lo hayas copiado completo, con la hora y el nombre de cada persona.</div>`; }
+    return;
+  }
   const estudiantes = estudiantesDelCurso();
-  const sinMatch = [];
-  let coincidencias = 0;
+  const encontrados = [];
+  const ambiguos = [];
+  const noEncontrados = [];
   document.querySelectorAll('.as-estado').forEach(sel=>{ sel.value = 'Ausente'; });
-  detecciones.forEach(d=>{
+  detectadosPresente.forEach(d=>{
     let candidatos = estudiantes.filter(est=>coincideNombre(d.usuario, est));
     if(candidatos.length===0 && d.nombreEnMensaje){
       candidatos = estudiantes.filter(est=>coincideNombre(d.nombreEnMensaje, est));
     }
+    const texto = d.nombreEnMensaje || d.usuario;
     if(candidatos.length===1){
       const sel = document.querySelector(`.as-estado[data-estudiante="${CSS.escape(candidatos[0])}"]`);
-      if(sel){ sel.value = 'Presente'; coincidencias++; }
-    }else if(d.tipo==='presente'){
-      if(candidatos.length>1){
-        sinMatch.push(`${d.nombreEnMensaje||d.usuario} (ambiguo: coincide con ${candidatos.join(', ')})`);
-      }else{
-        sinMatch.push(d.nombreEnMensaje || d.usuario);
-      }
+      if(sel){ sel.value = 'Presente'; encontrados.push(candidatos[0]); }
+    }else if(candidatos.length>1){
+      ambiguos.push({texto, candidatos});
+    }else{
+      noEncontrados.push(texto);
     }
-    // Si tipo==='nombre' (detectado sin decir "presente") y no hubo coincidencia clara,
-    // se ignora en silencio — no era necesariamente un intento de marcar asistencia.
   });
-  let mensaje = `${coincidencias} de ${detecciones.length} detectados y marcados como Presente.`;
-  if(sinMatch.length>0) mensaje += ` Sin coincidencia: ${sinMatch.join(', ')} — revísalos a mano.`;
-  showToast(mensaje);
+  renderResultadoDeteccionZoom({encontrados, ambiguos, noEncontrados, totalPresente: detectadosPresente.length});
+  showToast(`${encontrados.length} de ${detectadosPresente.length} marcados como Presente.`);
 });
 document.getElementById('as_fecha').addEventListener('change', renderTomaAsistencia);
 document.getElementById('btn_guardar_asistencia').addEventListener('click', async ()=>{
