@@ -69,7 +69,6 @@
   .setup-banner{background:var(--warn-soft);border:1px solid var(--warn);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;}
   .setup-banner h3{margin:0 0 8px;color:var(--warn);font-size:16px;}
   .setup-banner input{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);margin:8px 0;font-family:'Nunito',sans-serif;font-size:13px;}
-
   .curso-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:20px;}
   .curso-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;cursor:pointer;transition:border-color 0.15s;}
   .curso-card:hover{border-color:var(--accent);}
@@ -77,7 +76,6 @@
   .curso-card .meta{font-size:12px;color:var(--text-dim);}
   .curso-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px;}
   .curso-header h2{font-size:22px;margin:0;}
-
   #print_individual_content{padding:32px 32px 8px;}
   .doc-header{border-bottom:3px solid var(--accent);padding-bottom:16px;margin-bottom:24px;}
   .doc-header .brand{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;color:var(--accent);}
@@ -107,7 +105,6 @@
 </head>
 <body>
 <div class="wrap">
-
   <div class="top">
     <div>
       <h1>Calificaciones <span class="accent">/ Ceprocenter</span></h1>
@@ -115,7 +112,6 @@
     </div>
     <button class="btn btn-ghost btn-sm" id="btn_config">⚙ Configuración</button>
   </div>
-
   <div class="setup-banner" id="setup_banner" style="display:none;">
     <h3>Configura tu conexión</h3>
     <p class="hint" style="margin:0 0 6px;">Pega la URL de tu Apps Script (termina en /exec) — es la misma que usaste en la herramienta financiera.</p>
@@ -125,7 +121,6 @@
     <button class="btn btn-primary btn-sm" id="btn_guardar_config" style="margin-top:6px;">Guardar y Conectar</button>
     <button class="btn btn-ghost btn-sm" id="btn_demo" style="margin-top:6px;">Ver con datos de ejemplo (sin conexión)</button>
   </div>
-
   <!-- VISTA: SELECCIONAR / CREAR CURSO -->
   <div id="view_home" style="display:none;">
     <div class="panel">
@@ -135,7 +130,6 @@
       <div class="empty" id="curso_grid_empty" style="display:none;">Aún no has cargado ningún curso.</div>
       <div class="actions"><button class="btn btn-primary" id="btn_nuevo_curso">+ Crear Nuevo Curso</button></div>
     </div>
-
     <div class="panel" id="panel_nuevo_curso" style="display:none;">
       <h2>Nuevo Curso</h2>
       <div class="field" style="margin-bottom:14px;">
@@ -156,7 +150,6 @@
       </div>
     </div>
   </div>
-
   <!-- VISTA: DENTRO DE UN CURSO -->
   <div id="view_curso" style="display:none;">
     <div class="curso-header">
@@ -167,7 +160,6 @@
         <button class="btn btn-ghost btn-sm" id="btn_cambiar_curso">← Cambiar de Curso</button>
       </div>
     </div>
-
     <div class="panel" id="panel_agregar_estudiantes" style="display:none;">
       <h2>Agregar Estudiantes a este Curso</h2>
       <div class="field">
@@ -179,7 +171,6 @@
         <button class="btn btn-ghost" id="btn_cancelar_agregar">Cancelar</button>
       </div>
     </div>
-
     <div class="panel" id="panel_agregar_modulos" style="display:none;">
       <h2>Agregar Módulos a este Curso</h2>
       <div class="field">
@@ -191,9 +182,7 @@
         <button class="btn btn-ghost" id="btn_cancelar_modulos">Cancelar</button>
       </div>
     </div>
-
     <div class="ticker" id="ticker"></div>
-
     <div class="tabs">
       <button class="tab active" data-tab="registrar">Registrar</button>
       <button class="tab" data-tab="asistencia">Asistencia</button>
@@ -201,7 +190,6 @@
       <button class="tab" data-tab="reporte">Reporte</button>
       <button class="tab" data-tab="historial">Historial</button>
     </div>
-
     <div id="tab-registrar">
       <div class="panel">
         <h2>Registrar Calificación</h2>
@@ -220,7 +208,6 @@
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_nota">Guardar Calificación</button></div>
       </div>
     </div>
-
     <div id="tab-facilitadores" style="display:none;">
       <div class="panel">
         <h2>Asignar Tutor a un Módulo</h2>
@@ -232,7 +219,6 @@
         </div>
         <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_facilitador">Asignar</button></div>
       </div>
-
       <div class="panel">
         <h2>Tutores Asignados en este Curso</h2>
         <div class="table-scroll">
@@ -244,7 +230,6 @@
         <div class="empty" id="facilitadores_empty" style="display:none;">Aún no has asignado tutores en este curso.</div>
       </div>
     </div>
-
     <div id="tab-reporte" style="display:none;">
       <div class="panel">
         <h2>Configuración del Certificado</h2>
@@ -266,7 +251,6 @@
         <p class="hint" style="margin-top:10px;">La lista de quién se certifica siempre se decide por la nota mínima — esto solo cambia el texto de la frase del certificado.</p>
         <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_curso_info">Guardar Configuración</button></div>
       </div>
-
       <div class="panel">
         <h2>Generar Certificados de un Módulo</h2>
         <p class="hint">El certificado se emite por módulo. Elige cuál y escribe el rango de fechas de esa sesión antes de generar.</p>
@@ -280,7 +264,6 @@
           <button class="btn btn-ghost btn-sm" id="btn_pdf_certificados">Descargar Lista (PDF)</button>
         </div>
       </div>
-
       <div class="panel">
         <h2>Reporte del Curso</h2>
         <div id="reporte_resumen"></div>
@@ -293,11 +276,9 @@
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
         </div>
-
         <h2 style="margin-top:26px;">Módulos del Curso</h2>
         <p class="hint">Da clic en un módulo para ver el detalle de notas, tipo, retroalimentación y estado.</p>
         <div id="lista_modulos_reporte" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-
         <div id="detalle_modulo_seleccionado" style="display:none;">
           <h3 id="titulo_modulo_seleccionado" style="font-family:'Quicksand',sans-serif;font-size:16px;margin-bottom:10px;"></h3>
           <div class="table-scroll">
@@ -312,7 +293,6 @@
           </div>
         </div>
       </div>
-
       <div class="panel">
         <h2>Diploma Final</h2>
         <p class="hint">Para quienes aprobaron el diplomado completo (promedio general de todos los módulos).</p>
@@ -325,7 +305,6 @@
           <button class="btn btn-ghost btn-sm" id="btn_pdf_diploma">Descargar Lista (PDF)</button>
         </div>
       </div>
-
       <div class="panel">
         <h2>Menciones de Honor (Top 3 del Diplomado)</h2>
         <p class="hint">Los 3 promedios más altos entre quienes aprobaron todo el diplomado.</p>
@@ -336,7 +315,6 @@
         </div>
       </div>
     </div>
-
     <div id="tab-asistencia" style="display:none;">
       <div class="panel">
         <h2>Tomar Asistencia</h2>
@@ -355,12 +333,10 @@
         <div id="as_lista_estudiantes" style="margin-top:16px;"></div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_asistencia">Guardar Asistencia del Día</button></div>
       </div>
-
       <div class="panel">
         <h2>Resumen de Asistencia por Módulo</h2>
         <p class="hint">Da clic en un módulo para ver su fecha y el detalle de asistencia.</p>
         <div id="as_lista_modulos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-
         <div id="as_detalle_modulo" style="display:none;">
           <div class="hint" id="as_fecha_modulo_texto" style="margin-bottom:12px;"></div>
           <div class="table-scroll">
@@ -374,7 +350,6 @@
         </div>
       </div>
     </div>
-
     <div id="tab-historial" style="display:none;">
       <div class="panel">
         <h2>Historial del Curso</h2>
@@ -389,7 +364,6 @@
     </div>
   </div>
 </div>
-
 <div class="modal-overlay" id="modal_overlay">
   <div class="modal-box">
     <div id="print_individual_content"></div>
@@ -399,9 +373,7 @@
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 // Debe ser exactamente igual a la CLAVE_ADMIN del Apps Script.
@@ -416,10 +388,8 @@ let CURSOS_INFO = [];
 let FACILITADORES = [];
 let PAGOS = [];
 let CURSO_ACTUAL = null;
-
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-
 document.getElementById('btn_config').addEventListener('click', ()=>{
   const b = document.getElementById('setup_banner');
   b.style.display = b.style.display==='none' ? 'block' : 'none';
@@ -436,7 +406,6 @@ document.getElementById('btn_guardar_config').addEventListener('click', async ()
   showToast('Conectando...');
   await initApp();
 });
-
 async function apiGet(sheet){
   const res = await fetch(`${API_URL}?sheet=${sheet}`);
   const json = await res.json();
@@ -453,7 +422,6 @@ async function apiPost(sheet, action, extra){
   return json;
 }
 function normNum(v){ return Number(v)||0; }
-
 async function loadAll(){
   const [nom, mod, cal, mat, asi, cinfo, fac, pag] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos')]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
@@ -465,21 +433,17 @@ async function loadAll(){
   FACILITADORES = fac;
   PAGOS = pag;
 }
-
 function modulosSinPagar(estudiante){
   const modulosCurso = modulosDelCurso();
   return modulosCurso.filter(m => !PAGOS.some(p => p.curso===CURSO_ACTUAL && p.estudiante===estudiante && p.modulo===m)).length;
 }
-
 function nominaActiva(estudiante){
   const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
   return reg ? reg.activo : true;
 }
-
 function estaDadoDeBaja(estudiante){
   return !nominaActiva(estudiante);
 }
-
 window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
   const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
   if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
@@ -490,11 +454,9 @@ window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
-
 function getCursoInfo(curso){
   return CURSOS_INFO.filter(c=>c.curso===curso).slice(-1)[0] || null;
 }
-
 function nombreParaCertificado(curso, estudiante){
   const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante);
   const conCertificado = registros.filter(m=>m.certificado && m.certificado.trim());
@@ -506,7 +468,6 @@ function nombreParaCertificado(curso, estudiante){
   }
   return estudiante;
 }
-
 async function initApp(){
   if(!API_URL){
     document.getElementById('setup_banner').style.display='block';
@@ -523,7 +484,6 @@ async function initApp(){
     document.getElementById('setup_banner').style.display='block';
   }
 }
-
 // ---------- VISTA HOME (SELECCIONAR CURSO) ----------
 function mostrarHome(){
   CURSO_ACTUAL = null;
@@ -532,11 +492,9 @@ function mostrarHome(){
   document.getElementById('panel_nuevo_curso').style.display='none';
   renderCursoGrid();
 }
-
 function cursosUnicos(){
   return [...new Set(NOMINA.map(n=>n.curso).filter(Boolean))].sort();
 }
-
 function renderCursoGrid(){
   const cursos = cursosUnicos();
   const grid = document.getElementById('curso_grid');
@@ -552,7 +510,6 @@ function renderCursoGrid(){
     </div>`;
   }).join('');
 }
-
 document.getElementById('btn_nuevo_curso').addEventListener('click', ()=>{
   document.getElementById('panel_nuevo_curso').style.display='block';
   document.getElementById('nc_nombre').value='';
@@ -580,7 +537,6 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
     abrirCurso(nombre);
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 // ---------- VISTA CURSO (ABIERTO) ----------
 window.abrirCurso = function(curso){
   CURSO_ACTUAL = curso;
@@ -599,7 +555,6 @@ window.abrirCurso = function(curso){
   });
 };
 document.getElementById('btn_cambiar_curso').addEventListener('click', mostrarHome);
-
 document.getElementById('btn_agregar_estudiantes').addEventListener('click', ()=>{
   const p = document.getElementById('panel_agregar_estudiantes');
   p.style.display = p.style.display==='none' ? 'block' : 'none';
@@ -622,7 +577,6 @@ document.getElementById('btn_guardar_agregados').addEventListener('click', async
     document.getElementById('panel_agregar_estudiantes').style.display='none';
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 document.getElementById('btn_agregar_modulos').addEventListener('click', ()=>{
   const p = document.getElementById('panel_agregar_modulos');
   p.style.display = p.style.display==='none' ? 'block' : 'none';
@@ -645,7 +599,6 @@ document.getElementById('btn_guardar_modulos_extra').addEventListener('click', a
     document.getElementById('panel_agregar_modulos').style.display='none';
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 function estudiantesDelCurso(){
   return NOMINA.filter(n=>n.curso===CURSO_ACTUAL).map(n=>n.estudiante).sort();
 }
@@ -660,7 +613,6 @@ function poblarSelectModulos(){
   const sel = document.getElementById('c_modulo');
   sel.innerHTML = modulosDelCurso().map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
 }
-
 // ---------- LÓGICA DE NOTA VIGENTE ----------
 function notasVigentesCurso(){
   const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL);
@@ -672,7 +624,6 @@ function notasVigentesCurso(){
   });
   return Object.values(map);
 }
-
 function renderAllCurso(){
   cargarConfigCertificado();
   poblarSelectCertModulo();
@@ -683,7 +634,6 @@ function renderAllCurso(){
   renderResumenAsistencia();
   renderFacilitadores();
 }
-
 function renderTickerCurso(){
   const vig = notasVigentesCurso();
   const totalEst = estudiantesDelCurso().length;
@@ -702,7 +652,6 @@ function renderTickerCurso(){
     <div class="tick"><div class="n ${sinNotas>0?'warn':''}">${sinNotas}</div><div class="l">Sin Notas Aún</div></div>
   `;
 }
-
 // ---------- REGISTRAR ----------
 document.getElementById('c_tipo').addEventListener('change', ()=>{
   const esRecuperativa = document.getElementById('c_tipo').value === 'Recuperativa';
@@ -712,7 +661,6 @@ document.getElementById('c_tipo').addEventListener('change', ()=>{
   const notaActual = Number(document.getElementById('c_nota').value);
   if(notaActual > maxNota) document.getElementById('c_nota').value = maxNota;
 });
-
 document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>{
   const fecha = document.getElementById('c_fecha').value || new Date().toISOString().slice(0,10);
   const estudiante = document.getElementById('c_estudiante').value;
@@ -732,16 +680,13 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 // ---------- REPORTE ----------
 function renderReporteCurso(){
   const resumenBox = document.getElementById('reporte_resumen');
   const tblResumen = document.getElementById('tabla_resumen_curso');
   const vig = notasVigentesCurso();
-
   const porEstudiante = {};
   vig.forEach(v=>{ if(!porEstudiante[v.estudiante]) porEstudiante[v.estudiante]=[]; porEstudiante[v.estudiante].push(v); });
-
   const filas = estudiantesDelCurso().map(estudiante=>{
     const notas = porEstudiante[estudiante] || [];
     const baja = estaDadoDeBaja(estudiante);
@@ -755,13 +700,11 @@ function renderReporteCurso(){
     if(b.prom===null) return -1;
     return b.prom-a.prom;
   });
-
   const totalEst = filas.length;
   const aprobados = filas.filter(f=>f.aprobado===true).length;
   const sinNotas = filas.filter(f=>f.prom===null).length;
   const bajas = filas.filter(f=>f.baja).length;
   resumenBox.innerHTML = `<p class="hint" style="margin:0;">${totalEst} estudiantes en nómina — ${aprobados} aprobados, ${filas.filter(f=>f.aprobado===false).length} reprobados, ${sinNotas} sin notas aún (mínimo: ${NOTA_MINIMA})${bajas>0?`, ${bajas} no continuaron`:''}.</p>`;
-
   tblResumen.innerHTML = filas.map((f,i)=>`
     <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}">
     <td>${i+1}</td>
@@ -776,17 +719,13 @@ function renderReporteCurso(){
         : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', true)">Reactivar</button>`}
     </td></tr>
   `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
-
   renderListaModulosReporte();
 }
-
 let MODULO_SELECCIONADO_REPORTE = null;
-
 function acortarTexto(texto, maxLen){
   if(!texto) return '';
   return texto.length > maxLen ? texto.slice(0, maxLen).trim() + '…' : texto;
 }
-
 function renderListaModulosReporte(){
   const box = document.getElementById('lista_modulos_reporte');
   const modulos = modulosDelCurso();
@@ -798,13 +737,11 @@ function renderListaModulosReporte(){
     renderDetalleModuloSeleccionado();
   }
 }
-
 window.seleccionarModuloReporte = function(modulo){
   MODULO_SELECCIONADO_REPORTE = modulo;
   renderListaModulosReporte();
   renderDetalleModuloSeleccionado();
 };
-
 function datosModuloSeleccionado(){
   const modulo = MODULO_SELECCIONADO_REPORTE;
   const vig = notasVigentesCurso().filter(v=>v.modulo===modulo);
@@ -820,13 +757,11 @@ function datosModuloSeleccionado(){
     };
   });
 }
-
 function renderDetalleModuloSeleccionado(){
   const wrap = document.getElementById('detalle_modulo_seleccionado');
   if(!MODULO_SELECCIONADO_REPORTE){ wrap.style.display='none'; return; }
   wrap.style.display='block';
   document.getElementById('titulo_modulo_seleccionado').textContent = `${MODULO_SELECCIONADO_REPORTE} (${datosModuloSeleccionado().length} estudiantes)`;
-
   const filas = datosModuloSeleccionado();
   document.getElementById('tabla_modulo_seleccionado').innerHTML = filas.map((f,i)=>`
     <tr><td>${i+1}</td><td>${f.estudiante}</td>
@@ -837,7 +772,6 @@ function renderDetalleModuloSeleccionado(){
     <td>${f.id?`<button class="btn btn-ghost btn-sm" onclick="editarNotaModulo('${f.id}','${f.estudiante.replace(/'/g,"\\'")}')">✏️ Editar</button>`:''}</td></tr>
   `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Sin datos</td></tr>';
 }
-
 window.editarNotaModulo = function(id, estudiante){
   const registro = CALIFICACIONES.find(c=>c.id===id);
   if(!registro){ showToast('No se encontró la calificación.'); return; }
@@ -859,7 +793,6 @@ window.editarNotaModulo = function(id, estudiante){
   `;
   document.getElementById('modal_overlay').classList.add('show');
 };
-
 window.guardarNotaEditada = async function(id){
   const tipo = document.getElementById('edit_nota_tipo').value;
   const maxNota = tipo==='Recuperativa' ? 9 : 10;
@@ -874,7 +807,6 @@ window.guardarNotaEditada = async function(id){
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
-
 document.getElementById('btn_export_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
   const filas = datosModuloSeleccionado();
@@ -888,7 +820,6 @@ document.getElementById('btn_export_modulo_seleccionado').addEventListener('clic
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV del módulo descargado.');
 });
-
 document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
   const filas = datosModuloSeleccionado();
@@ -906,7 +837,6 @@ document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click',
   `;
   document.getElementById('modal_overlay').classList.add('show');
 });
-
 document.getElementById('btn_copiar_reporte').addEventListener('click', async ()=>{
   const vig = notasVigentesCurso();
   const porEstudiante = {};
@@ -921,7 +851,6 @@ document.getElementById('btn_copiar_reporte').addEventListener('click', async ()
   try{ await navigator.clipboard.writeText(txt); showToast('Reporte copiado.'); }
   catch(e){ showToast('No se pudo copiar.'); }
 });
-
 // ---------- HISTORIAL ----------
 function renderHistorialCurso(){
   const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
@@ -945,7 +874,6 @@ window.eliminarNota = async function(id){
   await loadAll();
   renderAllCurso();
 };
-
 // ---------- REPORTE INDIVIDUAL DESCARGABLE ----------
 window.descargarReporteIndividual = function(estudiante){
   const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
@@ -980,7 +908,6 @@ window.descargarReporteIndividual = function(estudiante){
   `;
   document.getElementById('modal_overlay').classList.add('show');
 };
-
 document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
   document.getElementById('modal_overlay').classList.remove('show');
 });
@@ -992,7 +919,6 @@ window.onafterprint = function(){
   document.body.classList.remove('printing-individual');
   document.getElementById('print_orientation_override').textContent = '';
 };
-
 // ---------- MODO DEMO (sin conexión, solo para previsualizar diseño) ----------
 document.getElementById('btn_demo').addEventListener('click', ()=>{
   NOMINA = [
@@ -1019,7 +945,6 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
   mostrarHome();
   showToast('Datos de ejemplo cargados — nada de esto se guarda. Pedro Salinas está en nómina pero sin notas aún, a propósito.');
 });
-
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
@@ -1030,7 +955,6 @@ document.querySelectorAll('.tab').forEach(tab=>{
     });
   });
 });
-
 // ---------- CONFIGURACIÓN DEL CERTIFICADO (por curso) ----------
 function cargarConfigCertificado(){
   const info = getCursoInfo(CURSO_ACTUAL);
@@ -1038,7 +962,6 @@ function cargarConfigCertificado(){
   document.getElementById('ci_modalidad').value = info ? info.modalidad || 'Virtual' : 'Virtual';
   document.getElementById('ci_tipo_certificacion').value = info ? info.tipoCertificacion || 'Asistencia y Aprobación' : 'Asistencia y Aprobación';
 }
-
 document.getElementById('btn_guardar_curso_info').addEventListener('click', async ()=>{
   const horasAcademicas = document.getElementById('ci_horas').value;
   const modalidad = document.getElementById('ci_modalidad').value;
@@ -1054,37 +977,31 @@ document.getElementById('btn_guardar_curso_info').addEventListener('click', asyn
     await loadAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 function cumpleAprobacionModulo(estudiante, modulo){
   const nota = notasVigentesCurso().find(v=>v.estudiante===estudiante && v.modulo===modulo);
   if(!nota) return false;
   return nota.nota >= NOTA_MINIMA;
 }
-
 function promedioFinalEstudiante(estudiante){
   const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
   if(vig.length===0) return null;
   return vig.reduce((s,v)=>s+v.nota,0)/vig.length;
 }
-
 function cumpleAprobacionFinal(estudiante){
   const prom = promedioFinalEstudiante(estudiante);
   return prom!==null && prom >= NOTA_MINIMA;
 }
-
 function fraseCertificadoFinal(curso){
   const info = getCursoInfo(curso);
   const tipo = info ? info.tipoCertificacion : 'Asistencia y Aprobación';
   if(tipo === 'Asistencia') return `Por su asistencia al ${curso}`;
   return `Por su asistencia y aprobación del ${curso}`;
 }
-
 function modulosConCalificacion(){
   const modulosEnCurso = modulosDelCurso();
   const conNota = new Set(CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL).map(c=>c.modulo));
   return modulosEnCurso.filter(m=>conNota.has(m));
 }
-
 function promedioHonorEstudiante(estudiante){
   const modulosActivos = modulosConCalificacion();
   if(modulosActivos.length===0) return null;
@@ -1095,7 +1012,6 @@ function promedioHonorEstudiante(estudiante){
   }, 0);
   return suma / modulosActivos.length;
 }
-
 function obtenerTop3Honor(){
   return estudiantesDelCurso()
     .filter(est=>notasVigentesCurso().some(v=>v.estudiante===est))
@@ -1104,14 +1020,12 @@ function obtenerTop3Honor(){
     .sort((a,b)=>b.promedio-a.promedio)
     .slice(0,3);
 }
-
 function fraseCertificadoModulo(curso, modulo){
   const info = getCursoInfo(curso);
   const tipo = info ? info.tipoCertificacion : 'Asistencia y Aprobación';
   const base = (tipo === 'Asistencia') ? `Por su asistencia al` : `Por su asistencia y aprobación del`;
   return `${base} ${modulo}`;
 }
-
 function poblarSelectCertModulo(){
   const sel = document.getElementById('cert_modulo');
   const modulos = modulosDelCurso();
@@ -1124,7 +1038,6 @@ function poblarSelectCertModulo(){
   actualizarPreviewDiploma();
   actualizarPreviewHonor();
 }
-
 function actualizarPreviewCertificado(){
   const modulo = document.getElementById('cert_modulo').value;
   const box = document.getElementById('cert_preview');
@@ -1140,32 +1053,26 @@ document.getElementById('cert_modulo').addEventListener('change', ()=>{
   }
   actualizarPreviewCertificado();
 });
-
 function actualizarPreviewDiploma(){
   const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionFinal(est));
   document.getElementById('diploma_preview').textContent = `${califican.length} estudiante(s) aprobaron el diplomado completo.`;
 }
-
 function actualizarPreviewHonor(){
   const top3 = obtenerTop3Honor();
   document.getElementById('honor_preview').textContent = top3.length>0
     ? top3.map((t,i)=>`${i+1}° ${t.estudiante} (${t.promedio.toFixed(1)})`).join(' — ')
     : 'Aún no hay estudiantes aprobados para calcular el top 3.';
 }
-
 // ---------- FACILITADORES ----------
 function facilitadoresDelCurso(){
   return FACILITADORES.filter(f=>f.curso===CURSO_ACTUAL);
 }
-
 function renderFacilitadores(){
   const selModulo = document.getElementById('fac_modulo');
   const modulos = modulosDelCurso();
   selModulo.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
-
   const tutoresConocidos = [...new Set(FACILITADORES.map(f=>f.tutor).filter(Boolean))].sort();
   document.getElementById('fac_tutores_dl').innerHTML = tutoresConocidos.map(t=>`<option value="${t}">`).join('');
-
   const asignaciones = facilitadoresDelCurso();
   const body = document.getElementById('tabla_facilitadores');
   const empty = document.getElementById('facilitadores_empty');
@@ -1176,7 +1083,6 @@ function renderFacilitadores(){
     <td><button class="btn btn-ghost btn-sm" onclick="eliminarFacilitador('${f.id}')">Eliminar</button></td></tr>
   `).join('');
 }
-
 document.getElementById('btn_guardar_facilitador').addEventListener('click', async ()=>{
   const modulo = document.getElementById('fac_modulo').value;
   const tutor = document.getElementById('fac_tutor').value.trim();
@@ -1192,7 +1098,6 @@ document.getElementById('btn_guardar_facilitador').addEventListener('click', asy
     renderFacilitadores();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 window.eliminarFacilitador = async function(id){
   if(!confirm('¿Eliminar esta asignación?')) return;
   await apiPost('Facilitadores','delete',{id});
@@ -1200,12 +1105,10 @@ window.eliminarFacilitador = async function(id){
   await loadAll();
   renderFacilitadores();
 };
-
 // ---------- ASISTENCIA ----------
 function asistenciaDelCurso(){
   return ASISTENCIA.filter(a=>a.curso===CURSO_ACTUAL);
 }
-
 function poblarSelectAsistenciaModulo(){
   const sel = document.getElementById('as_modulo');
   const modulos = modulosDelCurso();
@@ -1214,7 +1117,6 @@ function poblarSelectAsistenciaModulo(){
   if(modulos.includes(prev)) sel.value = prev;
 }
 const MESES_ES = {enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
-
 function parsearPrimerDiaModulo(texto){
   if(!texto) return null;
   const t = texto.toLowerCase();
@@ -1229,7 +1131,6 @@ function parsearPrimerDiaModulo(texto){
   const mes = String(mesEncontrado).padStart(2,'0');
   return `${anioMatch[1]}-${mes}-${dia}`;
 }
-
 document.getElementById('as_modulo').addEventListener('change', ()=>{
   const modulo = document.getElementById('as_modulo').value;
   const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
@@ -1239,7 +1140,6 @@ document.getElementById('as_modulo').addEventListener('change', ()=>{
   }
   renderTomaAsistencia();
 });
-
 function renderTomaAsistencia(){
   poblarSelectAsistenciaModulo();
   const fechaInput = document.getElementById('as_fecha');
@@ -1248,11 +1148,9 @@ function renderTomaAsistencia(){
   const modulo = document.getElementById('as_modulo').value;
   const estudiantes = estudiantesDelCurso();
   const registrosSesion = asistenciaDelCurso().filter(a=>a.fecha===fecha && a.modulo===modulo);
-
   const box = document.getElementById('as_lista_estudiantes');
   if(estudiantes.length===0){ box.innerHTML = '<p class="hint">Sin estudiantes en este curso.</p>'; return; }
   if(!modulo){ box.innerHTML = '<p class="hint">Este curso no tiene módulos configurados todavía.</p>'; return; }
-
   box.innerHTML = estudiantes.map(est=>{
     const previo = registrosSesion.find(r=>r.estudiante===est);
     const estadoActual = previo ? previo.estado : 'Presente';
@@ -1269,24 +1167,40 @@ function renderTomaAsistencia(){
   }).join('');
 }
 function normalizarTexto(t){
-  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
 }
-
 function detectarPresentesEnChat(textoChat){
-  const lineas = textoChat.split('\n');
+  // Los chats exportados de Zoom suelen venir con saltos de línea Windows (\r\n).
+  // Si solo se separa por "\n" queda un "\r" colgando al final de cada línea, y como
+  // el "." de las expresiones regulares no matchea "\r", el patrón nunca llegaba al
+  // final de la línea y no detectaba nada. Por eso aquí se separa por ambos y se
+  // recorta cualquier \r sobrante.
+  const lineas = textoChat.split(/\r\n|\r|\n/).map(l=>l.replace(/\r+$/,''));
   const resultados = [];
   lineas.forEach(linea=>{
-    const match = linea.match(/^\s*\d{1,2}:\d{2}:\d{2}\s+(.+?):\s+(.*)$/);
-    if(!match) return;
-    const usuario = match[1].trim();
-    const mensaje = match[2].trim();
-
+    let usuario = null, mensaje = null;
+    // Los exports de Zoom pueden traer un número de línea/secuencia antes de la hora
+    // (ej. "1\t00:06:53\tNombre:\tmensaje"), y usan tabulaciones como separador.
+    // (?:\d+\s+)? absorbe ese número inicial si existe; los segundos son opcionales.
+    const prefijo = '^\\s*(?:\\d+\\s+)?\\d{1,2}:\\d{2}(?::\\d{2})?\\s+';
+    // Formato con remitente/destinatario: "00:06:53 From Nombre to Everyone: msg"
+    // o en español "00:06:53 De Nombre a Todos: msg".
+    let match = linea.match(new RegExp(prefijo + '(?:from|de)\\s+(.+?)\\s+(?:to|a)\\s+(?:everyone|todos|all)(?:\\s*\\([^)]*\\))?\\s*:\\s*(.*)$', 'i'));
+    if(match){
+      usuario = match[1].trim();
+      mensaje = match[2].trim();
+    }else{
+      // Formato simple: "00:06:53 Nombre: msg" (como en las transcripciones de Zoom,
+      // con tabulaciones y a veces un número de secuencia al inicio)
+      match = linea.match(new RegExp(prefijo + '(.+?):\\s*(.*)$'));
+      if(match){ usuario = match[1].trim(); mensaje = match[2].trim(); }
+    }
+    if(usuario===null) return;
     if(normalizarTexto(mensaje).includes('presente')){
       const nombreEnMensaje = mensaje.replace(/presente/ig,'').replace(/[,\.!¡]/g,'').trim();
       resultados.push({usuario, nombreEnMensaje, tipo:'presente'});
       return;
     }
-
     // Sin la palabra "presente": si el mensaje es corto y parece solo un nombre
     // (no una frase de la clase), se intenta reconocer igual.
     const soloLetras = /^[a-zA-ZÀ-ÿñÑ\s]+$/.test(mensaje);
@@ -1297,7 +1211,6 @@ function detectarPresentesEnChat(textoChat){
   });
   return resultados;
 }
-
 function coincideNombre(nombreZoom, nombreEstudiante){
   const a = normalizarTexto(nombreZoom);
   const b = normalizarTexto(nombreEstudiante);
@@ -1309,19 +1222,15 @@ function coincideNombre(nombreZoom, nombreEstudiante){
   // suelta como "María" nunca es suficiente si hay varias personas con ese nombre.
   return coincidentes >= 2;
 }
-
 document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
   const texto = document.getElementById('as_zoom_chat').value.trim();
   if(!texto){ showToast('Pega el chat de Zoom primero.'); return; }
   const detecciones = detectarPresentesEnChat(texto);
   if(detecciones.length===0){ showToast('No se encontró a nadie escribiendo "presente" en ese texto.'); return; }
-
   const estudiantes = estudiantesDelCurso();
   const sinMatch = [];
   let coincidencias = 0;
-
   document.querySelectorAll('.as-estado').forEach(sel=>{ sel.value = 'Ausente'; });
-
   detecciones.forEach(d=>{
     let candidatos = estudiantes.filter(est=>coincideNombre(d.usuario, est));
     if(candidatos.length===0 && d.nombreEnMensaje){
@@ -1340,14 +1249,11 @@ document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
     // Si tipo==='nombre' (detectado sin decir "presente") y no hubo coincidencia clara,
     // se ignora en silencio — no era necesariamente un intento de marcar asistencia.
   });
-
   let mensaje = `${coincidencias} de ${detecciones.length} detectados y marcados como Presente.`;
   if(sinMatch.length>0) mensaje += ` Sin coincidencia: ${sinMatch.join(', ')} — revísalos a mano.`;
   showToast(mensaje);
 });
-
 document.getElementById('as_fecha').addEventListener('change', renderTomaAsistencia);
-
 document.getElementById('btn_guardar_asistencia').addEventListener('click', async ()=>{
   const fecha = document.getElementById('as_fecha').value;
   const modulo = document.getElementById('as_modulo').value;
@@ -1371,9 +1277,7 @@ document.getElementById('btn_guardar_asistencia').addEventListener('click', asyn
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 let MODULO_SELECCIONADO_ASISTENCIA = null;
-
 function renderResumenAsistencia(){
   const box = document.getElementById('as_lista_modulos');
   const modulos = modulosDelCurso();
@@ -1385,36 +1289,28 @@ function renderResumenAsistencia(){
     renderDetalleAsistenciaModulo();
   }
 }
-
 window.seleccionarModuloAsistencia = function(modulo){
   MODULO_SELECCIONADO_ASISTENCIA = modulo;
   renderResumenAsistencia();
   renderDetalleAsistenciaModulo();
 };
-
 function renderDetalleAsistenciaModulo(){
   const wrap = document.getElementById('as_detalle_modulo');
   if(!MODULO_SELECCIONADO_ASISTENCIA){ wrap.style.display='none'; return; }
   wrap.style.display='block';
-
   const info = facilitadoresDelCurso().find(f=>f.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   document.getElementById('as_fecha_modulo_texto').innerHTML = info && info.fechaModulo
     ? `Fecha del módulo: <b>${info.fechaModulo}</b>`
     : `<span style="color:var(--warn);">Este módulo no tiene fecha registrada — puedes agregarla en la pestaña Facilitadores.</span>`;
-
   const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   const estudiantes = estudiantesDelCurso();
   const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
-
   const head = document.getElementById('as_resumen_head');
   const body = document.getElementById('as_resumen_body');
   const empty = document.getElementById('as_resumen_empty');
-
   if(fechas.length===0){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
-
   head.innerHTML = '<th>Estudiante</th>' + fechas.map(f=>`<th>${f}</th>`).join('') + '<th class="num">% Asistencia</th>';
-
   body.innerHTML = estudiantes.map(est=>{
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
@@ -1429,7 +1325,6 @@ function renderDetalleAsistenciaModulo(){
     return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
   }).join('');
 }
-
 document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
   const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
@@ -1446,7 +1341,6 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV descargado.');
 });
-
 function partirNombreLargo(nombre, maxCaracteresPorLinea){
   if(nombre.length <= maxCaracteresPorLinea) return nombre;
   const palabras = nombre.split(' ');
@@ -1460,38 +1354,31 @@ function partirNombreLargo(nombre, maxCaracteresPorLinea){
   });
   return linea2 ? linea1 + '\n' + linea2 : linea1;
 }
-
 function obtenerCertificadosModulo(){
   const modulo = document.getElementById('cert_modulo').value;
   const fechaRango = document.getElementById('cert_fecha_rango').value.trim();
   if(!modulo){ showToast('Selecciona un módulo.'); return null; }
   if(!fechaRango){ showToast('Escribe el rango de fechas de la sesión.'); return null; }
-
   const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
   if(califican.length===0){ showToast('Nadie cumple la nota mínima para este módulo todavía.'); return null; }
-
   const info = getCursoInfo(CURSO_ACTUAL);
   const horas = info ? info.horasAcademicas || '' : '';
   const modalidad = info ? info.modalidad || '' : '';
   const frase = fraseCertificadoModulo(CURSO_ACTUAL, modulo);
-
   return califican.map(est=>({
     nombre: nombreParaCertificado(CURSO_ACTUAL, est),
     nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, est), 28),
     curso: CURSO_ACTUAL, modulo, frase, horas, modalidad, fechaRango
   }));
 }
-
 document.getElementById('btn_export_certificados').addEventListener('click', ()=>{
   const filas = obtenerCertificadosModulo();
   if(!filas) return;
-
   const headers = ['Nombre','NombrePartido','Curso','Modulo','FraseCertificado','HorasAcademicas','Modalidad','Fecha'];
   const rows = [headers.join(',')];
   filas.forEach(f=>{
     rows.push([f.nombre,f.nombrePartido,f.curso,f.modulo,f.frase,f.horas,f.modalidad,f.fechaRango].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
   });
-
   const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1499,11 +1386,9 @@ document.getElementById('btn_export_certificados').addEventListener('click', ()=
   a.click(); URL.revokeObjectURL(url);
   showToast(`CSV con ${filas.length} certificado(s) descargado — listo para Canva Bulk Create.`);
 });
-
 document.getElementById('btn_pdf_certificados').addEventListener('click', ()=>{
   const filas = obtenerCertificadosModulo();
   if(!filas) return;
-
   const infoBloque = `
     <div class="hint" style="line-height:1.8;">
       Curso: <b>${CURSO_ACTUAL}</b><br>
@@ -1514,7 +1399,6 @@ document.getElementById('btn_pdf_certificados').addEventListener('click', ()=>{
     </div>
   `;
   const listaNombres = filas.map(f=>`<tr><td>${f.nombre}</td></tr>`).join('');
-
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -1529,19 +1413,16 @@ document.getElementById('btn_pdf_certificados').addEventListener('click', ()=>{
   `;
   document.getElementById('modal_overlay').classList.add('show');
 });
-
 // ---------- DIPLOMA FINAL ----------
 function obtenerDatosDiploma(){
   const fechaRango = document.getElementById('diploma_fecha_rango').value.trim();
   if(!fechaRango){ showToast('Escribe la fecha/rango de graduación.'); return null; }
   const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionFinal(est));
   if(califican.length===0){ showToast('Nadie ha aprobado el diplomado completo todavía.'); return null; }
-
   const info = getCursoInfo(CURSO_ACTUAL);
   const horas = info ? info.horasAcademicas || '' : '';
   const modalidad = info ? info.modalidad || '' : '';
   const frase = fraseCertificadoFinal(CURSO_ACTUAL);
-
   return califican.map(est=>({
     nombre: nombreParaCertificado(CURSO_ACTUAL, est),
     nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, est), 28),
@@ -1549,7 +1430,6 @@ function obtenerDatosDiploma(){
     promedio: promedioFinalEstudiante(est).toFixed(1)
   }));
 }
-
 document.getElementById('btn_export_diploma').addEventListener('click', ()=>{
   const filas = obtenerDatosDiploma();
   if(!filas) return;
@@ -1563,7 +1443,6 @@ document.getElementById('btn_export_diploma').addEventListener('click', ()=>{
   a.click(); URL.revokeObjectURL(url);
   showToast(`CSV con ${filas.length} diploma(s) descargado — listo para Canva Bulk Create.`);
 });
-
 document.getElementById('btn_pdf_diploma').addEventListener('click', ()=>{
   const filas = obtenerDatosDiploma();
   if(!filas) return;
@@ -1590,19 +1469,16 @@ document.getElementById('btn_pdf_diploma').addEventListener('click', ()=>{
   `;
   document.getElementById('modal_overlay').classList.add('show');
 });
-
 // ---------- MENCIONES DE HONOR ----------
 function obtenerDatosHonor(){
   const fechaRango = document.getElementById('diploma_fecha_rango').value.trim();
   if(!fechaRango){ showToast('Escribe la fecha/rango de graduación en "Diploma Final" primero — se usa la misma.'); return null; }
   const top3 = obtenerTop3Honor();
   if(top3.length===0){ showToast('Aún no hay estudiantes aprobados para el top 3.'); return null; }
-
   const info = getCursoInfo(CURSO_ACTUAL);
   const horas = info ? info.horasAcademicas || '' : '';
   const modalidad = info ? info.modalidad || '' : '';
   const ordinales = ['Primer Lugar','Segundo Lugar','Tercer Lugar'];
-
   return top3.map((t,i)=>({
     nombre: nombreParaCertificado(CURSO_ACTUAL, t.estudiante),
     nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, t.estudiante), 28),
@@ -1612,7 +1488,6 @@ function obtenerDatosHonor(){
     frase: `Mención de Honor — ${ordinales[i]} por Mejor Promedio del ${CURSO_ACTUAL}`
   }));
 }
-
 document.getElementById('btn_export_honor').addEventListener('click', ()=>{
   const filas = obtenerDatosHonor();
   if(!filas) return;
@@ -1626,7 +1501,6 @@ document.getElementById('btn_export_honor').addEventListener('click', ()=>{
   a.click(); URL.revokeObjectURL(url);
   showToast(`CSV con ${filas.length} mención(es) de honor descargado.`);
 });
-
 document.getElementById('btn_pdf_honor').addEventListener('click', ()=>{
   const filas = obtenerDatosHonor();
   if(!filas) return;
@@ -1644,7 +1518,6 @@ document.getElementById('btn_pdf_honor').addEventListener('click', ()=>{
   `;
   document.getElementById('modal_overlay').classList.add('show');
 });
-
 document.getElementById('c_fecha').valueAsDate = new Date();
 initApp();
 </script>
