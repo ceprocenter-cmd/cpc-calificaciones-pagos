@@ -546,6 +546,12 @@ window.abrirCurso = function(curso){
   document.getElementById('curso_actual_nombre').textContent = curso;
   document.getElementById('panel_agregar_estudiantes').style.display='none';
   document.getElementById('panel_agregar_modulos').style.display='none';
+  // El chat de Zoom pegado (y su resultado de detección) pertenece a la sesión
+  // del curso anterior — se limpia para que no se quede visible al cambiar de curso.
+  const chatPrevio = document.getElementById('as_zoom_chat');
+  const resultadoPrevio = document.getElementById('as_detectar_resultado');
+  if(chatPrevio) chatPrevio.value = '';
+  if(resultadoPrevio){ resultadoPrevio.style.display='none'; resultadoPrevio.innerHTML=''; }
   poblarSelectEstudiantes();
   poblarSelectModulos();
   renderAllCurso();
@@ -1132,6 +1138,12 @@ function parsearPrimerDiaModulo(texto){
   const mes = String(mesEncontrado).padStart(2,'0');
   return `${anioMatch[1]}-${mes}-${dia}`;
 }
+function limpiarChatZoomPegado(){
+  const chat = document.getElementById('as_zoom_chat');
+  const box = document.getElementById('as_detectar_resultado');
+  if(chat) chat.value = '';
+  if(box){ box.style.display='none'; box.innerHTML=''; }
+}
 document.getElementById('as_modulo').addEventListener('change', ()=>{
   const modulo = document.getElementById('as_modulo').value;
   const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
@@ -1139,6 +1151,9 @@ document.getElementById('as_modulo').addEventListener('change', ()=>{
   if(primerDia){
     document.getElementById('as_fecha').value = primerDia;
   }
+  // Cambiar de módulo significa que el chat pegado (si había) ya no corresponde
+  // a esta sesión — se limpia para no arrastrarlo por error a otro módulo/fecha.
+  limpiarChatZoomPegado();
   renderTomaAsistencia();
 });
 function renderTomaAsistencia(){
@@ -1241,17 +1256,36 @@ function detectarPresentesEnChat(textoChat){
   }
   return resultados;
 }
-function coincideNombre(nombreZoom, nombreEstudiante){
+function contarPalabrasComunes(nombreZoom, nombreEstudiante){
   const a = normalizarTexto(nombreZoom);
   const b = normalizarTexto(nombreEstudiante);
-  if(a===b) return true;
+  if(!a || !b) return 0;
+  if(a===b) return 99; // coincidencia exacta: nada le gana a esto
   const partesA = a.split(/\s+/).filter(p=>p.length>2);
   const partesB = b.split(/\s+/).filter(p=>p.length>2);
-  const coincidentes = partesA.filter(pa=>partesB.includes(pa)).length;
-  // Basta con 1 palabra en común (nombre o apellido) para considerarlo candidato —
-  // por ejemplo "Juan Pérez presente" ya alcanza. Si esa palabra la comparten varios
-  // estudiantes, se marca como "ambiguo" más abajo en vez de adivinar mal.
-  return coincidentes >= 1;
+  return partesA.filter(pa=>partesB.includes(pa)).length;
+}
+// Busca, entre toda la nómina, quién comparte MÁS palabras (nombre y/o apellido)
+// con lo que escribió la persona en Zoom — usando tanto el remitente del chat
+// (d.usuario) como el nombre que haya escrito dentro del mensaje (d.nombreEnMensaje),
+// y se queda con lo mejor de los dos. Antes se aceptaba cualquier estudiante que
+// compartiera al menos 1 palabra, así que "Paola Yancen" (2 palabras en común con
+// "Paola Vanessa Yancen Bohorquez") quedaba marcado como ambiguo con "Andrea Paola
+// Martínez Martínez" solo por compartir "Paola" (1 palabra) — un empate injusto.
+// Ahora solo se consideran candidatos los que llegan a la MEJOR coincidencia posible;
+// si de verdad hay dos estudiantes empatados en el mismo puntaje más alto, ahí sí
+// queda como ambiguo para revisar a mano.
+function mejorCoincidenciaEstudiante(deteccion, estudiantes){
+  const textos = [deteccion.usuario, deteccion.nombreEnMensaje].filter(Boolean);
+  let mejorPuntaje = 0;
+  let mejores = [];
+  estudiantes.forEach(est=>{
+    const puntaje = Math.max(0, ...textos.map(t=>contarPalabrasComunes(t, est)));
+    if(puntaje<=0) return;
+    if(puntaje>mejorPuntaje){ mejorPuntaje = puntaje; mejores = [est]; }
+    else if(puntaje===mejorPuntaje){ mejores.push(est); }
+  });
+  return mejores;
 }
 function renderResultadoDeteccionZoom({encontrados, ambiguos, noEncontrados, totalPresente}){
   const box = document.getElementById('as_detectar_resultado');
@@ -1290,10 +1324,7 @@ document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
   const noEncontrados = [];
   document.querySelectorAll('.as-estado').forEach(sel=>{ sel.value = 'Ausente'; });
   detectadosPresente.forEach(d=>{
-    let candidatos = estudiantes.filter(est=>coincideNombre(d.usuario, est));
-    if(candidatos.length===0 && d.nombreEnMensaje){
-      candidatos = estudiantes.filter(est=>coincideNombre(d.nombreEnMensaje, est));
-    }
+    const candidatos = mejorCoincidenciaEstudiante(d, estudiantes);
     const texto = d.nombreEnMensaje || d.usuario;
     if(candidatos.length===1){
       const sel = document.querySelector(`.as-estado[data-estudiante="${CSS.escape(candidatos[0])}"]`);
@@ -1307,7 +1338,12 @@ document.getElementById('btn_detectar_zoom').addEventListener('click', ()=>{
   renderResultadoDeteccionZoom({encontrados, ambiguos, noEncontrados, totalPresente: detectadosPresente.length});
   showToast(`${encontrados.length} de ${detectadosPresente.length} marcados como Presente.`);
 });
-document.getElementById('as_fecha').addEventListener('change', renderTomaAsistencia);
+document.getElementById('as_fecha').addEventListener('change', ()=>{
+  // Igual que al cambiar de módulo: otra fecha es otra sesión, el chat pegado
+  // de la anterior ya no aplica aquí.
+  limpiarChatZoomPegado();
+  renderTomaAsistencia();
+});
 document.getElementById('btn_guardar_asistencia').addEventListener('click', async ()=>{
   const fecha = document.getElementById('as_fecha').value;
   const modulo = document.getElementById('as_modulo').value;
@@ -1329,6 +1365,7 @@ document.getElementById('btn_guardar_asistencia').addEventListener('click', asyn
       }
     }
     showToast('Asistencia guardada.');
+    limpiarChatZoomPegado();
     await loadAll();
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
