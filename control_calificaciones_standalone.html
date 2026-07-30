@@ -1180,25 +1180,23 @@ function detectarPresentesEnChat(textoChat){
   // recorta cualquier \r sobrante.
   const lineas = textoChat.split(/\r\n|\r|\n/).map(l=>l.replace(/\r+$/,''));
   const resultados = [];
-  lineas.forEach(linea=>{
-    let usuario = null, mensaje = null;
-    // Los exports de Zoom pueden traer un número de línea/secuencia antes de la hora
-    // (ej. "1\t00:06:53\tNombre:\tmensaje"), y usan tabulaciones como separador.
-    // (?:\d+\s+)? absorbe ese número inicial si existe; los segundos son opcionales.
-    const prefijo = '^\\s*(?:\\d+\\s+)?\\d{1,2}:\\d{2}(?::\\d{2})?\\s+';
-    // Formato con remitente/destinatario: "00:06:53 From Nombre to Everyone: msg"
-    // o en español "00:06:53 De Nombre a Todos: msg".
-    let match = linea.match(new RegExp(prefijo + '(?:from|de)\\s+(.+?)\\s+(?:to|a)\\s+(?:everyone|todos|all)(?:\\s*\\([^)]*\\))?\\s*:\\s*(.*)$', 'i'));
-    if(match){
-      usuario = match[1].trim();
-      mensaje = match[2].trim();
-    }else{
-      // Formato simple: "00:06:53 Nombre: msg" (como en las transcripciones de Zoom,
-      // con tabulaciones y a veces un número de secuencia al inicio)
-      match = linea.match(new RegExp(prefijo + '(.+?):\\s*(.*)$'));
-      if(match){ usuario = match[1].trim(); mensaje = match[2].trim(); }
-    }
-    if(usuario===null) return;
+  // Formato "encabezado + mensaje en líneas siguientes" — el que usa Zoom cuando
+  // guardas el chat completo de la reunión (Guardar chat). Ejemplo real:
+  //   2026-07-20 18:25:10 De Tays Bravo a Todos:
+  //   \tSi
+  //   \t   <- línea en blanco que separa un mensaje del siguiente
+  // La fecha (AAAA-MM-DD) es opcional porque el chat "en vivo" no siempre la trae.
+  // El remitente usa (.+) codicioso para que, si su nombre incluye una "a" suelta
+  // (ej. "Deicy A Vitriago Díaz"), el corte se haga en la ÚLTIMA ocurrencia de
+  // " a "/" to " (justo antes de "Todos:"), no en la primera.
+  const headerRe = /^\s*(?:\d+\s+)?(?:\d{4}-\d{2}-\d{2}\s+)?\d{1,2}:\d{2}(?::\d{2})?\s+(?:from|de)\s+(.+)\s+(?:to|a)\s+.+?:\s*(.*)$/i;
+  // Formato de una sola línea, con tabulaciones: "00:06:53\tNombre:\tmensaje"
+  // (el que usa Zoom para el chat de la reunión "en vivo" descargado directo).
+  const simpleRe = /^\s*(?:\d+\s+)?\d{1,2}:\d{2}(?::\d{2})?\s+(.+?):\s*(.*)$/;
+  function procesar(usuario, mensaje){
+    usuario = usuario.trim();
+    mensaje = (mensaje||'').trim();
+    if(!usuario || !mensaje) return;
     if(normalizarTexto(mensaje).includes('presente')){
       const nombreEnMensaje = mensaje.replace(/presente/ig,'').replace(/[,\.!¡]/g,'').trim();
       resultados.push({usuario, nombreEnMensaje, tipo:'presente'});
@@ -1211,7 +1209,36 @@ function detectarPresentesEnChat(textoChat){
     if(soloLetras && palabras.length>=1 && palabras.length<=5){
       resultados.push({usuario, nombreEnMensaje: mensaje, tipo:'nombre'});
     }
-  });
+  }
+  for(let i=0;i<lineas.length;i++){
+    const linea = lineas[i];
+    const matchHeader = linea.match(headerRe);
+    if(matchHeader){
+      const usuario = matchHeader[1];
+      let mensaje = matchHeader[2].trim();
+      if(!mensaje){
+        // El mensaje viene en las líneas siguientes, hasta la primera línea en
+        // blanco (o casi en blanco, solo con una tabulación) o el próximo encabezado.
+        const partes = [];
+        let j = i+1;
+        while(j<lineas.length){
+          const siguiente = lineas[j];
+          if(siguiente.trim()==='') break;
+          if(headerRe.test(siguiente)) break;
+          partes.push(siguiente.replace(/^\t+/,'').trim());
+          j++;
+        }
+        mensaje = partes.join(' ').trim();
+        i = j-1;
+      }
+      procesar(usuario, mensaje);
+      continue;
+    }
+    const matchSimple = linea.match(simpleRe);
+    if(matchSimple && matchSimple[2].trim()!==''){
+      procesar(matchSimple[1], matchSimple[2]);
+    }
+  }
   return resultados;
 }
 function coincideNombre(nombreZoom, nombreEstudiante){
