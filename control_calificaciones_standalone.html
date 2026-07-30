@@ -1155,14 +1155,16 @@ function renderTomaAsistencia(){
   box.innerHTML = estudiantes.map(est=>{
     const previo = registrosSesion.find(r=>r.estudiante===est);
     const estadoActual = previo ? previo.estado : 'Presente';
+    const observacionActual = previo ? (previo.observacion||'') : '';
     return `
-      <div class="check-row">
+      <div class="check-row" style="flex-wrap:wrap;">
         <div class="modname">${est}</div>
         <select class="as-estado" data-estudiante="${est.replace(/"/g,'&quot;')}" style="max-width:180px;">
           <option ${estadoActual==='Presente'?'selected':''}>Presente</option>
           <option ${estadoActual==='Ausente'?'selected':''}>Ausente</option>
           <option ${estadoActual==='Justificado'?'selected':''}>Justificado</option>
         </select>
+        <input type="text" class="as-obs" data-estudiante="${est.replace(/"/g,'&quot;')}" placeholder="Observación (opcional)" value="${observacionActual.replace(/"/g,'&quot;')}" style="flex-basis:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-family:'Nunito',sans-serif;font-size:13px;">
       </div>
     `;
   }).join('');
@@ -1290,11 +1292,13 @@ document.getElementById('btn_guardar_asistencia').addEventListener('click', asyn
     for(const sel of selects){
       const estudiante = sel.dataset.estudiante;
       const estado = sel.value;
+      const obsInput = document.querySelector(`.as-obs[data-estudiante="${CSS.escape(estudiante)}"]`);
+      const observacion = obsInput ? obsInput.value.trim() : '';
       const previo = registrosSesion.find(r=>r.estudiante===estudiante);
       if(previo){
-        await apiPost('Asistencia','update',{id:previo.id, data:{estado}});
+        await apiPost('Asistencia','update',{id:previo.id, data:{estado, observacion}});
       }else{
-        await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo, fecha, estudiante, estado}});
+        await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo, fecha, estudiante, estado, observacion}});
       }
     }
     showToast('Asistencia guardada.');
@@ -1340,24 +1344,63 @@ function renderDetalleAsistenciaModulo(){
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
       const r = registros.find(x=>x.estudiante===est && x.fecha===f);
-      if(!r) return '<td>—</td>';
+      if(!r){
+        return `<td><button class="btn btn-ghost btn-sm" style="padding:4px 9px;font-size:11.5px;color:var(--text-dim);" onclick="editarCeldaAsistencia(null,'${est.replace(/'/g,"\\'")}','${f}')">— agregar</button></td>`;
+      }
       total++;
-      if(r.estado==='Presente'){ presentes++; return '<td><span class="pill ok">P</span></td>'; }
-      if(r.estado==='Justificado'){ return '<td><span class="pill recup">J</span></td>'; }
-      return '<td><span class="pill fail">A</span></td>';
+      const claseAsist = r.estado==='Presente' ? 'ok' : (r.estado==='Justificado' ? 'recup' : 'fail');
+      if(r.estado==='Presente') presentes++;
+      const tieneObs = r.observacion && r.observacion.trim();
+      return `<td><button class="pill ${claseAsist}" style="border:none;cursor:pointer;font-family:'Nunito',sans-serif;" title="${tieneObs?r.observacion.replace(/"/g,'&quot;'):'Da clic para editar'}" onclick="editarCeldaAsistencia('${r.id}','${est.replace(/'/g,"\\'")}','${f}')">${r.estado}${tieneObs?' 💬':''}</button></td>`;
     }).join('');
     const pct = total>0 ? Math.round((presentes/total)*100) : 0;
     return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
   }).join('');
 }
+window.editarCeldaAsistencia = function(id, estudiante, fecha){
+  const registro = id ? ASISTENCIA.find(a=>a.id===id) : null;
+  const estadoActual = registro ? registro.estado : 'Presente';
+  const observacionActual = registro ? (registro.observacion||'') : '';
+  document.getElementById('print_individual_content').innerHTML = `
+    <h3 style="margin-top:0;">Editar Asistencia</h3>
+    <p class="hint">${estudiante} — ${MODULO_SELECCIONADO_ASISTENCIA} — ${fecha}</p>
+    <div class="grid cols3">
+      <div class="field"><label>Estado</label>
+        <select id="edit_asis_estado">
+          <option value="Presente" ${estadoActual==='Presente'?'selected':''}>Presente</option>
+          <option value="Ausente" ${estadoActual==='Ausente'?'selected':''}>Ausente</option>
+          <option value="Justificado" ${estadoActual==='Justificado'?'selected':''}>Justificado</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" style="margin-top:14px;"><label>Observación</label><textarea id="edit_asis_obs" style="min-height:80px;">${observacionActual}</textarea></div>
+    <div class="actions"><button class="btn btn-primary" onclick="guardarCeldaAsistencia('${id||''}','${estudiante.replace(/'/g,"\\'")}','${fecha}')">Guardar Cambios</button></div>
+  `;
+  document.getElementById('modal_overlay').classList.add('show');
+};
+window.guardarCeldaAsistencia = async function(id, estudiante, fecha){
+  const estado = document.getElementById('edit_asis_estado').value;
+  const observacion = document.getElementById('edit_asis_obs').value.trim();
+  try{
+    if(id){
+      await apiPost('Asistencia','update',{id, data:{estado, observacion}});
+    }else{
+      await apiPost('Asistencia','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_ASISTENCIA, fecha, estudiante, estado, observacion}});
+    }
+    showToast('Asistencia actualizada.');
+    document.getElementById('modal_overlay').classList.remove('show');
+    await loadAll();
+    renderAllCurso();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
 document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
   const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   if(registros.length===0){ showToast('No hay asistencia registrada en este módulo.'); return; }
-  const headers = ['Fecha','Estudiante','Estado'];
+  const headers = ['Fecha','Estudiante','Estado','Observación'];
   const rows = [headers.join(',')];
   registros.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(r=>{
-    rows.push([r.fecha,r.estudiante,r.estado].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+    rows.push([r.fecha,r.estudiante,r.estado,r.observacion||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
   });
   const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
