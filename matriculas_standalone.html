@@ -156,7 +156,7 @@
         <h2>Cursos Configurados</h2>
         <div class="table-scroll">
           <table>
-            <thead><tr><th style="width:320px;">Curso</th><th style="width:150px;">VISTA DE FORMULARIO</th><th style="width:400px;">Ítems de Pago</th><th class="num">Total de Referencia</th><th></th></tr></thead>
+            <thead><tr><th style="width:300px;">Curso</th><th style="width:300px;">VISTA DE FORMULARIO</th><th style="width:500px;">Ítems de Pago</th><th class="num">Total de Referencia</th><th></th></tr></thead>
             <tbody id="tabla_cursos"></tbody>
           </table>
         </div>
@@ -741,7 +741,7 @@ function renderTablaCursos(){
     const btnVisibilidad = visible
       ? `<span class="pill ok">Visible</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', false)">Ocultar</button>`
       : `<span class="pill na">Oculto</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', true)">Mostrar</button>`;
-    return `<tr><td style="max-width:320px;white-space:normal;word-break:break-word;">${c}</td><td style="max-width:150px;white-space:normal;">${btnVisibilidad}</td><td style="max-width:400px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td><td><button class="btn btn-ghost btn-sm" onclick="abrirEditarCurso('${cEsc}')">✏️ Editar</button></td></tr>`;
+    return `<tr><td style="max-width:300px;white-space:normal;word-break:break-word;">${c}</td><td style="max-width:300px;white-space:normal;">${btnVisibilidad}</td><td style="max-width:500px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td><td><button class="btn btn-ghost btn-sm" onclick="abrirEditarCurso('${cEsc}')">✏️ Editar</button></td></tr>`;
   }).join('');
 }
 
