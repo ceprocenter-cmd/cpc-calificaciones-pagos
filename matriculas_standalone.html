@@ -156,7 +156,7 @@
         <h2>Cursos Configurados</h2>
         <div class="table-scroll">
           <table>
-            <thead><tr><th style="width:220px;">Curso</th><th>VISTA DE FORMULARIO</th><th style="width:400px;">Ítems de Pago</th><th class="num">Total de Referencia</th></tr></thead>
+            <thead><tr><th style="width:320px;">Curso</th><th style="width:150px;">VISTA DE FORMULARIO</th><th style="width:400px;">Ítems de Pago</th><th class="num">Total de Referencia</th><th></th></tr></thead>
             <tbody id="tabla_cursos"></tbody>
           </table>
         </div>
@@ -397,6 +397,21 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn_cerrar_modal">Cerrar</button>
       <button class="btn btn-primary" id="btn_imprimir_modal">Imprimir / Guardar PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal_editar_curso">
+  <div class="modal-box">
+    <div style="padding:24px 32px;">
+      <h2 id="ec_titulo" style="margin-top:0;">Editar Curso</h2>
+      <p class="hint">Corrige el nombre o el precio de cada ítem, quita los que sobren o agrega uno nuevo.</p>
+      <div id="ec_items_rows"></div>
+      <button class="btn btn-ghost btn-sm" id="btn_ec_add_item_row" style="margin-top:8px;">+ Agregar Ítem</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn_ec_cerrar">Cancelar</button>
+      <button class="btn btn-primary" id="btn_ec_guardar">Guardar Cambios</button>
     </div>
   </div>
 </div>
@@ -726,9 +741,72 @@ function renderTablaCursos(){
     const btnVisibilidad = visible
       ? `<span class="pill ok">Visible</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', false)">Ocultar</button>`
       : `<span class="pill na">Oculto</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', true)">Mostrar</button>`;
-    return `<tr><td style="max-width:220px;white-space:normal;word-break:break-word;">${c}</td><td style="white-space:normal;">${btnVisibilidad}</td><td style="max-width:400px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td></tr>`;
+    return `<tr><td style="max-width:320px;white-space:normal;word-break:break-word;">${c}</td><td style="max-width:150px;white-space:normal;">${btnVisibilidad}</td><td style="max-width:400px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td><td><button class="btn btn-ghost btn-sm" onclick="abrirEditarCurso('${cEsc}')">✏️ Editar</button></td></tr>`;
   }).join('');
 }
+
+// ---------- EDITAR CURSO (corregir nombre/precio de ítems ya guardados) ----------
+let _cursoEnEdicion = '';
+
+function ecFilaItem(id, nombre='', precio=''){
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.dataset.id = id || '';
+  row.innerHTML = `<input placeholder="Ej. Inscripción, Módulo 1, Pago Único..." class="in" value="${nombre.replace(/"/g,'&quot;')}">
+    <input type="number" step="0.01" placeholder="Precio ref." class="ip precio-input" value="${precio}">
+    <button class="btn btn-ghost btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('ec_items_rows').appendChild(row);
+}
+document.getElementById('btn_ec_add_item_row').addEventListener('click', ()=>ecFilaItem(''));
+
+window.abrirEditarCurso = function(curso){
+  _cursoEnEdicion = curso;
+  document.getElementById('ec_titulo').textContent = `Editar Curso: ${curso}`;
+  const rows = document.getElementById('ec_items_rows');
+  rows.innerHTML = '';
+  itemsDe(curso).forEach(m=>ecFilaItem(m.id, m.modulo, m.precio));
+  document.getElementById('modal_editar_curso').classList.add('show');
+};
+
+document.getElementById('btn_ec_cerrar').addEventListener('click', ()=>{
+  document.getElementById('modal_editar_curso').classList.remove('show');
+});
+
+document.getElementById('btn_ec_guardar').addEventListener('click', async ()=>{
+  const curso = _cursoEnEdicion;
+  const idsOriginales = itemsDe(curso).map(m=>m.id);
+  const filas = [...document.querySelectorAll('#ec_items_rows .item-row')];
+  const idsConservados = [];
+  const btn = document.getElementById('btn_ec_guardar');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try{
+    for(const row of filas){
+      const nombre = row.querySelector('.in').value.trim();
+      const precio = Number(row.querySelector('.ip').value)||0;
+      if(!nombre) continue;
+      const id = row.dataset.id;
+      if(id){
+        idsConservados.push(id);
+        await apiPost('Modulos','update',{id, data:{modulo:nombre, precio}});
+      }else{
+        await apiPost('Modulos','add',{data:{id:uid(), curso, modulo:nombre, precio}});
+      }
+    }
+    // Los ítems que existían antes y ya no están en la lista (se eliminaron con la ✕) se borran del backend.
+    const idsEliminados = idsOriginales.filter(id=>!idsConservados.includes(id));
+    for(const id of idsEliminados){
+      await apiPost('Modulos','delete',{id});
+    }
+    showToast('Curso actualizado.');
+    document.getElementById('modal_editar_curso').classList.remove('show');
+    await loadAll();
+    renderAll();
+  }catch(e){
+    showToast('Error al guardar los cambios: '+e.message);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar Cambios';
+  }
+});
 
 // ---------- SOLICITUDES: revisión y confirmación de pre-registros del cliente ----------
 function renderSolicitudes(){
