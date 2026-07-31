@@ -156,7 +156,7 @@
         <h2>Cursos Configurados</h2>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>Curso</th><th>Ítems de Pago</th><th class="num">Total de Referencia</th></tr></thead>
+            <thead><tr><th style="width:220px;">Curso</th><th>VISTA DE FORMULARIO</th><th style="width:400px;">Ítems de Pago</th><th class="num">Total de Referencia</th></tr></thead>
             <tbody id="tabla_cursos"></tbody>
           </table>
         </div>
@@ -622,6 +622,24 @@ async function initApp(){
 
 function cursosUnicos(){ return [...new Set(MODULOS.map(m=>m.curso).filter(Boolean))].sort(); }
 function itemsDe(curso){ return MODULOS.filter(m=>m.curso===curso); }
+// Un curso se considera visible en la Vista de Formulario (Solicitud Pública) salvo que TODOS sus ítems estén marcados como ocultos.
+function cursoVisiblePublico(curso){
+  const items = itemsDe(curso);
+  if(items.length===0) return true;
+  return items.some(m=>m.visiblePublico!==false);
+}
+window.toggleVisibilidadCurso = async function(curso, nuevoValor){
+  const items = itemsDe(curso);
+  if(items.length===0) return;
+  try{
+    for(const it of items){
+      await apiPost('Modulos','update',{id:it.id, data:{visiblePublico:nuevoValor}});
+    }
+    showToast(nuevoValor ? `"${curso}" ahora se muestra en la Vista de Formulario.` : `"${curso}" ahora está oculto en la Vista de Formulario.`);
+    await loadAll();
+    renderAll();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
 
 function renderAll(){
   renderTicker();
@@ -703,7 +721,12 @@ function renderTablaCursos(){
   body.innerHTML = cursos.map(c=>{
     const items = itemsDe(c);
     const total = items.reduce((s,m)=>s+m.precio,0);
-    return `<tr><td>${c}</td><td>${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td></tr>`;
+    const visible = cursoVisiblePublico(c);
+    const cEsc = c.replace(/'/g,"\\'");
+    const btnVisibilidad = visible
+      ? `<span class="pill ok">Visible</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', false)">Ocultar</button>`
+      : `<span class="pill na">Oculto</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', true)">Mostrar</button>`;
+    return `<tr><td style="max-width:220px;white-space:normal;word-break:break-word;">${c}</td><td style="white-space:normal;">${btnVisibilidad}</td><td style="max-width:400px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td></tr>`;
   }).join('');
 }
 
