@@ -646,10 +646,17 @@ async function initApp(){
 function cursosUnicos(){ return [...new Set(MODULOS.map(m=>m.curso).filter(Boolean))].sort(); }
 
 // ---------- CATEGORÍAS DE CURSOS ----------
-const CATEGORIAS_CURSO = ['Diplomado','Seminario','Entrenamiento','Masterclass'];
+// prefix: cómo debe empezar el nombre del curso para caer en esta categoría (no cambia, aunque el nombre del curso no lleve "s").
+// label: cómo se muestra el botón de la categoría.
+const CATEGORIAS_CURSO = [
+  {prefix:'Diplomado', label:'Diplomados'},
+  {prefix:'Seminario', label:'Seminarios'},
+  {prefix:'Entrenamiento', label:'Entrenamientos'},
+  {prefix:'Masterclass', label:'Masterclass'}
+];
 function categoriaDe(curso){
   const c = (curso||'').trim().toLowerCase();
-  for(const cat of CATEGORIAS_CURSO){ if(c.startsWith(cat.toLowerCase())) return cat; }
+  for(const cat of CATEGORIAS_CURSO){ if(c.startsWith(cat.prefix.toLowerCase())) return cat.label; }
   return 'Otros';
 }
 let _categoriaCursoActiva = null;
@@ -658,7 +665,7 @@ function renderCategoriasCursos(){
   const cursos = cursosUnicos();
   const conteo = {};
   cursos.forEach(c=>{ const cat = categoriaDe(c); conteo[cat] = (conteo[cat]||0)+1; });
-  const categoriasAMostrar = CATEGORIAS_CURSO.concat(conteo['Otros'] ? ['Otros'] : []);
+  const categoriasAMostrar = CATEGORIAS_CURSO.map(c=>c.label).concat(conteo['Otros'] ? ['Otros'] : []);
   const box = document.getElementById('categorias_cursos');
   if(!box) return;
   box.innerHTML = categoriasAMostrar.map(cat=>{
@@ -787,6 +794,8 @@ function renderTablaCursos(){
   wrap.style.display='block';
 
   const cursos = todos.filter(c=>categoriaDe(c)===_categoriaCursoActiva);
+  // Los cursos ocultos de la Vista de Formulario quedan al fondo; entre cursos con el mismo estado se mantiene el orden alfabético.
+  cursos.sort((a,b)=>(cursoVisiblePublico(a)?0:1) - (cursoVisiblePublico(b)?0:1));
   if(cursos.length===0){ body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin cursos en esta categoría.</td></tr>`; return; }
 
   body.innerHTML = cursos.map(c=>{
