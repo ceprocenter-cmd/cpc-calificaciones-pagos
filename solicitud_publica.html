@@ -175,7 +175,8 @@ function fileToBase64(file){
 async function cargarCursos(){
   try{
     const mod = await apiGet('Modulos');
-    const cursos = [...new Set(mod.map(m=>m.curso).filter(Boolean))].sort();
+    // Solo mostramos cursos que no hayan sido ocultados desde Matrículas (pestaña "Cursos").
+    const cursos = [...new Set(mod.filter(m=>m.visiblePublico!==false).map(m=>m.curso).filter(Boolean))].sort();
     document.getElementById('lista_cursos').innerHTML = cursos.map(c=>`<option value="${c}">`).join('');
   }catch(e){ /* silencioso: si falla, el cliente igual puede escribir el curso a mano */ }
 }
