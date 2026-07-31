@@ -40,6 +40,13 @@
   .success-box .icono{font-size:44px;margin-bottom:16px;}
   .success-box h2{font-size:20px;margin:0 0 10px;}
   .success-box p{color:var(--text-dim);font-size:14px;line-height:1.6;}
+  .combo-wrap{position:relative;}
+  .combo-list{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--panel);border:1px solid var(--line);border-radius:9px;max-height:240px;overflow-y:auto;z-index:50;box-shadow:0 6px 18px rgba(36,39,58,0.12);display:none;}
+  .combo-list.show{display:block;}
+  .combo-item{padding:11px 14px;font-size:14.5px;cursor:pointer;border-bottom:1px solid var(--line);}
+  .combo-item:last-child{border-bottom:none;}
+  .combo-item:hover, .combo-item.active{background:var(--accent-soft);color:var(--accent-dark);}
+  .combo-empty{padding:11px 14px;font-size:13px;color:var(--text-dim);}
 </style>
 </head>
 <body>
@@ -53,7 +60,7 @@
 
   <div class="panel" id="form_box">
     <div class="section-label">Tu curso</div>
-    <div class="field"><label>Curso o Diplomado al que te inscribes <span class="req">*</span></label><input id="f_curso" list="lista_cursos" placeholder="Escribe el nombre exacto que te indicó tu asesor"><datalist id="lista_cursos"></datalist></div>
+    <div class="field combo-wrap"><label>Curso o Diplomado al que te inscribes <span class="req">*</span></label><input id="f_curso" autocomplete="off" placeholder="Escribe el nombre exacto que te indicó tu asesor"><div class="combo-list" id="combo_cursos"></div></div>
 
     <div class="section-label">Tus datos</div>
     <div class="field"><label>Nombres y apellidos completos <span class="req">*</span></label><input id="f_estudiante" placeholder="Como aparece en tu cédula"></div>
@@ -172,15 +179,61 @@ function fileToBase64(file){
   });
 }
 
+let CURSOS_DISPONIBLES = [];
+
 async function cargarCursos(){
   try{
     const mod = await apiGet('Modulos');
     // Solo mostramos cursos que no hayan sido ocultados desde Matrículas (pestaña "Cursos").
-    const cursos = [...new Set(mod.filter(m=>m.visiblePublico!==false).map(m=>m.curso).filter(Boolean))].sort();
-    document.getElementById('lista_cursos').innerHTML = cursos.map(c=>`<option value="${c}">`).join('');
+    CURSOS_DISPONIBLES = [...new Set(mod.filter(m=>m.visiblePublico!==false).map(m=>m.curso).filter(Boolean))].sort();
   }catch(e){ /* silencioso: si falla, el cliente igual puede escribir el curso a mano */ }
 }
 cargarCursos();
+
+// ---------- Combobox de Curso: lista de sugerencias con el mismo estilo del sitio, en vez del autocompletado nativo ----------
+const inputCurso = document.getElementById('f_curso');
+const listaCurso = document.getElementById('combo_cursos');
+let comboCursoIndex = -1;
+
+function renderComboCursos(filtro){
+  const texto = (filtro||'').trim().toLowerCase();
+  const opciones = texto
+    ? CURSOS_DISPONIBLES.filter(c=>c.toLowerCase().includes(texto))
+    : CURSOS_DISPONIBLES;
+  comboCursoIndex = -1;
+  if(opciones.length===0){
+    listaCurso.innerHTML = CURSOS_DISPONIBLES.length
+      ? `<div class="combo-empty">Ningún curso coincide. Puedes escribirlo tal como te lo indicó tu asesor.</div>`
+      : `<div class="combo-empty">Escribe el nombre del curso.</div>`;
+  }else{
+    listaCurso.innerHTML = opciones.map(c=>`<div class="combo-item" data-valor="${c.replace(/"/g,'&quot;')}">${c}</div>`).join('');
+  }
+  listaCurso.classList.add('show');
+}
+function marcarActivoCombo(items){
+  items.forEach((it,i)=>it.classList.toggle('active', i===comboCursoIndex));
+  if(comboCursoIndex>=0) items[comboCursoIndex].scrollIntoView({block:'nearest'});
+}
+
+inputCurso.addEventListener('focus', ()=>renderComboCursos(inputCurso.value));
+inputCurso.addEventListener('input', ()=>renderComboCursos(inputCurso.value));
+inputCurso.addEventListener('blur', ()=>{ setTimeout(()=>listaCurso.classList.remove('show'), 150); });
+inputCurso.addEventListener('keydown', (e)=>{
+  const items = [...listaCurso.querySelectorAll('.combo-item')];
+  if(!items.length) return;
+  if(e.key === 'ArrowDown'){ e.preventDefault(); comboCursoIndex = Math.min(comboCursoIndex+1, items.length-1); marcarActivoCombo(items); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); comboCursoIndex = Math.max(comboCursoIndex-1, 0); marcarActivoCombo(items); }
+  else if(e.key === 'Enter'){ if(comboCursoIndex>=0){ e.preventDefault(); inputCurso.value = items[comboCursoIndex].dataset.valor; listaCurso.classList.remove('show'); } }
+  else if(e.key === 'Escape'){ listaCurso.classList.remove('show'); }
+});
+listaCurso.addEventListener('mousedown', (e)=>{
+  // mousedown (no click) para que dispare antes del blur del input y no se cierre la lista antes de registrar la selección.
+  e.preventDefault();
+  const item = e.target.closest('.combo-item');
+  if(!item) return;
+  inputCurso.value = item.dataset.valor;
+  listaCurso.classList.remove('show');
+});
 
 document.getElementById('f_metodo_pago').addEventListener('change', ()=>{
   const metodo = document.getElementById('f_metodo_pago').value;
