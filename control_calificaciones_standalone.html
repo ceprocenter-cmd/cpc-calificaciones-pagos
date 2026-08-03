@@ -1189,9 +1189,10 @@ function renderTomaAsistencia(){
     const previo = registrosSesion.find(r=>r.estudiante===est);
     const estadoActual = previo ? previo.estado : 'Presente';
     const observacionActual = previo ? (previo.observacion||'') : '';
+    const baja = estaDadoDeBaja(est);
     return `
-      <div class="check-row" style="flex-wrap:wrap;">
-        <div class="modname">${est}</div>
+      <div class="check-row" style="flex-wrap:wrap;${baja?'opacity:0.5;background:var(--panel-2);':''}">
+        <div class="modname">${est}${baja?' <span class="pill na">No continuó</span>':''}</div>
         <select class="as-estado" data-estudiante="${est.replace(/"/g,'&quot;')}" style="max-width:180px;">
           <option ${estadoActual==='Presente'?'selected':''}>Presente</option>
           <option ${estadoActual==='Ausente'?'selected':''}>Ausente</option>
@@ -1423,6 +1424,7 @@ function renderDetalleAsistenciaModulo(){
   empty.style.display='none';
   head.innerHTML = '<th>Estudiante</th>' + fechas.map(f=>`<th>${formatFechaDMY(f)}</th>`).join('') + '<th class="num">% Asistencia</th>';
   body.innerHTML = estudiantes.map(est=>{
+    const baja = estaDadoDeBaja(est);
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
       const r = registros.find(x=>x.estudiante===est && x.fecha===f);
@@ -1436,7 +1438,7 @@ function renderDetalleAsistenciaModulo(){
       return `<td><button class="pill ${claseAsist}" style="border:none;cursor:pointer;font-family:'Nunito',sans-serif;" title="${tieneObs?r.observacion.replace(/"/g,'&quot;'):'Da clic para editar'}" onclick="editarCeldaAsistencia('${r.id}','${est.replace(/'/g,"\\'")}','${f}')">${r.estado}${tieneObs?' 💬':''}</button></td>`;
     }).join('');
     const pct = total>0 ? Math.round((presentes/total)*100) : 0;
-    return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
+    return `<tr style="${baja?'opacity:0.5;background:var(--panel-2);':''}"><td>${est}${baja?' <span class="pill na">No continuó</span>':''}</td>${celdas}<td class="num">${pct}%</td></tr>`;
   }).join('');
 }
 window.editarCeldaAsistencia = function(id, estudiante, fecha){
@@ -1479,10 +1481,11 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
   const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   if(registros.length===0){ showToast('No hay asistencia registrada en este módulo.'); return; }
-  const headers = ['Fecha','Estudiante','Estado','Observación'];
+  const headers = ['Fecha','Estudiante','Estado','Observación','Matrícula'];
   const rows = [headers.join(',')];
   registros.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(r=>{
-    rows.push([formatFechaDMY(r.fecha),r.estudiante,r.estado,r.observacion||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+    const matricula = estaDadoDeBaja(r.estudiante) ? 'No continuó' : 'Activo';
+    rows.push([formatFechaDMY(r.fecha),r.estudiante,r.estado,r.observacion||'',matricula].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
   });
   const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
@@ -1504,6 +1507,7 @@ document.getElementById('btn_pdf_asistencia').addEventListener('click', ()=>{
   const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
   const info = facilitadoresDelCurso().find(f=>f.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   const filasHtml = estudiantes.map(est=>{
+    const baja = estaDadoDeBaja(est);
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
       const r = registros.find(x=>x.estudiante===est && x.fecha===f);
@@ -1513,7 +1517,7 @@ document.getElementById('btn_pdf_asistencia').addEventListener('click', ()=>{
       return `<td>${r.estado}</td>`;
     }).join('');
     const pct = total>0 ? Math.round((presentes/total)*100) : 0;
-    return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
+    return `<tr${baja?' style="opacity:0.6;"':''}><td>${est}${baja?' (No continuó)':''}</td>${celdas}<td class="num">${pct}%</td></tr>`;
   }).join('');
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
