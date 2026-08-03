@@ -92,6 +92,7 @@
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,39,58,0.55);z-index:300;align-items:center;justify-content:center;padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal-box{background:#fff;border-radius:14px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;}
+  .modal-box.modal-wide{max-width:1100px;}
   .modal-actions{padding:16px 32px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;}
   @media print{
     .tabs, .actions, .filters, .top .sub{display:none !important;} body{background:#fff;}
@@ -347,7 +348,10 @@
             </table>
           </div>
           <div class="empty" id="as_resumen_empty" style="display:none;">Aún no hay asistencia registrada en este módulo.</div>
-          <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_export_asistencia">Descargar Asistencia del Módulo (CSV)</button></div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="btn_export_asistencia">Descargar Asistencia del Módulo (CSV)</button>
+            <button class="btn btn-ghost btn-sm" id="btn_pdf_asistencia">Descargar Asistencia del Módulo (PDF)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -366,7 +370,7 @@
   </div>
 </div>
 <div class="modal-overlay" id="modal_overlay">
-  <div class="modal-box">
+  <div class="modal-box" id="modal_box">
     <div id="print_individual_content"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn_cerrar_modal">Cerrar</button>
@@ -391,6 +395,19 @@ let PAGOS = [];
 let CURSO_ACTUAL = null;
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Convierte cualquier valor de fecha (string plano AAAA-MM-DD, string ISO con
+// hora tipo 2026-07-20T05:00:00.000Z, u objeto Date que llega serializado desde
+// Google Sheets) a un texto simple DD/MM/AAAA para mostrar en pantalla y PDFs.
+// Se lee directamente el AAAA-MM-DD del inicio del string para no depender de
+// new Date() y evitar que un desfase de zona horaria mueva el día mostrado.
+function formatFechaDMY(fecha){
+  if(!fecha) return '';
+  const m = String(fecha).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(fecha);
+  if(isNaN(d)) return String(fecha);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
 document.getElementById('btn_config').addEventListener('click', ()=>{
   const b = document.getElementById('setup_banner');
   b.style.display = b.style.display==='none' ? 'block' : 'none';
@@ -867,7 +884,7 @@ function renderHistorialCurso(){
   else{
     empty.style.display='none';
     body.innerHTML = rows.map(r=>`
-      <tr><td>${r.fecha}</td><td>${r.estudiante}</td><td>${r.modulo}</td>
+      <tr><td>${formatFechaDMY(r.fecha)}</td><td>${r.estudiante}</td><td>${r.modulo}</td>
       <td class="num">${Number(r.nota).toFixed(1)}</td>
       <td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="eliminarNota('${r.id}')">Eliminar</button></td></tr>
@@ -925,6 +942,7 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
 window.onafterprint = function(){
   document.body.classList.remove('printing-individual');
   document.getElementById('print_orientation_override').textContent = '';
+  document.getElementById('modal_box').classList.remove('modal-wide');
 };
 // ---------- MODO DEMO (sin conexión, solo para previsualizar diseño) ----------
 document.getElementById('btn_demo').addEventListener('click', ()=>{
@@ -1403,7 +1421,7 @@ function renderDetalleAsistenciaModulo(){
   const empty = document.getElementById('as_resumen_empty');
   if(fechas.length===0){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
-  head.innerHTML = '<th>Estudiante</th>' + fechas.map(f=>`<th>${f}</th>`).join('') + '<th class="num">% Asistencia</th>';
+  head.innerHTML = '<th>Estudiante</th>' + fechas.map(f=>`<th>${formatFechaDMY(f)}</th>`).join('') + '<th class="num">% Asistencia</th>';
   body.innerHTML = estudiantes.map(est=>{
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
@@ -1427,7 +1445,7 @@ window.editarCeldaAsistencia = function(id, estudiante, fecha){
   const observacionActual = registro ? (registro.observacion||'') : '';
   document.getElementById('print_individual_content').innerHTML = `
     <h3 style="margin-top:0;">Editar Asistencia</h3>
-    <p class="hint">${estudiante} — ${MODULO_SELECCIONADO_ASISTENCIA} — ${fecha}</p>
+    <p class="hint">${estudiante} — ${MODULO_SELECCIONADO_ASISTENCIA} — ${formatFechaDMY(fecha)}</p>
     <div class="grid cols3">
       <div class="field"><label>Estado</label>
         <select id="edit_asis_estado">
@@ -1464,7 +1482,7 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   const headers = ['Fecha','Estudiante','Estado','Observación'];
   const rows = [headers.join(',')];
   registros.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).forEach(r=>{
-    rows.push([r.fecha,r.estudiante,r.estado,r.observacion||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+    rows.push([formatFechaDMY(r.fecha),r.estudiante,r.estado,r.observacion||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
   });
   const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
@@ -1472,6 +1490,45 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   a.href = url; a.download = `asistencia_${MODULO_SELECCIONADO_ASISTENCIA.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV descargado.');
+});
+// Genera el PDF (vía la vista de impresión ya existente) del resumen de
+// asistencia del módulo seleccionado, con exactamente las mismas columnas que
+// se ven en pantalla: Estudiante, una columna por fecha (en formato DD/MM/AAAA)
+// y % Asistencia al final. Como puede haber muchas fechas, se fuerza la hoja a
+// horizontal (landscape) solo mientras dura esta impresión.
+document.getElementById('btn_pdf_asistencia').addEventListener('click', ()=>{
+  if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
+  const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
+  if(registros.length===0){ showToast('No hay asistencia registrada en este módulo.'); return; }
+  const estudiantes = estudiantesDelCurso();
+  const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
+  const info = facilitadoresDelCurso().find(f=>f.modulo===MODULO_SELECCIONADO_ASISTENCIA);
+  const filasHtml = estudiantes.map(est=>{
+    let presentes=0, total=0;
+    const celdas = fechas.map(f=>{
+      const r = registros.find(x=>x.estudiante===est && x.fecha===f);
+      if(!r) return '<td>—</td>';
+      total++;
+      if(r.estado==='Presente') presentes++;
+      return `<td>${r.estado}</td>`;
+    }).join('');
+    const pct = total>0 ? Math.round((presentes/total)*100) : 0;
+    return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
+  }).join('');
+  document.getElementById('print_individual_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Resumen de Asistencia — ${MODULO_SELECCIONADO_ASISTENCIA}</div>
+    </div>
+    <div class="hint" style="margin-bottom:16px;">Curso: <b>${CURSO_ACTUAL}</b>${info && info.fechaModulo ? ` — Fecha del módulo: <b>${info.fechaModulo}</b>` : ''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <table class="doc-table">
+      <thead><tr><th>Estudiante</th>${fechas.map(f=>`<th>${formatFechaDMY(f)}</th>`).join('')}<th style="text-align:right;">% Asist.</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('print_orientation_override').textContent = '@page{ size: landscape; margin: 10mm; }';
+  document.getElementById('modal_box').classList.add('modal-wide');
+  document.getElementById('modal_overlay').classList.add('show');
 });
 function partirNombreLargo(nombre, maxCaracteresPorLinea){
   if(nombre.length <= maxCaracteresPorLinea) return nombre;
