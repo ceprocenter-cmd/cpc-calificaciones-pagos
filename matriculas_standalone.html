@@ -367,7 +367,7 @@
       </div>
       <div class="panel">
         <h2>Importar tu Base de Datos Existente</h2>
-        <p class="hint">Sube un archivo CSV con tus ex-alumnos de antes de usar este sistema. Debe tener estas columnas en la primera fila (en cualquier orden): <b>nombre, cedula, correo, telefono, curso, fecha, ciudad, pais, profesion, notas</b>. Las columnas que no tengas, déjalas vacías o quítalas — solo <b>nombre</b> es obligatoria. Los registros que coincidan por cédula (o por nombre, si no hay cédula) con alguien que ya está en el sistema se omiten automáticamente — no se duplican.</p>
+        <p class="hint">Sube un archivo CSV con tus ex-alumnos de antes de usar este sistema. Debe tener estas columnas en la primera fila (en cualquier orden): <b>nombre, apellido, cedula, correo, telefono, curso, fecha, ciudad, pais, profesion, notas</b>. Si tu archivo trae el nombre y el apellido en columnas separadas, agrega una columna <b>apellido</b> — el sistema los une automáticamente ("nombre apellido"). Las columnas que no tengas, déjalas vacías o quítalas — solo <b>nombre</b> es obligatoria. Los registros que coincidan por cédula (o por nombre completo, si no hay cédula) con alguien que ya está en el sistema se omiten automáticamente — no se duplican.</p>
         <input type="file" id="exal_archivo" accept=".csv">
         <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_importar_exalumnos">Importar CSV</button></div>
         <div class="hint" id="exal_import_resultado" style="margin-top:10px;"></div>
@@ -1904,11 +1904,16 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
   resultadoBox.textContent = 'Leyendo archivo...';
   try{
     const texto = await archivo.text();
-    const filas = parseCSV(texto);
+    const filasCrudas = parseCSV(texto);
+    // Si el archivo trae "nombre" y "apellido" en columnas separadas, se unen en un solo nombre completo.
+    const filas = filasCrudas.map(f=>{
+      const nombreCompleto = [f.nombre, f.apellido].filter(v=>v && v.trim()).join(' ').trim();
+      return {...f, nombre: nombreCompleto};
+    });
     const validas = filas.filter(f=>f.nombre && f.nombre.trim());
     if(validas.length===0){ resultadoBox.textContent = 'No se encontraron filas con nombre válido en el archivo.'; return; }
     // Claves de todos los estudiantes que ya están en el sistema (matriculados + importados antes),
-    // usando la misma lógica de "cédula, o si no hay cédula, nombre" que usa la Base de Datos de Estudiantes.
+    // usando la misma lógica de "cédula, o si no hay cédula, nombre completo" que usa la Base de Datos de Estudiantes.
     const existentes = new Set(construirBaseEstudiantes().map(e=>claveEstudiante(e.cedula, e.nombre)));
     const nuevas = [];
     const duplicadas = [];
