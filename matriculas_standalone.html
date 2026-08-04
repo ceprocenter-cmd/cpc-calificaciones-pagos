@@ -1952,14 +1952,21 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
   }
 });
 function parseCSV(texto){
+  // Quita el BOM (marca invisible de UTF-8) que Excel suele agregar al inicio del archivo.
+  texto = texto.replace(/^﻿/, '');
   const lineas = texto.split(/\r?\n/).filter(l=>l.trim());
   if(lineas.length<2) return [];
+  // Detecta el separador automáticamente: algunos exportadores (Excel en español, etc.) usan ";" en vez de ",".
+  const lineaHeader = lineas[0];
+  const numComas = (lineaHeader.match(/,/g)||[]).length;
+  const numPuntoYComa = (lineaHeader.match(/;/g)||[]).length;
+  const separador = numPuntoYComa > numComas ? ';' : ',';
   const parseLinea = (linea)=>{
     const cols = []; let actual=''; let entreComillas=false;
     for(let i=0;i<linea.length;i++){
       const c = linea[i];
       if(c==='"'){ entreComillas = !entreComillas; }
-      else if(c===',' && !entreComillas){ cols.push(actual); actual=''; }
+      else if(c===separador && !entreComillas){ cols.push(actual); actual=''; }
       else{ actual+=c; }
     }
     cols.push(actual);
