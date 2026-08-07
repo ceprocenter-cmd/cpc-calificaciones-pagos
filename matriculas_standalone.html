@@ -278,76 +278,76 @@
         <div class="actions"><button class="btn btn-primary btn-sm" id="btn_desbloquear_reporte">Entrar</button></div>
       </div>
       <div id="reporte_contenido" style="display:none;">
-      <div class="panel">
-        <h2>Resumen General</h2>
-        <div class="ticker" id="ticker_reporte"></div>
-      </div>
-      <div class="panel">
-        <h2>Reporte Mensual de Pagos</h2>
-        <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
-        <div id="reporte_resumen"></div>
-        <div class="table-scroll" style="margin-top:16px;">
-          <table><thead><tr><th>Curso</th><th class="num">N° Pagos</th><th class="num">Total Recibido</th></tr></thead><tbody id="tabla_reporte_curso"></tbody></table>
+        <div class="panel">
+          <h2>Resumen General</h2>
+          <div class="ticker" id="ticker_reporte"></div>
         </div>
-        <div class="actions">
-          <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte_mat">Copiar Reporte</button>
-          <button class="btn btn-ghost btn-sm" id="btn_export_pagos_csv">Descargar Pagos (CSV)</button>
-          <button class="btn btn-ghost btn-sm" id="btn_export_matriculas_csv">Descargar Matrículas (CSV)</button>
-          <button class="btn btn-ghost btn-sm" id="btn_pdf_reporte_mensual">Descargar Reporte (PDF)</button>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Ventas por Asesor</h2>
-        <p class="hint">Quién ha vendido más en el periodo seleccionado arriba.</p>
-        <div class="table-scroll">
-          <table><thead><tr><th>Asesor</th><th class="num">N° Pagos</th><th class="num">Total Vendido</th><th>Progreso</th></tr></thead><tbody id="tabla_reporte_asesor"></tbody></table>
-        </div>
-        <div class="field" style="max-width:280px;margin-top:20px;"><label>Ver Detalle de un Asesor</label><select id="sel_detalle_asesor"><option value="">Selecciona un asesor</option></select></div>
-        <div id="va_lista_cursos_wrap" style="display:none;margin-top:14px;">
-          <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Elige un Curso</label>
-          <div id="va_lista_cursos" style="display:flex;flex-direction:column;gap:6px;"></div>
-        </div>
-        <div id="va_tabla_ventas_wrap" style="display:none;margin-top:18px;">
-          <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin-bottom:8px;" id="va_titulo_ventas"></h3>
-          <div class="table-scroll">
-            <table><thead><tr><th>Fecha</th><th>Estudiante</th><th>Módulo</th><th class="num">Monto</th></tr></thead><tbody id="va_tabla_ventas"></tbody></table>
+        <div class="panel">
+          <h2>Reporte Mensual de Pagos</h2>
+          <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
+          <div id="reporte_resumen"></div>
+          <div class="table-scroll" style="margin-top:16px;">
+            <table><thead><tr><th>Curso</th><th class="num">N° Pagos</th><th class="num">Total Recibido</th></tr></thead><tbody id="tabla_reporte_curso"></tbody></table>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte_mat">Copiar Reporte</button>
+            <button class="btn btn-ghost btn-sm" id="btn_export_pagos_csv">Descargar Pagos (CSV)</button>
+            <button class="btn btn-ghost btn-sm" id="btn_export_matriculas_csv">Descargar Matrículas (CSV)</button>
+            <button class="btn btn-ghost btn-sm" id="btn_pdf_reporte_mensual">Descargar Reporte (PDF)</button>
           </div>
         </div>
-      </div>
-      <div class="panel">
-        <h2>Conciliación Bancaria</h2>
-        <p class="hint">Finanzas confirma aquí, pago por pago, que el dinero efectivamente cayó en la cuenta.</p>
-        <div class="grid cols3" style="margin-bottom:12px;">
-          <div class="field"><label>Filtrar por Método de Pago</label><select id="conc_filtro_metodo"><option value="">Todos</option></select></div>
-          <div class="field"><label>Filtrar por Cuenta / Banco</label><select id="conc_filtro_cuenta"><option value="">Todas</option></select></div>
+        <div class="panel">
+          <h2>Ventas por Asesor</h2>
+          <p class="hint">Quién ha vendido más en el periodo seleccionado arriba.</p>
+          <div class="table-scroll">
+            <table><thead><tr><th>Asesor</th><th class="num">N° Pagos</th><th class="num">Total Vendido</th><th>Progreso</th></tr></thead><tbody id="tabla_reporte_asesor"></tbody></table>
+          </div>
+          <div class="field" style="max-width:280px;margin-top:20px;"><label>Ver Detalle de un Asesor</label><select id="sel_detalle_asesor"><option value="">Selecciona un asesor</option></select></div>
+          <div id="va_lista_cursos_wrap" style="display:none;margin-top:14px;">
+            <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Elige un Curso</label>
+            <div id="va_lista_cursos" style="display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+          <div id="va_tabla_ventas_wrap" style="display:none;margin-top:18px;">
+            <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin-bottom:8px;" id="va_titulo_ventas"></h3>
+            <div class="table-scroll">
+              <table><thead><tr><th>Fecha</th><th>Estudiante</th><th>Módulo</th><th class="num">Monto</th></tr></thead><tbody id="va_tabla_ventas"></tbody></table>
+            </div>
+          </div>
         </div>
-        <div id="conciliacion_resumen"></div>
-        <div class="table-scroll" style="margin-top:12px;">
-          <table>
-            <thead><tr>
-  <th class="sticky-col sticky-1">Fecha</th>
-  <th class="sticky-col sticky-2">Estudiante</th>
-  <th class="sticky-col sticky-3">Confirmar</th>
-  <th>Curso</th><th>Concepto</th><th class="num">Monto</th><th>Cuenta / Método</th><th>Comprobante</th><th>Referencia</th>
-</tr></thead>
-            <tbody id="tabla_conciliacion"></tbody>
-          </table>
+        <div class="panel">
+          <h2>Conciliación Bancaria</h2>
+          <p class="hint">Finanzas confirma aquí, pago por pago, que el dinero efectivamente cayó en la cuenta.</p>
+          <div class="grid cols3" style="margin-bottom:12px;">
+            <div class="field"><label>Filtrar por Método de Pago</label><select id="conc_filtro_metodo"><option value="">Todos</option></select></div>
+            <div class="field"><label>Filtrar por Cuenta / Banco</label><select id="conc_filtro_cuenta"><option value="">Todas</option></select></div>
+          </div>
+          <div id="conciliacion_resumen"></div>
+          <div class="table-scroll" style="margin-top:12px;">
+            <table>
+              <thead><tr>
+                <th class="sticky-col sticky-1">Fecha</th>
+                <th class="sticky-col sticky-2">Estudiante</th>
+                <th class="sticky-col sticky-3">Confirmar</th>
+                <th>Curso</th><th>Concepto</th><th class="num">Monto</th><th>Cuenta / Método</th><th>Comprobante</th><th>Referencia</th>
+              </tr></thead>
+              <tbody id="tabla_conciliacion"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="conciliacion_empty" style="display:none;">No hay pagos en este periodo.</div>
         </div>
-        <div class="empty" id="conciliacion_empty" style="display:none;">No hay pagos en este periodo.</div>
-      </div>
       </div>
     </div>
     <!-- BASE DE EX-ALUMNOS -->
     <div id="tab-exalumnos" style="display:none;">
-  <div class="panel">
-    <h2>Base de Datos de Estudiantes</h2>
-    <div class="ticker" style="margin-bottom:20px;">
-      <div class="tick" style="border:2px solid var(--accent-dark);">
-        <div class="n" id="exal_total_destacado">0</div>
-        <div class="l">Estudiantes Inscritos en Total</div>
-      </div>
-    </div>
-    <p class="hint">Filtra por nombre, cédula, país o curso — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
+      <div class="panel">
+        <h2>Base de Datos de Estudiantes</h2>
+        <div class="ticker" style="margin-bottom:20px;">
+          <div class="tick" style="border:2px solid var(--accent-dark);">
+            <div class="n" id="exal_total_destacado">0</div>
+            <div class="l">Estudiantes Inscritos en Total</div>
+          </div>
+        </div>
+        <p class="hint">Filtra por nombre, cédula, país o curso — revisa tanto las matrículas ya hechas en el sistema como la base que subas abajo.</p>
         <div class="grid cols3" style="margin-bottom:16px;">
           <div class="field"><label>Nombre o Cédula</label><input id="exal_buscar" placeholder="Escribe para buscar..."></div>
           <div class="field"><label>País</label><select id="exal_filtro_pais"><option value="">Todos</option></select></div>
@@ -416,13 +416,7 @@ function actualizarCodigoPais(){
   if(!codigo) return;
   const telInput = document.getElementById('m_telefono');
   const actual = telInput.value.trim();
-  if(!actual){
-    telInput.value = codigo + ' ';
-  }else if(/^\+\d+/.test(actual)){
-    telInput.value = actual.replace(/^\+\d+\s*/, codigo + ' ');
-  }else{
-    telInput.value = codigo + ' ' + actual;
-  }
+  if(!actual){ telInput.value = codigo + ' '; }else if(/^\+\d+/.test(actual)){ telInput.value = actual.replace(/^\+\d+\s*/, codigo + ' '); }else{ telInput.value = codigo + ' ' + actual; }
 }
 const REPORTE_CLAVE_CORRECTA = '25069546CPC';
 if(sessionStorage.getItem('reporte_desbloqueado') === 'si'){
@@ -437,14 +431,10 @@ document.getElementById('btn_desbloquear_reporte').addEventListener('click', ()=
     document.getElementById('reporte_lock').style.display = 'none';
     document.getElementById('reporte_contenido').style.display = 'block';
     renderTickerReporte();
-  }else{
-    showToast('Clave incorrecta.');
-  }
+  }else{ showToast('Clave incorrecta.'); }
   document.getElementById('reporte_clave').value = '';
 });
-document.getElementById('reporte_clave').addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter') document.getElementById('btn_desbloquear_reporte').click();
-});
+document.getElementById('reporte_clave').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') document.getElementById('btn_desbloquear_reporte').click(); });
 document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
   const metodo = document.getElementById('m_metodo_pago').value;
   const requiereCuenta = metodo === 'Transferencia Bancaria' || metodo === 'Depósito';
@@ -452,12 +442,8 @@ document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
 });
 document.getElementById('m_pais').addEventListener('change', actualizarCodigoPais);
 document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
-document.getElementById('m_telefono').addEventListener('focus', ()=>{
-  if(!document.getElementById('m_telefono').value.trim()) actualizarCodigoPais();
-});
-function normalizarNombreEst(t){
-  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
-}
+document.getElementById('m_telefono').addEventListener('focus', ()=>{ if(!document.getElementById('m_telefono').value.trim()) actualizarCodigoPais(); });
+function normalizarNombreEst(t){ return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
 function buscarDatosPrevios(estudiante){
   const nombreNorm = normalizarNombreEst(estudiante);
   const coincidencias = MATRICULAS.filter(m => normalizarNombreEst(m.estudiante||'') === nombreNorm);
@@ -475,19 +461,13 @@ document.getElementById('m_estudiante').addEventListener('blur', ()=>{
   }
   const previo = buscarDatosPrevios(el.value.trim());
   if(previo){
-    const campos = {
-      m_cedula: previo.cedula, m_correo: previo.correo, m_telefono: previo.telefono,
-      m_profesion: previo.profesion, m_instagram: previo.instagram, m_ciudad: previo.ciudad,
-      m_pais: previo.pais, m_certificado: previo.certificado
-    };
+    const campos = { m_cedula: previo.cedula, m_correo: previo.correo, m_telefono: previo.telefono, m_profesion: previo.profesion, m_instagram: previo.instagram, m_ciudad: previo.ciudad, m_pais: previo.pais, m_certificado: previo.certificado };
     let rellenoAlgo = false;
     Object.entries(campos).forEach(([id, val])=>{
       const campo = document.getElementById(id);
       if(campo && !campo.value.trim() && val){ campo.value = val; rellenoAlgo = true; }
     });
-    if(rellenoAlgo){
-      showToast(`Encontramos una matrícula anterior de ${el.value.trim()} (en "${previo.curso}") — autocompletamos sus datos, revisa que sigan vigentes.`);
-    }
+    if(rellenoAlgo){ showToast(`Encontramos una matrícula anterior de ${el.value.trim()} (en "${previo.curso}") — autocompletamos sus datos, revisa que sigan vigentes.`); }
   }
 });
 let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
@@ -572,8 +552,7 @@ function fileToBase64(file){
 let EXALUMNOS = [];
 async function loadAll(){
   const [nom, mod, pag, mat, sol, exal] = await Promise.all([
-    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes'),
-    apiGet('ExAlumnos').catch(()=>[])
+    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes'), apiGet('ExAlumnos').catch(()=>[])
   ]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
@@ -643,25 +622,15 @@ window.toggleVisibilidadCurso = async function(curso, nuevoValor){
   const items = itemsDe(curso);
   if(items.length===0) return;
   try{
-    for(const it of items){
-      await apiPost('Modulos','update',{id:it.id, data:{visiblePublico:nuevoValor}});
-    }
+    for(const it of items){ await apiPost('Modulos','update',{id:it.id, data:{visiblePublico:nuevoValor}}); }
     showToast(nuevoValor ? `"${curso}" ahora se muestra en la Vista de Formulario.` : `"${curso}" ahora está oculto en la Vista de Formulario.`);
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
 function renderAll(){
-  renderTicker();
-  renderTickerReporte();
-  renderCategoriasCursos();
-  renderTablaCursos();
-  renderSelectsCurso();
-  renderChipsConceptos();
-  renderSolicitudes();
-  renderCXC();
-  renderReporteMensual();
-  renderBaseEstudiantes();
+  renderTicker(); renderTickerReporte(); renderCategoriasCursos(); renderTablaCursos(); renderSelectsCurso(); renderChipsConceptos();
+  renderSolicitudes(); renderCXC(); renderReporteMensual(); renderBaseEstudiantes();
 }
 function renderTickerReporte(){
   const box = document.getElementById('ticker_reporte');
@@ -708,12 +677,11 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
   });
   if(items.length===0){ showToast('Agrega al menos un ítem de pago.'); return; }
   try{
-    for(const it of items){
-      await apiPost('Modulos','add',{data:{id:uid(), curso:nombre, modulo:it.item, precio:it.precio}});
-    }
+    for(const it of items){ await apiPost('Modulos','add',{data:{id:uid(), curso:nombre, modulo:it.item, precio:it.precio}}); }
     showToast('Curso guardado.');
     document.getElementById('nc_nombre').value='';
-    document.getElementById('items_rows').innerHTML=''; agregarFilaItem();
+    document.getElementById('items_rows').innerHTML='';
+    agregarFilaItem();
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
@@ -724,16 +692,9 @@ function renderTablaCursos(){
   const empty = document.getElementById('cursos_empty');
   const wrap = document.getElementById('tabla_cursos_wrap');
   const hintCategoria = document.getElementById('cursos_categoria_hint');
-  if(todos.length===0){
-    body.innerHTML=''; wrap.style.display='none'; hintCategoria.style.display='none'; empty.style.display='block';
-    return;
-  }
+  if(todos.length===0){ body.innerHTML=''; wrap.style.display='none'; hintCategoria.style.display='none'; empty.style.display='block'; return; }
   empty.style.display='none';
-  if(!_categoriaCursoActiva){
-    wrap.style.display='none';
-    hintCategoria.style.display='block';
-    return;
-  }
+  if(!_categoriaCursoActiva){ wrap.style.display='none'; hintCategoria.style.display='block'; return; }
   hintCategoria.style.display='none';
   wrap.style.display='block';
   const cursos = todos.filter(c=>categoriaDe(c)===_categoriaCursoActiva);
@@ -771,9 +732,7 @@ window.abrirEditarCurso = function(curso){
   itemsDe(curso).forEach(m=>ecFilaItem(m.id, m.modulo, m.precio));
   document.getElementById('modal_editar_curso').classList.add('show');
 };
-document.getElementById('btn_ec_cerrar').addEventListener('click', ()=>{
-  document.getElementById('modal_editar_curso').classList.remove('show');
-});
+document.getElementById('btn_ec_cerrar').addEventListener('click', ()=>{ document.getElementById('modal_editar_curso').classList.remove('show'); });
 document.getElementById('btn_ec_guardar').addEventListener('click', async ()=>{
   const curso = _cursoEnEdicion;
   const idsOriginales = itemsDe(curso).map(m=>m.id);
@@ -787,27 +746,18 @@ document.getElementById('btn_ec_guardar').addEventListener('click', async ()=>{
       const precio = Number(row.querySelector('.ip').value)||0;
       if(!nombre) continue;
       const id = row.dataset.id;
-      if(id){
-        idsConservados.push(id);
-        await apiPost('Modulos','update',{id, data:{modulo:nombre, precio}});
-      }else{
-        await apiPost('Modulos','add',{data:{id:uid(), curso, modulo:nombre, precio}});
-      }
+      if(id){ idsConservados.push(id); await apiPost('Modulos','update',{id, data:{modulo:nombre, precio}}); }
+      else{ await apiPost('Modulos','add',{data:{id:uid(), curso, modulo:nombre, precio}}); }
     }
     // Los ítems que existían antes y ya no están en la lista (se eliminaron con la ✕) se borran del backend.
     const idsEliminados = idsOriginales.filter(id=>!idsConservados.includes(id));
-    for(const id of idsEliminados){
-      await apiPost('Modulos','delete',{id});
-    }
+    for(const id of idsEliminados){ await apiPost('Modulos','delete',{id}); }
     showToast('Curso actualizado.');
     document.getElementById('modal_editar_curso').classList.remove('show');
     await loadAll();
     renderAll();
-  }catch(e){
-    showToast('Error al guardar los cambios: '+e.message);
-  }finally{
-    btn.disabled = false; btn.textContent = 'Guardar Cambios';
-  }
+  }catch(e){ showToast('Error al guardar los cambios: '+e.message); }
+  finally{ btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
 });
 // ---------- SOLICITUDES: revisión y confirmación de pre-registros del cliente ----------
 function renderSolicitudes(){
@@ -834,6 +784,7 @@ function renderSolicitudes(){
         <div class="field"><label>Profesión</label><input class="sol-profesion" value="${s.profesion||''}"></div>
         <div class="field"><label>Usuario de Instagram</label><input class="sol-instagram" value="${s.instagram||''}"></div>
         <div class="field"><label>Certificado a Nombre de</label><input class="sol-certificado" value="${s.certificado||''}"></div>
+        <div class="field"><label>Monto Acordado a Cobrar Mensual ($)</label><input class="sol-monto-mensual" type="number" step="0.01" min="0" value="${s.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
         <div class="field"><label>¿Quién le atendió? (dice el cliente)</label>
           <select class="sol-asesor">
             <option value="Jose" ${s.asesorMencionado==='Jose'?'selected':''}>Jose</option>
@@ -871,10 +822,7 @@ function renderSolicitudes(){
     </div>
     `;
   }).join('');
-  SOLICITUDES.forEach(s=>{
-    document.getElementById('sol_pago_lines_'+s.id).innerHTML = '';
-    agregarLineaPagoSolicitud(s.id);
-  });
+  SOLICITUDES.forEach(s=>{ document.getElementById('sol_pago_lines_'+s.id).innerHTML = ''; agregarLineaPagoSolicitud(s.id); });
 }
 window.actualizarItemsSolicitud = function(solId){
   const card = document.getElementById('sol_'+solId);
@@ -926,6 +874,7 @@ window.confirmarSolicitud = async function(solId){
   const profesion = card.querySelector('.sol-profesion').value.trim();
   const instagram = card.querySelector('.sol-instagram').value.trim();
   const certificado = card.querySelector('.sol-certificado').value.trim();
+  const montoMensual = Number(card.querySelector('.sol-monto-mensual').value)||0;
   const asesor = card.querySelector('.sol-asesor').value;
   const metodoPago = card.querySelector('.sol-metodo-pago').value;
   const cuentaDestino = (metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') ? card.querySelector('.sol-cuenta-destino').value : '';
@@ -955,10 +904,7 @@ window.confirmarSolicitud = async function(solId){
   if(s.cedulaFileId) archivosExistentes.cedulaDoc = s.cedulaFileId;
   try{
     await apiConfirmarSolicitud({
-      solicitudId: solId, fecha: new Date().toISOString().slice(0,10),
-      curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, asesor, metodoPago, cuentaDestino, referenciaPago,
-      modulosPagados,
-      archivosExistentes
+      solicitudId: solId, fecha: new Date().toISOString().slice(0,10), curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, montoMensual, asesor, metodoPago, cuentaDestino, referenciaPago, modulosPagados, archivosExistentes
     });
     showToast('Matrícula confirmada — carpeta creada en Drive.');
     await loadAll();
@@ -1038,11 +984,8 @@ function agregarLineaPago(){
   selConcepto.addEventListener('change', ()=>{
     const curso = document.getElementById('m_curso').value;
     const estudiante = document.getElementById('m_estudiante').value.trim();
-    if(selConcepto.value === CONCEPTO_LIBRE){
-      otroWrap.style.display = 'block';
-      inputMonto.value = '';
-      inputPrecio.value = '';
-    }else{
+    if(selConcepto.value === CONCEPTO_LIBRE){ otroWrap.style.display = 'block'; inputMonto.value = ''; inputPrecio.value = ''; }
+    else{
       otroWrap.style.display = 'none';
       const opt = selConcepto.selectedOptions[0];
       const montoAcordadoLive = Number(document.getElementById('m_monto_mensual').value)||0;
@@ -1065,11 +1008,7 @@ function renderChipsConceptos(){
   const nombres = items.map(i=>i.modulo);
   const inscripcionItem = nombres.find(n=>/inscripci[oó]n/i.test(n));
   const modulos = nombres.filter(n=>n!==inscripcionItem && /m[oó]dulo\s*\d+/i.test(n))
-    .sort((a,b)=>{
-      const na = Number((a.match(/(\d+)/)||[])[1]) || 0;
-      const nb = Number((b.match(/(\d+)/)||[])[1]) || 0;
-      return na-nb;
-    });
+    .sort((a,b)=>{ const na = Number((a.match(/(\d+)/)||[])[1]) || 0; const nb = Number((b.match(/(\d+)/)||[])[1]) || 0; return na-nb; });
   const otros = nombres.filter(n=>n!==inscripcionItem && !modulos.includes(n));
   const ordenValores = [inscripcionItem || 'Inscripción', ...modulos, ...otros, 'Penalidad', 'Otro'];
   box.innerHTML = ordenValores.map(nombre=>{
@@ -1088,12 +1027,8 @@ function agregarLineaPagoRapida(nombre){
   const row = filas[filas.length-1];
   const selConcepto = row.querySelector('.pl-concepto');
   const esItemDelCurso = [...selConcepto.options].some(o=>o.value===nombre);
-  if(esItemDelCurso){
-    selConcepto.value = nombre;
-  }else{
-    selConcepto.value = CONCEPTO_LIBRE;
-    row.querySelector('.pl-otro').value = (nombre==='Otro') ? '' : nombre;
-  }
+  if(esItemDelCurso){ selConcepto.value = nombre; }
+  else{ selConcepto.value = CONCEPTO_LIBRE; row.querySelector('.pl-otro').value = (nombre==='Otro') ? '' : nombre; }
   selConcepto.dispatchEvent(new Event('change'));
   if(!esItemDelCurso) row.querySelector('.pl-otro').focus();
 }
@@ -1126,17 +1061,12 @@ function actualizarEstadoLinea(row){
   }
   if(precioTotal>0 && montoAhora>0){
     const saldoDespues = precioTotal - montoAhora;
-    if(saldoDespues > 0.009){
-      mensaje += `Con este pago queda como ABONO — le faltarían ${fmt(saldoDespues)} de ${fmt(precioTotal)}.`;
-    }else{
-      mensaje += `Con este pago queda completo (${fmt(precioTotal)}).`;
-    }
+    if(saldoDespues > 0.009){ mensaje += `Con este pago queda como ABONO — le faltarían ${fmt(saldoDespues)} de ${fmt(precioTotal)}.`; }
+    else{ mensaje += `Con este pago queda completo (${fmt(precioTotal)}).`; }
   }
   estadoBox.textContent = mensaje;
 }
-function refrescarEstadosLineas(){
-  document.querySelectorAll('#pago_lines .pago-line').forEach(actualizarEstadoLinea);
-}
+function refrescarEstadosLineas(){ document.querySelectorAll('#pago_lines .pago-line').forEach(actualizarEstadoLinea); }
 function actualizarTotalPago(){
   let total = 0;
   document.querySelectorAll('.pl-monto').forEach(i=>total+=Number(i.value)||0);
@@ -1191,25 +1121,17 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     archivos.comprobante = {data: await fileToBase64(fileComprobante), name: fileComprobante.name, mimeType: fileComprobante.type||'application/octet-stream'};
     if(fileTitulo) archivos.titulo = {data: await fileToBase64(fileTitulo), name: fileTitulo.name, mimeType: fileTitulo.type||'application/octet-stream'};
     if(fileCedula) archivos.cedulaDoc = {data: await fileToBase64(fileCedula), name: fileCedula.name, mimeType: fileCedula.type||'application/octet-stream'};
-    await apiMatricular({
-      fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, instagram, ciudad, pais, certificado, montoMensual, metodoPago, cuentaDestino, referenciaPago, asesor,
-      modulosPagados, archivos
-    });
+    await apiMatricular({ fecha, curso, tipo:'', estudiante, cedula, correo, telefono, profesion, instagram, ciudad, pais, certificado, montoMensual, metodoPago, cuentaDestino, referenciaPago, asesor, modulosPagados, archivos });
     showToast('¡Matrícula guardada! Carpeta creada en Drive.');
-    document.getElementById('m_fecha').value='';
-    document.getElementById('m_estudiante').value=''; document.getElementById('m_cedula').value='';
-    document.getElementById('m_correo').value=''; document.getElementById('m_telefono').value='';
-    document.getElementById('m_profesion').value=''; document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value='';
-    document.getElementById('m_pais').value=''; document.getElementById('m_certificado').value='';
-    document.getElementById('m_monto_mensual').value=''; document.getElementById('m_metodo_pago').selectedIndex=0;
-    document.getElementById('m_cuenta_destino').selectedIndex=0; document.getElementById('m_cuenta_destino_wrap').style.display='none';
-    document.getElementById('m_referencia_pago').value='';
-    document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value='';
-    document.getElementById('m_file_cedula').value='';
+    document.getElementById('m_fecha').value=''; document.getElementById('m_estudiante').value=''; document.getElementById('m_cedula').value='';
+    document.getElementById('m_correo').value=''; document.getElementById('m_telefono').value=''; document.getElementById('m_profesion').value='';
+    document.getElementById('m_instagram').value=''; document.getElementById('m_ciudad').value=''; document.getElementById('m_pais').value='';
+    document.getElementById('m_certificado').value=''; document.getElementById('m_monto_mensual').value='';
+    document.getElementById('m_metodo_pago').selectedIndex=0; document.getElementById('m_cuenta_destino').selectedIndex=0;
+    document.getElementById('m_cuenta_destino_wrap').style.display='none'; document.getElementById('m_referencia_pago').value='';
+    document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value=''; document.getElementById('m_file_cedula').value='';
     document.getElementById('pago_lines').innerHTML=''; agregarLineaPago();
-    await loadAll();
-    renderAll();
-    actualizarDatalistEstudiantes();
+    await loadAll(); renderAll(); actualizarDatalistEstudiantes();
   }catch(e){ showToast('Error al matricular: '+e.message); }
 });
 // ---------- CUENTAS POR COBRAR ----------
@@ -1219,10 +1141,7 @@ function asesorDeEstudiante(curso, estudiante){
   const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante && m.asesor);
   return registros.length>0 ? registros[registros.length-1].asesor : '';
 }
-function nominaActivaCXC(curso, estudiante){
-  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
-  return reg ? reg.activo : true;
-}
+function nominaActivaCXC(curso, estudiante){ const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante); return reg ? reg.activo : true; }
 window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor){
   const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
   if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
@@ -1247,15 +1166,10 @@ function renderCXC(){
   const activos = estudiantes.filter(est=>nominaActivaCXC(curso, est)).length;
   const inactivos = estudiantes.length - activos;
   document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})`;
-  estudiantes.sort((a,b)=>{
-    const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b);
-    if(activoA===activoB) return a.localeCompare(b);
-    return activoA ? -1 : 1;
-  });
+  estudiantes.sort((a,b)=>{ const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b); if(activoA===activoB) return a.localeCompare(b); return activoA ? -1 : 1; });
   head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th>';
   let filasDeuda = [];
-  CXC_CURSO_ACTUAL = curso;
-  CXC_ESTUDIANTES_ACTUAL = estudiantes;
+  CXC_CURSO_ACTUAL = curso; CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
     let saldoTotal = 0;
     const estados = [];
@@ -1277,9 +1191,7 @@ function renderCXC(){
     const celdaAsesor = `<td>${asesorEst||'—'}</td>`;
     const btnReporte = `<td><button class="btn btn-ghost btn-sm" onclick="pdfEstudianteIndividual('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">📄 Reporte</button></td>`;
     const activo = nominaActivaCXC(curso, est);
-    const btnBaja = `<td>${activo
-      ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
+    const btnBaja = `<td>${activo ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>` : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
     const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante(${i})">↔️ Transferir</button></td>`;
     const btnEditar = `<td><button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✏️ Editar</button></td>`;
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
@@ -1336,11 +1248,7 @@ function renderReporteMensual(){
     `<tr><td>${curso}</td><td class="num">${v.count}</td><td class="num">${fmt(v.total)}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Sin pagos en este periodo</td></tr>';
   const porAsesor = {};
-  pagos.forEach(p=>{
-    const asesor = asesorDeEstudiante(p.curso, p.estudiante) || 'Sin asesor';
-    if(!porAsesor[asesor]) porAsesor[asesor]={count:0,total:0};
-    porAsesor[asesor].count++; porAsesor[asesor].total+=p.monto;
-  });
+  pagos.forEach(p=>{ const asesor = asesorDeEstudiante(p.curso, p.estudiante) || 'Sin asesor'; if(!porAsesor[asesor]) porAsesor[asesor]={count:0,total:0}; porAsesor[asesor].count++; porAsesor[asesor].total+=p.monto; });
   const rankingAsesores = Object.entries(porAsesor).sort((a,b)=>b[1].total-a[1].total);
   const maxTotal = rankingAsesores.length>0 ? rankingAsesores[0][1].total : 0;
   document.getElementById('tabla_reporte_asesor').innerHTML = rankingAsesores.map(([asesor,v],i)=>`
@@ -1362,10 +1270,7 @@ function renderReporteMensual(){
 }
 let PAGOS_MES_ACTUAL = [];
 let VA_CURSO_SEL = null;
-document.getElementById('sel_detalle_asesor').addEventListener('change', ()=>{
-  VA_CURSO_SEL = null;
-  renderListaCursosAsesor();
-});
+document.getElementById('sel_detalle_asesor').addEventListener('change', ()=>{ VA_CURSO_SEL = null; renderListaCursosAsesor(); });
 function renderListaCursosAsesor(){
   const asesorSel = document.getElementById('sel_detalle_asesor').value;
   const wrapCursos = document.getElementById('va_lista_cursos_wrap');
@@ -1374,11 +1279,7 @@ function renderListaCursosAsesor(){
   wrapCursos.style.display='block';
   const ventasAsesor = PAGOS_MES_ACTUAL.filter(p=>(asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel);
   const porCursoAsesor = {};
-  ventasAsesor.forEach(p=>{
-    const curso = p.curso || '(Sin curso)';
-    if(!porCursoAsesor[curso]) porCursoAsesor[curso]={count:0,total:0};
-    porCursoAsesor[curso].count++; porCursoAsesor[curso].total+=(p.monto||0);
-  });
+  ventasAsesor.forEach(p=>{ const curso = p.curso || '(Sin curso)'; if(!porCursoAsesor[curso]) porCursoAsesor[curso]={count:0,total:0}; porCursoAsesor[curso].count++; porCursoAsesor[curso].total+=(p.monto||0); });
   const cursos = Object.entries(porCursoAsesor).sort((a,b)=>b[1].total-a[1].total);
   document.getElementById('va_lista_cursos').innerHTML = cursos.map(([curso,v],i)=>`
     <button type="button" data-curso-index="${i}" class="btn ${curso===VA_CURSO_SEL?'btn-primary':'btn-ghost'} btn-sm" style="text-align:left;justify-content:space-between;display:flex;width:100%;">
@@ -1398,9 +1299,7 @@ document.getElementById('va_lista_cursos').addEventListener('click', (e)=>{
   renderListaCursosAsesor();
 });
 function renderTablaVentasAsesorCurso(asesorSel){
-  const ventas = PAGOS_MES_ACTUAL.filter(p=>
-    (asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel && (p.curso||'(Sin curso)')===VA_CURSO_SEL
-  ).slice().sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha));
+  const ventas = PAGOS_MES_ACTUAL.filter(p=> (asesorDeEstudiante(p.curso, p.estudiante)||'Sin asesor')===asesorSel && (p.curso||'(Sin curso)')===VA_CURSO_SEL ).slice().sort((a,b)=>fechaValor(b.fecha)-fechaValor(a.fecha));
   document.getElementById('va_titulo_ventas').textContent = `${asesorSel} — ${VA_CURSO_SEL}`;
   document.getElementById('va_tabla_ventas_wrap').style.display = 'block';
   document.getElementById('va_tabla_ventas').innerHTML = ventas.map(p=>
@@ -1425,9 +1324,7 @@ document.getElementById('conc_filtro_cuenta').addEventListener('change', aplicar
 function aplicarFiltrosConciliacion(){
   const metodo = document.getElementById('conc_filtro_metodo').value;
   const cuenta = document.getElementById('conc_filtro_cuenta').value;
-  const pagos = PAGOS_CONCILIACION_ACTUAL.filter(p=>
-    (!metodo || p.metodoPago===metodo) && (!cuenta || p.cuentaDestino===cuenta)
-  );
+  const pagos = PAGOS_CONCILIACION_ACTUAL.filter(p=> (!metodo || p.metodoPago===metodo) && (!cuenta || p.cuentaDestino===cuenta) );
   const body = document.getElementById('tabla_conciliacion');
   const empty = document.getElementById('conciliacion_empty');
   if(pagos.length===0){ body.innerHTML=''; empty.style.display='block'; document.getElementById('conciliacion_resumen').innerHTML=''; return; }
@@ -1437,55 +1334,27 @@ function aplicarFiltrosConciliacion(){
   const totalConfirmado = confirmados.reduce((s,p)=>s+p.monto,0);
   const totalPendiente = pendientes.reduce((s,p)=>s+p.monto,0);
   document.getElementById('conciliacion_resumen').innerHTML = `<p class="hint" style="margin:0;">
-    <span style="color:var(--accent-dark);font-weight:700;">${fmt(totalConfirmado)} confirmado</span> en banco
-    — <span style="color:var(--danger);font-weight:700;">${fmt(totalPendiente)} pendiente</span> de confirmar (${pendientes.length} pago${pendientes.length!==1?'s':''})</p>`;
-  const ordenados = pagos.slice().sort((a,b)=>{
-    if(!!a.confirmadoBanco === !!b.confirmadoBanco) return new Date(b.fecha)-new Date(a.fecha);
-    return a.confirmadoBanco ? 1 : -1;
-  });
+    <span style="color:var(--accent-dark);font-weight:700;">${fmt(totalConfirmado)} confirmado</span> en banco —
+    <span style="color:var(--danger);font-weight:700;">${fmt(totalPendiente)} pendiente</span> de confirmar (${pendientes.length} pago${pendientes.length!==1?'s':''})</p>`;
+  const ordenados = pagos.slice().sort((a,b)=>{ if(!!a.confirmadoBanco === !!b.confirmadoBanco) return new Date(b.fecha)-new Date(a.fecha); return a.confirmadoBanco ? 1 : -1; });
   body.innerHTML = ordenados.map(p=>`
-  <tr>
-    <td class="sticky-col sticky-1">${fechaCorta(p.fecha)}</td>
-    <td class="sticky-col sticky-2">${p.estudiante}</td>
-    <td class="sticky-col sticky-3">${p.confirmadoBanco
-      ? '<span class="pill ok">Confirmado</span>'
-      : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button>
-         <div style="margin-top:4px;"><a href="#" onclick="event.preventDefault(); confirmarPagoBanco('${p.id}', true);" style="font-size:11px;color:var(--text-dim);">Es histórica</a></div>`}</td>
-    <td title="${p.curso.replace(/"/g,'&quot;')}">${acortarCurso(p.curso)}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
-    <td class="num">${fmt(p.monto)}</td>
-    <td>${p.metodoPago||'—'}${p.cuentaDestino?`<br><span style="font-size:12px;color:var(--text-dim);">${p.cuentaDestino}</span>`:''}</td>
-    <td>${p.comprobanteUrl?`<a href="${p.comprobanteUrl}" target="_blank">Ver Pago</a>`:'—'}</td>
-    <td>${p.referenciaPago||'—'}</td>
-  </tr>
-`).join('');
+    <tr>
+      <td class="sticky-col sticky-1">${fechaCorta(p.fecha)}</td>
+      <td class="sticky-col sticky-2">${p.estudiante}</td>
+      <td class="sticky-col sticky-3">${p.confirmadoBanco ? '<span class="pill ok">Confirmado</span>' : `<button class="btn btn-ghost btn-sm" onclick="confirmarPagoBanco('${p.id}')">Confirmar</button> <div style="margin-top:4px;"><a href="#" onclick="event.preventDefault(); confirmarPagoBanco('${p.id}', true);" style="font-size:11px;color:var(--text-dim);">Es histórica</a></div>`}</td>
+      <td title="${p.curso.replace(/"/g,'&quot;')}">${acortarCurso(p.curso)}</td><td title="${p.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(p.modulo)}</td>
+      <td class="num">${fmt(p.monto)}</td>
+      <td>${p.metodoPago||'—'}${p.cuentaDestino?`<br><span style="font-size:12px;color:var(--text-dim);">${p.cuentaDestino}</span>`:''}</td>
+      <td>${p.comprobanteUrl?`<a href="${p.comprobanteUrl}" target="_blank">Ver Pago</a>`:'—'}</td>
+      <td>${p.referenciaPago||'—'}</td>
+    </tr>
+  `).join('');
 }
-function acortarConcepto(texto){
-  if(!texto) return '';
-  const match = texto.match(/m[oó]dulo\s*(\d+)/i) || texto.match(/(\d+)/);
-  if(match) return 'Módulo ' + match[1];
-  return texto.length > 15 ? texto.slice(0,15).trim() + '…' : texto;
-}
-function nombreCursoSinEspecializacion(texto){
-  if(!texto) return '';
-  const match = texto.match(/especializaci[oó]n\s+en\s+(.+)/i);
-  if(match) return match[1];
-  return texto;
-}
-function acortarCurso(texto){
-  if(!texto) return '';
-  return texto.length > 22 ? texto.slice(0,22).trim() + '…' : texto;
-}
-function fechaCorta(fechaStr){
-  if(!fechaStr) return '—';
-  const d = new Date(fechaStr + (fechaStr.length<=10 ? 'T00:00:00' : ''));
-  if(isNaN(d.getTime())) return fechaStr;
-  return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
-}
-function fechaValor(f){
-  if(!f) return 0;
-  const d = new Date(f);
-  return isNaN(d.getTime()) ? 0 : d.getTime();
-}
+function acortarConcepto(texto){ if(!texto) return ''; const match = texto.match(/m[oó]dulo\s*(\d+)/i) || texto.match(/(\d+)/); if(match) return 'Módulo ' + match[1]; return texto.length > 15 ? texto.slice(0,15).trim() + '…' : texto; }
+function nombreCursoSinEspecializacion(texto){ if(!texto) return ''; const match = texto.match(/especializaci[oó]n\s+en\s+(.+)/i); if(match) return match[1]; return texto; }
+function acortarCurso(texto){ if(!texto) return ''; return texto.length > 22 ? texto.slice(0,22).trim() + '…' : texto; }
+function fechaCorta(fechaStr){ if(!fechaStr) return '—'; const d = new Date(fechaStr + (fechaStr.length<=10 ? 'T00:00:00' : '')); if(isNaN(d.getTime())) return fechaStr; return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'}); }
+function fechaValor(f){ if(!f) return 0; const d = new Date(f); return isNaN(d.getTime()) ? 0 : d.getTime(); }
 window.confirmarPagoBanco = async function(pagoId, esHistorica){
   try{
     await apiConfirmarPagoBanco(pagoId, !!esHistorica);
@@ -1495,23 +1364,11 @@ window.confirmarPagoBanco = async function(pagoId, esHistorica){
   }catch(e){ showToast('Error al confirmar: '+e.message); }
 };
 // ---------- DOCUMENTOS PDF (VIA IMPRESIÓN) ----------
-function abrirModalDoc(html){
-  document.getElementById('print_doc_content').innerHTML = html;
-  document.getElementById('modal_overlay').classList.add('show');
-}
-document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
-  document.getElementById('modal_overlay').classList.remove('show');
-});
-document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
-  document.body.classList.add('printing-doc');
-  window.print();
-});
-window.onafterprint = function(){
-  document.body.classList.remove('printing-doc');
-  document.getElementById('print_orientation_override').textContent = '';
-};
-let CXC_CURSO_ACTUAL = '';
-let CXC_ESTUDIANTES_ACTUAL = [];
+function abrirModalDoc(html){ document.getElementById('print_doc_content').innerHTML = html; document.getElementById('modal_overlay').classList.add('show'); }
+document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{ document.getElementById('modal_overlay').classList.remove('show'); });
+document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{ document.body.classList.add('printing-doc'); window.print(); });
+window.onafterprint = function(){ document.body.classList.remove('printing-doc'); document.getElementById('print_orientation_override').textContent = ''; };
+let CXC_CURSO_ACTUAL = ''; let CXC_ESTUDIANTES_ACTUAL = [];
 window.abrirTransferirEstudiante = function(indice){
   const estudiante = CXC_ESTUDIANTES_ACTUAL[indice];
   const cursoOrigen = CXC_CURSO_ACTUAL;
@@ -1556,7 +1413,7 @@ window.abrirEditarEstudiante = function(curso, estudiante){
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
   const html = `
     <h3 style="margin-top:0;">Editar Datos — ${estudiante}</h3>
-    <p class="hint">Curso: <b>${curso}</b>. El nombre y el historial de pagos no se pueden tocar aquí — solo datos de contacto y perfil.</p>
+    <p class="hint">Curso: <b>${curso}</b>. El nombre y el historial de pagos no se pueden tocar aquí — solo datos de contacto, perfil y el monto acordado.</p>
     <div class="grid cols3">
       <div class="field"><label>Cédula</label><input id="edit_cedula" value="${registro.cedula||''}"></div>
       <div class="field"><label>Correo</label><input id="edit_correo" type="email" value="${registro.correo||''}"></div>
@@ -1566,6 +1423,7 @@ window.abrirEditarEstudiante = function(curso, estudiante){
       <div class="field"><label>Profesión</label><input id="edit_profesion" value="${registro.profesion||''}"></div>
       <div class="field"><label>Usuario de Instagram</label><input id="edit_instagram" value="${registro.instagram||''}"></div>
       <div class="field"><label>Certificado a Nombre de</label><input id="edit_certificado" value="${registro.certificado||''}"></div>
+      <div class="field"><label>Monto Acordado ($)</label><input id="edit_monto_mensual" type="number" step="0.01" min="0" value="${registro.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
     </div>
     <div class="actions"><button class="btn btn-primary" onclick="guardarEdicionEstudiante('${curso.replace(/'/g,"\\'")}','${estudiante.replace(/'/g,"\\'")}')">Guardar Cambios</button></div>
   `;
@@ -1581,6 +1439,7 @@ window.guardarEdicionEstudiante = async function(curso, estudiante){
     profesion: document.getElementById('edit_profesion').value.trim(),
     instagram: document.getElementById('edit_instagram').value.trim(),
     certificado: document.getElementById('edit_certificado').value.trim(),
+    montoMensual: Number(document.getElementById('edit_monto_mensual').value)||0,
   };
   try{
     await apiActualizarEstudiante(curso, estudiante, data);
@@ -1670,11 +1529,7 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   if(!data || !data.curso){ showToast('Selecciona un curso primero.'); return; }
   if(data.filas.length===0){ showToast('No hay deudores en este curso — todos están al día.'); return; }
   const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
-  const filasOrdenadas = data.filas.slice().sort((a,b)=>{
-    const activoA = a[a.length-1]==='Sí', activoB = b[b.length-1]==='Sí';
-    if(activoA===activoB) return 0;
-    return activoA ? -1 : 1;
-  });
+  const filasOrdenadas = data.filas.slice().sort((a,b)=>{ const activoA = a[a.length-1]==='Sí', activoB = b[b.length-1]==='Sí'; if(activoA===activoB) return 0; return activoA ? -1 : 1; });
   const totalGeneral = filasOrdenadas.filter(f=>f[f.length-1]==='Sí').reduce((s,f)=>s+Number(f[f.length-2]),0);
   const tarjetas = filasOrdenadas.map(f=>{
     const estudiante = f[0];
@@ -1790,12 +1645,8 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
   showToast('Datos de ejemplo cargados. Carlos entró con promo: Inscripción a $30 (no $50) y Módulo 1 acordado en $120 (no $150) — mira "Cuentas por Cobrar" para ver cómo se respeta su precio real.');
 });
 // ---------- BASE DE DATOS DE ESTUDIANTES (Historial) ----------
-function normalizarBusquedaExal(t){
-  return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
-}
-function claveEstudiante(cedula, nombre){
-  return String(cedula||nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
-}
+function normalizarBusquedaExal(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function claveEstudiante(cedula, nombre){ return String(cedula||nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
 function construirBaseEstudiantes(){
   const deMatriculas = {};
   MATRICULAS.forEach(m=>{
@@ -1816,10 +1667,7 @@ function construirBaseEstudiantes(){
     if(!deImportados[key].pais && e.pais) deImportados[key].pais = e.pais;
   });
   Object.entries(deImportados).forEach(([key, val])=>{
-    if(deMatriculas[key]){
-      val.cursos.forEach(c=>deMatriculas[key].cursos.add(c));
-      if(!deMatriculas[key].pais && val.pais) deMatriculas[key].pais = val.pais;
-    }
+    if(deMatriculas[key]){ val.cursos.forEach(c=>deMatriculas[key].cursos.add(c)); if(!deMatriculas[key].pais && val.pais) deMatriculas[key].pais = val.pais; }
   });
   const yaMatriculados = Object.entries(deMatriculas).map(([key,val])=>({...val, curso:[...val.cursos].join(', ')}));
   const soloImportados = Object.entries(deImportados)
@@ -1844,29 +1692,18 @@ function renderBaseEstudiantes(){
   const hayFiltroActivo = q || paisF || cursoF;
   const body = document.getElementById('tabla_exalumnos_resultado');
   const empty = document.getElementById('exalumnos_empty');
-  if(!hayFiltroActivo){
-    body.innerHTML = '';
-    empty.style.display = 'block';
-    empty.textContent = 'Escribe un nombre/cédula, o filtra por país o curso para ver resultados.';
-    window._exalumnosFiltrados = [];
-    return;
-  }
+  if(!hayFiltroActivo){ body.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'Escribe un nombre/cédula, o filtra por país o curso para ver resultados.'; window._exalumnosFiltrados = []; return; }
   let filas = base;
   if(q) filas = filas.filter(e=>normalizarBusquedaExal(e.nombre).includes(q) || normalizarBusquedaExal(e.cedula).includes(q));
   if(paisF) filas = filas.filter(e=>e.pais===paisF);
   if(cursoF) filas = filas.filter(e=>e.curso.split(', ').includes(cursoF));
   window._exalumnosFiltrados = filas;
-  if(filas.length===0){
-    body.innerHTML = '';
-    empty.style.display = 'block';
-    empty.textContent = 'No se encontraron estudiantes con este filtro.';
-    return;
-  }
+  if(filas.length===0){ body.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No se encontraron estudiantes con este filtro.'; return; }
   empty.style.display = 'none';
   body.innerHTML = filas.map((e,i)=>`
-  <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
-  <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
-`).join('');
+    <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
+    <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
+  `).join('');
 }
 document.getElementById('exal_buscar').addEventListener('input', renderBaseEstudiantes);
 document.getElementById('exal_filtro_pais').addEventListener('change', renderBaseEstudiantes);
@@ -1883,17 +1720,17 @@ document.getElementById('btn_pdf_exalumnos').addEventListener('click', ()=>{
   const filas = window._exalumnosFiltrados || [];
   if(filas.length===0){ showToast('No hay estudiantes para exportar con este filtro.'); return; }
   const filasHtml = filas.map((e,i)=>`<tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
-document.getElementById('print_doc_content').innerHTML = `
-  <div class="doc-header">
-    <div class="brand">Ceprocenter</div>
-    <div class="title">Base de Datos de Estudiantes</div>
-  </div>
-  <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
-  <table class="doc-table">
-    <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
-    <tbody>${filasHtml}</tbody>
-  </table>
-`;
+  document.getElementById('print_doc_content').innerHTML = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Base de Datos de Estudiantes</div>
+    </div>
+    <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    <table class="doc-table">
+      <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+    </table>
+  `;
   document.getElementById('print_orientation_override').textContent = '@page{ size: landscape; margin: 12mm; }';
   document.getElementById('modal_overlay').classList.add('show');
 });
@@ -1906,40 +1743,24 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
     const texto = await archivo.text();
     const filasCrudas = parseCSV(texto);
     // Si el archivo trae "nombre" y "apellido" en columnas separadas, se unen en un solo nombre completo.
-    const filas = filasCrudas.map(f=>{
-      const nombreCompleto = [f.nombre, f.apellido].filter(v=>v && v.trim()).join(' ').trim();
-      return {...f, nombre: nombreCompleto};
-    });
+    const filas = filasCrudas.map(f=>{ const nombreCompleto = [f.nombre, f.apellido].filter(v=>v && v.trim()).join(' ').trim(); return {...f, nombre: nombreCompleto}; });
     const validas = filas.filter(f=>f.nombre && f.nombre.trim());
     if(validas.length===0){ resultadoBox.textContent = 'No se encontraron filas con nombre válido en el archivo.'; return; }
     // Claves de todos los estudiantes que ya están en el sistema (matriculados + importados antes),
     // usando la misma lógica de "cédula, o si no hay cédula, nombre completo" que usa la Base de Datos de Estudiantes.
     const existentes = new Set(construirBaseEstudiantes().map(e=>claveEstudiante(e.cedula, e.nombre)));
-    const nuevas = [];
-    const duplicadas = [];
-    const vistosEnEsteArchivo = new Set();
+    const nuevas = []; const duplicadas = []; const vistosEnEsteArchivo = new Set();
     validas.forEach(f=>{
       const key = claveEstudiante(f.cedula, f.nombre);
-      if(existentes.has(key) || vistosEnEsteArchivo.has(key)){
-        duplicadas.push(f);
-      }else{
-        vistosEnEsteArchivo.add(key);
-        nuevas.push(f);
-      }
+      if(existentes.has(key) || vistosEnEsteArchivo.has(key)){ duplicadas.push(f); }
+      else{ vistosEnEsteArchivo.add(key); nuevas.push(f); }
     });
-    if(nuevas.length===0){
-      resultadoBox.textContent = `Los ${validas.length} registro(s) del archivo ya existen en el sistema — no se importó nada nuevo.`;
-      showToast('Nada nuevo que importar: todos ya estaban en el sistema.');
-      return;
-    }
+    if(nuevas.length===0){ resultadoBox.textContent = `Los ${validas.length} registro(s) del archivo ya existen en el sistema — no se importó nada nuevo.`; showToast('Nada nuevo que importar: todos ya estaban en el sistema.'); return; }
     resultadoBox.textContent = `Importando ${nuevas.length} registro(s) nuevo(s) (se omiten ${duplicadas.length} que ya existen), un momento...`;
     let exitosos = 0;
     for(const f of nuevas){
       try{
-        await apiPost('ExAlumnos','add',{data:{
-          id: uid(), nombre:f.nombre.trim(), cedula:f.cedula||'', correo:f.correo||'', telefono:f.telefono||'',
-          curso:f.curso||'', fecha:f.fecha||'', ciudad:f.ciudad||'', pais:f.pais||'', profesion:f.profesion||'', notas:f.notas||''
-        }});
+        await apiPost('ExAlumnos','add',{data:{ id: uid(), nombre:f.nombre.trim(), cedula:f.cedula||'', correo:f.correo||'', telefono:f.telefono||'', curso:f.curso||'', fecha:f.fecha||'', ciudad:f.ciudad||'', pais:f.pais||'', profesion:f.profesion||'', notas:f.notas||'' }});
         exitosos++;
       }catch(e){ /* sigue con el resto aunque una fila falle */ }
     }
@@ -1947,9 +1768,7 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
     showToast(`${exitosos} ex-alumno(s) nuevo(s) importado(s) — ${duplicadas.length} omitido(s) por ya existir.`);
     await loadAll();
     renderBaseEstudiantes();
-  }catch(e){
-    resultadoBox.textContent = 'Error al leer el archivo: ' + e.message;
-  }
+  }catch(e){ resultadoBox.textContent = 'Error al leer el archivo: ' + e.message; }
 });
 function parseCSV(texto){
   // Quita el BOM (marca invisible de UTF-8) que Excel suele agregar al inicio del archivo.
