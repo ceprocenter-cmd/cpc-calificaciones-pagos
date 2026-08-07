@@ -268,12 +268,19 @@
       <div class="panel">
         <h2>Reporte del Curso</h2>
         <div id="reporte_resumen"></div>
+        <div class="filters" id="filtros_reporte_estado">
+          <button class="btn btn-primary btn-sm" data-filtro="todos">Todos</button>
+          <button class="btn btn-ghost btn-sm" data-filtro="aprobado">Aprobados</button>
+          <button class="btn btn-ghost btn-sm" data-filtro="reprobado">Reprobados</button>
+          <button class="btn btn-ghost btn-sm" data-filtro="sinnota">Sin Nota</button>
+        </div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
             <thead><tr><th>#</th><th>Estudiante</th><th class="num">Promedio</th><th>Estado</th><th class="num">Módulos Evaluados</th><th></th></tr></thead>
             <tbody id="tabla_resumen_curso"></tbody>
           </table>
         </div>
+        <div class="empty" id="resumen_curso_filtro_empty" style="display:none;">Ningún estudiante coincide con este filtro.</div>
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
         </div>
@@ -393,6 +400,7 @@ let CURSOS_INFO = [];
 let FACILITADORES = [];
 let PAGOS = [];
 let CURSO_ACTUAL = null;
+let FILTRO_REPORTE_ESTADO = 'todos';
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 // Convierte cualquier valor de fecha (string plano AAAA-MM-DD, string ISO con
@@ -718,6 +726,7 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
 function renderReporteCurso(){
   const resumenBox = document.getElementById('reporte_resumen');
   const tblResumen = document.getElementById('tabla_resumen_curso');
+  const emptyFiltro = document.getElementById('resumen_curso_filtro_empty');
   const vig = notasVigentesCurso();
   const porEstudiante = {};
   vig.forEach(v=>{ if(!porEstudiante[v.estudiante]) porEstudiante[v.estudiante]=[]; porEstudiante[v.estudiante].push(v); });
@@ -739,22 +748,46 @@ function renderReporteCurso(){
   const sinNotas = filas.filter(f=>f.prom===null).length;
   const bajas = filas.filter(f=>f.baja).length;
   resumenBox.innerHTML = `<p class="hint" style="margin:0;">${totalEst} estudiantes en nómina — ${aprobados} aprobados, ${filas.filter(f=>f.aprobado===false).length} reprobados, ${sinNotas} sin notas aún (mínimo: ${NOTA_MINIMA})${bajas>0?`, ${bajas} no continuaron`:''}.</p>`;
-  tblResumen.innerHTML = filas.map((f,i)=>`
-    <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}">
-    <td>${i+1}</td>
-    <td>${f.estudiante}${f.baja?' <span class="pill na">No continuó</span>':''}</td>
-    <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
-    <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
-    <td class="num">${f.count}</td>
-    <td>
-      ${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}
-      ${nominaActiva(f.estudiante)
-        ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', false)">No Continúa</button>`
-        : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', true)">Reactivar</button>`}
-    </td></tr>
-  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin estudiantes</td></tr>';
+  // Filtro por estado: todos / aprobado / reprobado / sin nota.
+  const filasFiltradas = filas.filter(f=>{
+    if(FILTRO_REPORTE_ESTADO==='todos') return true;
+    if(FILTRO_REPORTE_ESTADO==='aprobado') return f.aprobado===true;
+    if(FILTRO_REPORTE_ESTADO==='reprobado') return f.aprobado===false;
+    if(FILTRO_REPORTE_ESTADO==='sinnota') return f.prom===null;
+    return true;
+  });
+  if(filasFiltradas.length===0){
+    tblResumen.innerHTML='';
+    emptyFiltro.style.display='block';
+  }else{
+    emptyFiltro.style.display='none';
+    tblResumen.innerHTML = filasFiltradas.map((f,i)=>`
+      <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}">
+      <td>${i+1}</td>
+      <td>${f.estudiante}${f.baja?' <span class="pill na">No continuó</span>':''}</td>
+      <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
+      <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
+      <td class="num">${f.count}</td>
+      <td>
+        ${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}
+        ${nominaActiva(f.estudiante)
+          ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', false)">No Continúa</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudiante('${f.estudiante.replace(/'/g,"\\'")}', true)">Reactivar</button>`}
+      </td></tr>
+    `).join('');
+  }
   renderListaModulosReporte();
 }
+document.querySelectorAll('#filtros_reporte_estado .btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    FILTRO_REPORTE_ESTADO = btn.dataset.filtro;
+    document.querySelectorAll('#filtros_reporte_estado .btn').forEach(b=>{
+      b.classList.remove('btn-primary'); b.classList.add('btn-ghost');
+    });
+    btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary');
+    renderReporteCurso();
+  });
+});
 let MODULO_SELECCIONADO_REPORTE = null;
 function acortarTexto(texto, maxLen){
   if(!texto) return '';
