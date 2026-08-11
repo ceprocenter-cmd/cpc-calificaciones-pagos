@@ -99,6 +99,12 @@
 
     <div class="ticker" id="ticker"></div>
 
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>Aviso de Cobro a Jose y Sara</h2>
+      <p class="hint">Todos los días, el sistema revisa automáticamente qué curso empieza en los próximos 7 días. Si ese curso todavía tiene estudiantes con saldo pendiente, les envía un correo a Jose y Sara para que empiecen a cobrar esa semana — y se lo repite cada día mientras sigan quedando deudores.</p>
+      <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_probar_aviso_cobro">Enviar Aviso de Cobro Ahora (prueba manual)</button></div>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="calendario">Calendario</button>
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
@@ -403,6 +409,15 @@ document.querySelectorAll('.tab').forEach(btn=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
   });
+});
+
+// ---------- AVISO DE COBRO A ASESORES ----------
+document.getElementById('btn_probar_aviso_cobro').addEventListener('click', async ()=>{
+  try{
+    showToast('Revisando cursos y deudores...');
+    const r = await apiPost(null, 'enviarAvisosCobroManual', {});
+    showToast(r.mensaje || 'Revisión hecha.');
+  }catch(e){ showToast('Error: '+e.message); }
 });
 
 // ---------- GENERAR SEMANAS ----------
