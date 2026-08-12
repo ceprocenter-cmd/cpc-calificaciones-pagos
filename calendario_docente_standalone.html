@@ -96,12 +96,9 @@
     <div class="ticker" id="ticker"></div>
     <div class="panel" style="margin-bottom:18px;">
       <h2>Aviso de Cobro a Jose y Sara</h2>
-      <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_probar_aviso_cobro">Enviar Aviso de Cobro Ahora</button></div>
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
-        <p class="hint" style="margin:0 0 10px;"><b>Envío manual por curso:</b> si ves en el Calendario que un curso está por empezar y prefieres avisar tú mismo, en vez de esperar a la detección automática, elige el curso aquí y envía el correo al toque.</p>
-        <div class="field" style="max-width:340px;margin-bottom:0;"><label>Curso</label><select id="aviso_cobro_curso_manual"><option value="">Selecciona un curso</option></select></div>
-        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_aviso_cobro_curso_manual">Enviar Aviso de este Curso</button></div>
-      </div>
+      <p class="hint">Elige el curso que está por empezar y envíale a Jose y Sara un correo con solo sus propios estudiantes deudores.</p>
+      <div class="field" style="max-width:340px;margin-bottom:0;"><label>Curso</label><select id="aviso_cobro_curso_manual"><option value="">Selecciona un curso</option></select></div>
+      <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_aviso_cobro_curso_manual">Enviar Aviso de este Curso</button></div>
     </div>
     <div class="tabs">
       <button class="tab active" data-tab="calendario">Calendario</button>
@@ -385,13 +382,6 @@ document.querySelectorAll('.tab').forEach(btn=>{
   });
 });
 // ---------- AVISO DE COBRO A ASESORES ----------
-document.getElementById('btn_probar_aviso_cobro').addEventListener('click', async ()=>{
-  try{
-    showToast('Revisando cursos y deudores...');
-    const r = await apiPost(null, 'enviarAvisosCobroManual', {});
-    showToast(r.mensaje || 'Revisión hecha.');
-  }catch(e){ showToast('Error: '+e.message); }
-});
 // Envío manual del aviso de cobro para UN curso elegido a mano — no depende de fechaInicio ni de la ventana de 7 días.
 function renderSelectAvisoCobroManual(){
   const sel = document.getElementById('aviso_cobro_curso_manual');
