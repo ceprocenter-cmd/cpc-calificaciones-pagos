@@ -81,12 +81,10 @@
 </head>
 <body>
 <div class="wrap">
-
   <div class="top">
     <h1>Calendario Docente <span class="accent">Ceprocenter</span></h1>
     <div class="sub">Calendario académico de Ceprocenter — organizado por semana.</div>
   </div>
-
   <div class="setup-hint" id="setup_banner" style="display:none;">
     <b>Primera vez usando esta herramienta.</b> Pega abajo la URL de tu Apps Script (la misma que usan Calificaciones y Matrículas).
     <div class="grid" style="margin-top:12px;max-width:500px;">
@@ -94,24 +92,24 @@
     </div>
     <button class="btn btn-sm" id="btn_guardar_config" style="margin-top:10px;">Guardar y Conectar</button>
   </div>
-
   <div id="app_content" style="display:none;">
-
     <div class="ticker" id="ticker"></div>
-
     <div class="panel" style="margin-bottom:18px;">
       <h2>Aviso de Cobro a Jose y Sara</h2>
       <p class="hint">Todos los días, el sistema revisa automáticamente qué curso empieza en los próximos 7 días. Si ese curso todavía tiene estudiantes con saldo pendiente, les envía un correo a Jose y Sara para que empiecen a cobrar esa semana — y se lo repite cada día mientras sigan quedando deudores.</p>
       <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_probar_aviso_cobro">Enviar Aviso de Cobro Ahora (prueba manual)</button></div>
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+        <p class="hint" style="margin:0 0 10px;"><b>Envío manual por curso:</b> si ves en el Calendario que un curso está por empezar y prefieres avisar tú mismo, en vez de esperar a la detección automática, elige el curso aquí y envía el correo al toque.</p>
+        <div class="field" style="max-width:340px;margin-bottom:0;"><label>Curso</label><select id="aviso_cobro_curso_manual"><option value="">Selecciona un curso</option></select></div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_aviso_cobro_curso_manual">Enviar Aviso de este Curso</button></div>
+      </div>
     </div>
-
     <div class="tabs">
       <button class="tab active" data-tab="calendario">Calendario</button>
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
       <button class="tab" data-tab="tutor">Calendario por Tutor</button>
       <button class="tab" data-tab="tareas">Tareas Equipo</button>
     </div>
-
     <!-- CALENDARIO -->
     <div id="tab-calendario">
       <div class="panel">
@@ -154,7 +152,6 @@
         <div class="empty" id="calendario_empty" style="display:none;">Sin sesiones con este filtro.</div>
       </div>
     </div>
-
     <!-- REGISTRAR -->
     <div id="tab-registrar" style="display:none;">
       <div class="panel">
@@ -167,7 +164,6 @@
         <div class="hint" style="margin-top:10px;">Acceso rápido: <span id="botones_anios_rapidos"></span></div>
         <div class="actions"><button class="btn" id="btn_generar_anio">Cargar Todas las Semanas del Año</button></div>
       </div>
-
       <div class="panel">
         <h3>O generar solo un mes puntual</h3>
         <div class="grid cols4">
@@ -176,7 +172,6 @@
         </div>
         <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_generar_semanas">+ Generar Semanas de este Mes</button></div>
       </div>
-
       <div class="panel">
         <h2>Registrar Sesión</h2>
         <div class="grid cols4">
@@ -223,7 +218,6 @@
         <div class="actions"><button class="btn" id="btn_guardar_sesion">Guardar Sesión</button></div>
       </div>
     </div>
-
     <!-- POR TUTOR -->
     <div id="tab-tutor" style="display:none;">
       <div class="panel">
@@ -232,7 +226,6 @@
         <div class="field" style="max-width:280px;"><label>Docente</label><select id="tutor_sel"><option value="">Selecciona un docente</option></select></div>
         <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_ver_calendario_tutor">Ver / Descargar Calendario</button></div>
       </div>
-
       <div class="panel">
         <h2>Lista de Facilitadores</h2>
         <p class="hint">El link de cada uno, listo para copiar y mandar por WhatsApp — así no hay riesgo de escribir mal el nombre.</p>
@@ -245,7 +238,6 @@
         </div>
       </div>
     </div>
-
     <!-- TAREAS EQUIPO -->
     <div id="tab-tareas" style="display:none;">
       <div class="panel">
@@ -260,7 +252,6 @@
         <div class="field" style="margin-top:14px;"><label>Observación (opcional)</label><textarea id="tp_observacion" placeholder="Detalles adicionales..." style="min-height:70px;"></textarea></div>
         <div class="actions"><button class="btn" id="btn_guardar_tarea">Registrar y Notificar</button></div>
       </div>
-
       <div class="panel">
         <h2>Tareas del Equipo</h2>
         <div class="grid cols3" style="margin-bottom:16px;">
@@ -281,10 +272,8 @@
         <div class="empty" id="tareas_empty" style="display:none;">No hay tareas registradas.</div>
       </div>
     </div>
-
   </div>
 </div>
-
 <div class="modal-overlay" id="modal_overlay">
   <div class="modal-box">
     <div class="modal-box-inner" id="doc_content"></div>
@@ -294,20 +283,15 @@
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 const API_URL_PUBLICO = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGeepxsP_jie58658PL-jnQXtiVqqAT7283HpXWRs7HOWkNJ/exec';
-
 const paramsIniciales = new URLSearchParams(window.location.search);
 const esVistaTutor = !!paramsIniciales.get('tutor');
-
 let API_URL = esVistaTutor
   ? (API_URL_PUBLICO.indexOf('PEGA_AQUI')===0 ? '' : API_URL_PUBLICO)
   : (localStorage.getItem('cepro_api_url_academico') || '');
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
-
 if(esVistaTutor){
   document.getElementById('setup_banner').style.display = 'none';
   document.getElementById('app_content').style.display = 'none';
@@ -324,10 +308,8 @@ document.getElementById('btn_guardar_config').addEventListener('click', ()=>{
   localStorage.setItem('cepro_api_url_academico', url);
   location.reload();
 });
-
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3400); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-
 async function apiGet(sheet){ const res = await fetch(`${API_URL}?sheet=${sheet}`); return await res.json(); }
 async function apiPost(sheet, action, payload){
   const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({sheet, action, clave: CLAVE_ADMIN, ...payload}) });
@@ -335,14 +317,12 @@ async function apiPost(sheet, action, payload){
   if(json.error) throw new Error(json.error);
   return json;
 }
-
 let CALENDARIO = [];
 let FACILITADORES_REALES = [];
 let TAREAS = [];
 let NOMINA_TUTOR = [];
 let MATRICULAS_TUTOR = [];
 let CURSOS_MATRICULA = [];
-
 async function loadAll(){
   const [cal, facil, nom, mat, mod] = await Promise.all([
     apiGet('CalendarioDocente'),
@@ -370,7 +350,6 @@ function fechaValor(f){
   return Number(partes[0])*10000 + Number(partes[1])*100 + Number(partes[2]);
 }
 function capitalizar(t){ return t ? t.charAt(0).toUpperCase()+t.slice(1) : t; }
-
 function nombreMesDe(fechaStr){
   if(!fechaStr || !/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) return '—';
   const d = new Date(fechaStr.slice(0,10)+'T00:00:00');
@@ -378,20 +357,17 @@ function nombreMesDe(fechaStr){
   const soloMes = d.toLocaleDateString('es-EC',{month:'long'});
   return `${capitalizar(soloMes)} ${d.getFullYear()}`;
 }
-
 function rangoFechas(inicio, fin){
   if(!inicio) return '—';
   if(!fin || fin===inicio) return fechaCorta(inicio);
   return `${fechaCorta(inicio)}<br>al ${fechaCorta(fin)}`;
 }
-
 function horarioDosLineas(h){
   if(!h) return '—';
   const partes = String(h).split(' a ');
   if(partes.length!==2) return h;
   return `${partes[0]} a<br>${partes[1]}`;
 }
-
 function nominaDelCurso(curso){
   const estudiantes = [...new Set(NOMINA_TUTOR.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
   return estudiantes.map(est=>{
@@ -399,7 +375,6 @@ function nominaDelCurso(curso){
     return { nombre: est, profesion: registro.profesion || '—' };
   });
 }
-
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -410,7 +385,6 @@ document.querySelectorAll('.tab').forEach(btn=>{
     });
   });
 });
-
 // ---------- AVISO DE COBRO A ASESORES ----------
 document.getElementById('btn_probar_aviso_cobro').addEventListener('click', async ()=>{
   try{
@@ -419,21 +393,34 @@ document.getElementById('btn_probar_aviso_cobro').addEventListener('click', asyn
     showToast(r.mensaje || 'Revisión hecha.');
   }catch(e){ showToast('Error: '+e.message); }
 });
-
+// Envío manual del aviso de cobro para UN curso elegido a mano — no depende de fechaInicio ni de la ventana de 7 días.
+function renderSelectAvisoCobroManual(){
+  const sel = document.getElementById('aviso_cobro_curso_manual');
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Selecciona un curso</option>' + CURSOS_MATRICULA.map(c=>`<option value="${c.replace(/"/g,'&quot;')}" ${c===prev?'selected':''}>${c}</option>`).join('');
+}
+document.getElementById('btn_aviso_cobro_curso_manual').addEventListener('click', async ()=>{
+  const curso = document.getElementById('aviso_cobro_curso_manual').value;
+  if(!curso){ showToast('Selecciona un curso primero.'); return; }
+  if(!confirm(`¿Enviar el aviso de cobro de "${curso}" a Jose y Sara ahora?`)) return;
+  showToast('Enviando aviso...');
+  try{
+    const r = await apiPost(null, 'enviarAvisoCobroCursoManual', {curso});
+    showToast(r.mensaje || 'Aviso procesado.');
+  }catch(e){ showToast('Error: '+e.message); }
+});
 // ---------- GENERAR SEMANAS ----------
 const anioActualReal = new Date().getFullYear();
 document.getElementById('botones_anios_rapidos').innerHTML = [anioActualReal, anioActualReal+1, anioActualReal+2, anioActualReal+3].map(a=>
   `<button type="button" class="btn btn-ghost btn-sm" style="padding:4px 10px;margin-right:6px;" onclick="document.getElementById('gen_anio').value=${a};">${a}</button>`
 ).join('');
-
 document.getElementById('btn_generar_anio').addEventListener('click', async ()=>{
   const anio = Number(document.getElementById('gen_anio').value) || 2026;
   const modalidad = document.getElementById('gen_modalidad_anio').value;
-
   if(CALENDARIO.some(c=>c.esFeriado!=='Sí' && c.fechaInicio && c.fechaInicio.slice(0,4)===String(anio) && !c.docente)){
     if(!confirm(`Ya parece que hay semanas vacías cargadas de ${anio}. ¿Quieres cargar de todas formas? (puede duplicar semanas)`)) return;
   }
-
   const filas = [];
   let fecha = new Date(anio, 0, 1);
   if(modalidad === 'Presencial'){
@@ -461,7 +448,6 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
       fecha.setDate(fecha.getDate()+7);
     }
   }
-
   showToast(`Cargando ${filas.length} semanas de ${anio}, un momento...`);
   try{
     for(const f of filas){ await apiPost('CalendarioDocente','add',{data:f}); }
@@ -470,14 +456,12 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
     renderAll();
   }catch(e){ showToast('Error al generar: '+e.message); }
 });
-
 document.getElementById('btn_generar_semanas').addEventListener('click', async ()=>{
   const mesVal = document.getElementById('gen_mes').value;
   const modalidad = document.getElementById('gen_modalidad').value;
   if(!mesVal){ showToast('Selecciona el mes.'); return; }
   const [anio, mes] = mesVal.split('-').map(Number);
   const ultimoDia = new Date(anio, mes, 0).getDate();
-
   const filas = [];
   let dia = 1;
   while(dia <= ultimoDia){
@@ -491,7 +475,6 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
     });
     dia = finDia + 3;
   }
-
   try{
     for(const f of filas){ await apiPost('CalendarioDocente','add',{data:f}); }
     showToast(`${filas.length} semana(s) generadas — ya puedes llenarlas en el Calendario.`);
@@ -499,16 +482,13 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
     renderAll();
   }catch(e){ showToast('Error al generar: '+e.message); }
 });
-
 document.getElementById('r_es_feriado').addEventListener('change', ()=>{
   const esFeriado = document.getElementById('r_es_feriado').value === 'si';
   ['r_horario_preset','r_capacitacion','r_modulo','r_docente_input','r_encargado','r_categoria','r_subtemas','r_link'].forEach(id=>{
     document.getElementById(id).closest('.field').style.display = esFeriado ? 'none' : 'block';
   });
 });
-
 let DOCENTES_SESION_ACTUAL = [];
-
 function renderChipsDocentesSesion(){
   const box = document.getElementById('chips_docentes_sesion');
   box.innerHTML = DOCENTES_SESION_ACTUAL.map((d,i)=>`
@@ -535,7 +515,6 @@ document.getElementById('btn_agregar_docente').addEventListener('click', ()=>{
 document.getElementById('r_docente_input').addEventListener('keydown', (e)=>{
   if(e.key==='Enter'){ e.preventDefault(); document.getElementById('btn_agregar_docente').click(); }
 });
-
 document.getElementById('btn_guardar_sesion').addEventListener('click', async ()=>{
   const esFeriado = document.getElementById('r_es_feriado').value === 'si';
   const fechaInicio = document.getElementById('r_fecha_inicio').value;
@@ -551,7 +530,6 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
   const tema = document.getElementById('r_tema').value.trim();
   const subtemas = document.getElementById('r_subtemas').value.trim();
   const linkContenido = document.getElementById('r_link').value.trim();
-
   if(!fechaInicio){ showToast('Escribe la fecha de inicio.'); return; }
   if(!tema){ showToast(esFeriado ? 'Escribe el nombre del feriado.' : 'Escribe el tema.'); return; }
   if(!esFeriado){
@@ -564,7 +542,6 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
     if(!horarioPresetCheck){ showToast('Selecciona el horario.'); return; }
     if(horarioPresetCheck==='__otro__' && !document.getElementById('r_horario_custom').value.trim()){ showToast('Escribe el horario personalizado.'); return; }
   }
-
   try{
     const listaDocentes = esFeriado ? [''] : DOCENTES_SESION_ACTUAL;
     for(const docenteActual of listaDocentes){
@@ -591,7 +568,6 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 window.cambiarHonorario = async function(calId, nuevoEstado){
   try{
     await apiPost('CalendarioDocente','update',{id:calId, data:{honorario:nuevoEstado}});
@@ -599,7 +575,6 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
     renderAll();
   }catch(e){ showToast('Error: '+e.message); }
 };
-
 function buscarDocentesDeSesion(entry){
   return CALENDARIO.filter(c =>
     c.esFeriado!=='Sí' &&
@@ -609,10 +584,8 @@ function buscarDocentesDeSesion(entry){
     String(c.modulo||'').trim() === String(entry.modulo||'').trim()
   );
 }
-
 let DOCENTES_EDICION_ACTUAL = [];
 let IDS_ORIGINALES_EDICION = [];
-
 function renderChipsDocentesEdicion(){
   const box = document.getElementById('edit_chips_docentes');
   if(!box) return;
@@ -627,13 +600,11 @@ window.quitarDocenteEdicion = function(i){
   DOCENTES_EDICION_ACTUAL.splice(i,1);
   renderChipsDocentesEdicion();
 };
-
 window.editarFechaSesion = function(indice){
   const entry = FILAS_CALENDARIO_ACTUAL[indice];
   if(!entry){ showToast('No se pudo abrir esta sesión, recarga la página e intenta de nuevo.'); return; }
   const id = entry.id;
   const esFeriado = entry.esFeriado==='Sí';
-
   if(esFeriado){
     const html = `
       <h3 style="margin-top:0;">Editar Feriado</h3>
@@ -647,11 +618,9 @@ window.editarFechaSesion = function(indice){
     abrirModalDoc(html);
     return;
   }
-
   const siblings = buscarDocentesDeSesion(entry);
   DOCENTES_EDICION_ACTUAL = siblings.map(s=>({id:s.id, nombre:s.docente||'(sin nombre)'}));
   IDS_ORIGINALES_EDICION = siblings.map(s=>s.id);
-
   const html = `
     <h3 style="margin-top:0;">Editar Sesión</h3>
     <p class="hint" style="margin:0 0 14px;">Los datos de fecha, horario, capacitación, etc. se aplican a todos los docentes de esta sesión. El honorario solo se actualiza para el docente sobre el que diste clic en "Editar".</p>
@@ -700,10 +669,8 @@ window.editarFechaSesion = function(indice){
     <div class="actions"><button class="btn" onclick="guardarSesionEditada('${id}', false)">Guardar Cambios</button></div>
   `;
   abrirModalDoc(html);
-
   renderSelectCursoMatricula();
   document.getElementById('edit_curso_matricula').value = entry.cursoMatricula || '';
-
   renderChipsDocentesEdicion();
   document.getElementById('edit_btn_agregar_docente').addEventListener('click', ()=>{
     const input = document.getElementById('edit_docente_input');
@@ -719,12 +686,10 @@ window.editarFechaSesion = function(indice){
     if(e.key==='Enter'){ e.preventDefault(); document.getElementById('edit_btn_agregar_docente').click(); }
   });
 };
-
 window.guardarSesionEditada = async function(id, esFeriado){
   const fechaInicio = document.getElementById('edit_fecha_inicio').value;
   const fechaFin = document.getElementById('edit_fecha_fin').value || fechaInicio;
   if(!fechaInicio){ showToast('Selecciona la fecha de inicio.'); return; }
-
   if(esFeriado){
     const data = { fechaInicio, fechaFin, tema: document.getElementById('edit_tema').value.trim() };
     try{
@@ -736,9 +701,7 @@ window.guardarSesionEditada = async function(id, esFeriado){
     }catch(e){ showToast('Error: '+e.message); }
     return;
   }
-
   if(DOCENTES_EDICION_ACTUAL.length===0){ showToast('Agrega al menos un docente.'); return; }
-
   const sharedData = {
     fechaInicio, fechaFin,
     modalidad: document.getElementById('edit_modalidad').value,
@@ -754,7 +717,6 @@ window.guardarSesionEditada = async function(id, esFeriado){
     observacion: document.getElementById('edit_observacion').value.trim()
   };
   const honorarioEditado = document.getElementById('edit_honorario').value;
-
   try{
     for(const d of DOCENTES_EDICION_ACTUAL){
       if(!d.id) continue;
@@ -773,18 +735,15 @@ window.guardarSesionEditada = async function(id, esFeriado){
     for(const idEliminar of idsAEliminar){
       await apiPost('CalendarioDocente','delete',{id:idEliminar});
     }
-
     showToast('Sesión actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
     await loadAll();
     renderAll();
   }catch(e){ showToast('Error: '+e.message); }
 };
-
 window.eliminarSesion = async function(id){
   const entry = CALENDARIO.find(c=>c.id===id);
   if(!entry){ showToast('No se encontró esta sesión, recarga la página e intenta de nuevo.'); return; }
-
   if(entry.esFeriado==='Sí'){
     if(!confirm('¿Eliminar este feriado del calendario?')) return;
     try{
@@ -795,13 +754,11 @@ window.eliminarSesion = async function(id){
     }catch(e){ showToast('Error: '+e.message); }
     return;
   }
-
   const mismaSemana = CALENDARIO.filter(c =>
     c.esFeriado!=='Sí' &&
     c.fechaInicio === entry.fechaInicio &&
     (c.fechaFin||c.fechaInicio) === (entry.fechaFin||entry.fechaInicio)
   );
-
   if(mismaSemana.length > 1){
     if(!confirm('Ya hay otra sesión registrada en esta misma fecha, así que se eliminará esta fila por completo. ¿Continuar?')) return;
     try{
@@ -823,11 +780,9 @@ window.eliminarSesion = async function(id){
     }catch(e){ showToast('Error: '+e.message); }
   }
 };
-
 window.abrirAnadirSesion = function(indice){
   const entry = FILAS_CALENDARIO_ACTUAL[indice];
   if(!entry){ showToast('No se pudo abrir esta semana, recarga la página e intenta de nuevo.'); return; }
-
   const html = `
     <h3 style="margin-top:0;">Añadir Otra Sesión en esta Semana</h3>
     <p class="hint" style="margin:0 0 14px;">${rangoFechas(entry.fechaInicio, entry.fechaFin)} — se guardará como una sesión nueva, sin afectar la que ya existe.</p>
@@ -863,9 +818,7 @@ window.abrirAnadirSesion = function(indice){
     <div class="actions"><button class="btn" onclick="guardarSesionAnadida('${entry.fechaInicio}', '${entry.fechaFin||entry.fechaInicio}')">Guardar Sesión</button></div>
   `;
   abrirModalDoc(html);
-
   renderSelectCursoMatricula();
-
   DOCENTES_ANADIR_ACTUAL = [];
   renderChipsDocentesAnadir();
   document.getElementById('add_btn_agregar_docente').addEventListener('click', ()=>{
@@ -882,9 +835,7 @@ window.abrirAnadirSesion = function(indice){
     if(e.key==='Enter'){ e.preventDefault(); document.getElementById('add_btn_agregar_docente').click(); }
   });
 };
-
 let DOCENTES_ANADIR_ACTUAL = [];
-
 function renderChipsDocentesAnadir(){
   const box = document.getElementById('add_chips_docentes');
   if(!box) return;
@@ -899,7 +850,6 @@ window.quitarDocenteAnadir = function(i){
   DOCENTES_ANADIR_ACTUAL.splice(i,1);
   renderChipsDocentesAnadir();
 };
-
 window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
   const modalidad = document.getElementById('add_modalidad').value;
   const horarioPresetVal = document.getElementById('add_horario_preset').value;
@@ -912,7 +862,6 @@ window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
   const tema = document.getElementById('add_tema').value.trim();
   const subtemas = document.getElementById('add_subtemas').value.trim();
   const linkContenido = document.getElementById('add_link').value.trim();
-
   if(!tema){ showToast('Escribe el tema.'); return; }
   if(!capacitacion){ showToast('Escribe la capacitación.'); return; }
   if(DOCENTES_ANADIR_ACTUAL.length===0){ showToast('Agrega al menos un docente.'); return; }
@@ -921,7 +870,6 @@ window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
   if(!categoria){ showToast('Selecciona la categoría.'); return; }
   if(!horarioPresetVal){ showToast('Selecciona el horario.'); return; }
   if(horarioPresetVal==='__otro__' && !document.getElementById('add_horario_custom').value.trim()){ showToast('Escribe el horario personalizado.'); return; }
-
   try{
     for(const docenteActual of DOCENTES_ANADIR_ACTUAL){
       await apiPost('CalendarioDocente','add',{data:{
@@ -936,7 +884,6 @@ window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 };
-
 function abrirModalDoc(html){
   document.getElementById('doc_content').innerHTML = html;
   document.getElementById('modal_overlay').classList.add('show');
@@ -949,7 +896,6 @@ document.getElementById('btn_imprimir_modal').addEventListener('click', ()=>{
   window.print();
 });
 window.onafterprint = function(){ document.body.classList.remove('printing'); };
-
 function renderAll(){
   renderTicker();
   renderFiltros();
@@ -957,8 +903,8 @@ function renderAll(){
   renderDatalistDocentes();
   renderSelectTutor();
   renderSelectCursoMatricula();
+  renderSelectAvisoCobroManual();
 }
-
 function renderSelectCursoMatricula(){
   ['r_curso_matricula','add_curso_matricula','edit_curso_matricula'].forEach(id=>{
     const sel = document.getElementById(id);
@@ -967,7 +913,6 @@ function renderSelectCursoMatricula(){
     sel.innerHTML = '<option value="">— No vincular con Matrículas —</option>' + CURSOS_MATRICULA.map(c=>`<option value="${c.replace(/"/g,'&quot;')}" ${c===prev?'selected':''}>${c}</option>`).join('');
   });
 }
-
 function renderTicker(){
   const total = CALENDARIO.length;
   const pagadas = CALENDARIO.filter(c=>c.honorario==='Pagado').length;
@@ -982,13 +927,11 @@ function renderTicker(){
     <div class="tick"><div class="n">${docentesUnicos}</div><div class="l">Docentes Activos</div></div>
   `;
 }
-
 function renderFiltros(){
   const anios = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))].sort();
   const selAnio = document.getElementById('filt_anio');
   const prevAnio = selAnio.value;
   selAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}" ${a===prevAnio?'selected':''}>${a}</option>`).join('');
-
   const meses = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,7) : '').filter(Boolean))].sort();
   const selMes = document.getElementById('filt_mes');
   const prevMes = selMes.value;
@@ -997,18 +940,15 @@ function renderFiltros(){
     const nombreMes = new Date(y,mm-1,1).toLocaleDateString('es-EC',{month:'long',year:'numeric'});
     return `<option value="${m}" ${m===prevMes?'selected':''}>${nombreMes}</option>`;
   }).join('');
-
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   const selDoc = document.getElementById('filt_docente');
   const prevDoc = selDoc.value;
   selDoc.innerHTML = '<option value="">Todos</option>' + docentes.map(d=>`<option ${d===prevDoc?'selected':''}>${d}</option>`).join('');
-
   const capacitaciones = [...new Set(CALENDARIO.map(c=>c.capacitacion).filter(Boolean))].sort();
   const selCap = document.getElementById('filt_capacitacion');
   const prevCap = selCap.value;
   selCap.innerHTML = '<option value="">Todas</option>' + capacitaciones.map(c=>`<option ${c===prevCap?'selected':''}>${c}</option>`).join('');
 }
-
 function renderCalendario(){
   const modalidad = document.getElementById('filt_modalidad').value;
   const anio = document.getElementById('filt_anio').value;
@@ -1018,7 +958,6 @@ function renderCalendario(){
   const capacitacion = document.getElementById('filt_capacitacion').value;
   const honorario = document.getElementById('filt_honorario').value;
   const mostrarModalidad = !modalidad;
-
   let rows = CALENDARIO.slice();
   if(modalidad) rows = rows.filter(c=>c.modalidad===modalidad);
   if(anio) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,4)===anio);
@@ -1048,19 +987,15 @@ function renderCalendario(){
     });
   }
   rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
-
   document.getElementById('calendario_head').innerHTML =
     '<th>Mes y Año</th><th>Fechas</th><th>Horario</th><th>Capacitación</th><th>Módulo</th><th>Docente</th><th>Encargado</th>'
     + (mostrarModalidad ? '<th>Modalidad</th>' : '')
     + '<th>Honorario</th><th>Tema</th><th>Feriado</th><th></th>';
-
   const body = document.getElementById('tabla_calendario');
   const empty = document.getElementById('calendario_empty');
   if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
-
   FILAS_CALENDARIO_ACTUAL = rows;
-
   let mesAnterior = null;
   let colorAlterno = false;
   body.innerHTML = rows.map((c,i)=>{
@@ -1071,7 +1006,6 @@ function renderCalendario(){
     const nombreMes = nombreMesDe(c.fechaInicio);
     const [soloMes, soloAnio] = nombreMes.split(' ');
     const observacion = esFeriado ? `🟡 Feriado: ${c.tema||''}` : (c.observacion||'—');
-
     return `<tr style="${fondoMes}">
       <td style="font-weight:700;">${soloMes||''}${soloAnio?`<br><span style="font-weight:400;color:var(--text-dim);font-size:12.5px;">${soloAnio}</span>`:''}</td>
       <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
@@ -1100,33 +1034,27 @@ let FILAS_CALENDARIO_ACTUAL = [];
 ['filt_modalidad','filt_anio','filt_mes','filt_docente','filt_encargado','filt_capacitacion','filt_honorario','filt_ocultar_pagados','filt_ocultar_vacias','filt_ocultar_pasadas'].forEach(id=>{
   document.getElementById(id).addEventListener('change', renderCalendario);
 });
-
 function renderDatalistDocentes(){
   const docentes = [...new Set([...CALENDARIO.map(c=>c.docente), ...FACILITADORES_REALES].filter(Boolean))].sort();
   document.getElementById('lista_docentes').innerHTML = docentes.map(d=>`<option value="${d.replace(/"/g,'&quot;')}">`).join('');
 }
-
 function renderSelectTutor(){
   const sel = document.getElementById('tutor_sel');
   const prev = sel.value;
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   sel.innerHTML = '<option value="">Selecciona un docente</option>' + docentes.map(d=>`<option ${d===prev?'selected':''}>${d}</option>`).join('');
-
   const selAnio = document.getElementById('facil_anio');
   const prevAnio = selAnio.value;
   const aniosDisponibles = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))].sort().reverse();
   const anioActualStr = String(new Date().getFullYear());
   if(!aniosDisponibles.includes(anioActualStr)) aniosDisponibles.unshift(anioActualStr);
   selAnio.innerHTML = '<option value="">Todos los años</option>' + aniosDisponibles.map(a=>`<option value="${a}" ${a===(prevAnio||anioActualStr)?'selected':''}>${a}</option>`).join('');
-
   renderTablaFacilitadores(docentes);
 }
-
 document.getElementById('facil_anio').addEventListener('change', ()=>{
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   renderTablaFacilitadores(docentes);
 });
-
 function renderTablaFacilitadores(docentes){
   const baseUrl = window.location.origin + window.location.pathname;
   const anioFiltro = document.getElementById('facil_anio').value;
@@ -1143,7 +1071,6 @@ function renderTablaFacilitadores(docentes){
     </tr>`;
   }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);">Todavía no hay docentes registrados en el calendario.</td></tr>';
 }
-
 window.copiarLinkTutor = function(link){
   navigator.clipboard.writeText(link).then(()=>{
     showToast('Link copiado — ya lo puedes pegar en WhatsApp.');
@@ -1151,13 +1078,11 @@ window.copiarLinkTutor = function(link){
     showToast('No se pudo copiar automáticamente. Link: ' + link);
   });
 };
-
 document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()=>{
   const docente = document.getElementById('tutor_sel').value;
   if(!docente){ showToast('Selecciona un docente.'); return; }
   const sesiones = CALENDARIO.filter(c=>c.docente===docente && c.esFeriado!=='Sí').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   if(sesiones.length===0){ showToast('Este docente no tiene sesiones registradas.'); return; }
-
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
   const primeraFecha = fechaValor(sesiones[0].fechaInicio);
   const ultimaFecha = fechaValor(sesiones[sesiones.length-1].fechaFin || sesiones[sesiones.length-1].fechaInicio);
@@ -1165,16 +1090,13 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
     const fv = fechaValor(f.fechaInicio);
     return fv>=primeraFecha && fv<=ultimaFecha;
   });
-
   const filas = [...sesiones.map(c=>({...c, tipo:'sesion'})), ...feriadosEnRango.map(c=>({...c, tipo:'feriado'}))]
     .sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
-
   const hoyValor = fechaValor(new Date().toISOString().slice(0,10));
-
   const filasHtml = filas.map(c=>{
     const mesNombre = nombreMesDe(c.fechaInicio).toUpperCase();
     if(c.tipo==='feriado'){
-      return `<tr style="background:#FFF6D6;"><td>${mesNombre}</td><td colspan="6" style="font-weight:700;">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — FERIADO: ${c.tema||'—'}</td></tr>`;
+      return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${mesNombre}</td><td colspan="7">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
     }
     const yaPaso = fechaValor(c.fechaFin||c.fechaInicio) < hoyValor;
     const badgeHonorario = c.honorario==='Pagado'
@@ -1182,6 +1104,9 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
       : c.honorario==='No Aplica'
       ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No Aplica</span>'
       : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
+    const celdaEstudiantes = c.cursoMatricula
+      ? `<a href="#" onclick="event.preventDefault(); verNominaCurso('${c.cursoMatricula.replace(/'/g,"\\'")}');">Ver Nómina (PDF)</a>`
+      : '—';
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
       <td>${mesNombre}</td>
       <td>${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
@@ -1192,7 +1117,6 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
       <td>${c.linkContenido?`<a href="${c.linkContenido}" target="_blank">Ver contenido</a>`:'—'}</td>
     </tr>`;
   }).join('');
-
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -1206,10 +1130,8 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   `;
   abrirModalDoc(html);
 });
-
 // ---------- VISTA PÚBLICA PARA EL TUTOR (?tutor=Nombre) ----------
 const tutorEnLink = paramsIniciales.get('tutor');
-
 async function initApp(){
   if(!API_URL) return;
   try{
@@ -1224,13 +1146,11 @@ async function initApp(){
   }
   catch(e){ showToast('No se pudo conectar: ' + e.message); }
 }
-
 window.verNominaCurso = function(curso){
   const estudiantes = nominaDelCurso(curso);
   const filasHtml = estudiantes.map((e,i)=>`
     <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>
   `).join('');
-
   const html = `
     <!DOCTYPE html>
     <html lang="es">
@@ -1260,12 +1180,10 @@ window.verNominaCurso = function(curso){
     </body>
     </html>
   `;
-
   const ventana = window.open('', '_blank');
   ventana.document.write(html);
   ventana.document.close();
 };
-
 function renderVistaTutor(nombreTutor){
   document.body.innerHTML = `
     <div class="wrap" style="max-width:1060px;">
@@ -1277,30 +1195,23 @@ function renderVistaTutor(nombreTutor){
     </div>
     <div class="toast" id="toast"></div>
   `;
-
   const sesiones = CALENDARIO.filter(c=>c.docente===nombreTutor && c.esFeriado!=='Sí' && c.honorario!=='Pagado').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   const feriados = CALENDARIO.filter(c=>c.esFeriado==='Sí');
-
   if(sesiones.length===0){
     document.getElementById('vista_tutor_panel').innerHTML = '<p class="hint">Todavía no tienes sesiones pendientes registradas en el calendario. Consulta con Ceprocenter.</p>';
     return;
   }
-
   const primeraFecha = fechaValor(sesiones[0].fechaInicio);
   const ultimaFecha = fechaValor(sesiones[sesiones.length-1].fechaFin || sesiones[sesiones.length-1].fechaInicio);
   const feriadosEnRango = feriados.filter(f=>{
     const fv = fechaValor(f.fechaInicio);
     return fv>=primeraFecha && fv<=ultimaFecha;
   });
-
   const filas = [...sesiones.map(c=>({...c, tipo:'sesion'})), ...feriadosEnRango.map(c=>({...c, tipo:'feriado'}))]
     .sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
-
   const hoyValorTutor = fechaValor(new Date().toISOString().slice(0,10));
-
   const filasHtml = filas.map(c=>{
     const nombreMes = nombreMesDe(c.fechaInicio);
-
     if(c.tipo==='feriado'){
       return `<tr style="background:#FFF6D6;"><td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td><td colspan="7">🟡 ${rangoFechas(c.fechaInicio,c.fechaFin)} — Feriado: ${c.tema||'—'}</td></tr>`;
     }
@@ -1310,11 +1221,9 @@ function renderVistaTutor(nombreTutor){
       : c.honorario==='No Aplica'
       ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No Aplica</span>'
       : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--danger-soft);color:var(--danger);font-weight:700;text-transform:uppercase;">Pendiente</span>';
-
     const celdaEstudiantes = c.cursoMatricula
       ? `<a href="#" onclick="event.preventDefault(); verNominaCurso('${c.cursoMatricula.replace(/'/g,"\\'")}');">Ver Nómina (PDF)</a>`
       : '—';
-
     return `<tr${yaPaso?' style="opacity:0.45;"':''}>
       <td style="font-weight:700;text-transform:capitalize;">${nombreMes}</td>
       <td style="white-space:nowrap;">${rangoFechas(c.fechaInicio,c.fechaFin)}</td>
@@ -1326,7 +1235,6 @@ function renderVistaTutor(nombreTutor){
       <td>${badgeHonorario}</td>
     </tr>`;
   }).join('');
-
   document.getElementById('vista_tutor_panel').innerHTML = `
     <div class="table-scroll">
       <table>
@@ -1336,7 +1244,6 @@ function renderVistaTutor(nombreTutor){
     </div>
   `;
 }
-
 // ---------- TAREAS PENDIENTES DEL EQUIPO ----------
 document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=>{
   const creadoPor = document.getElementById('tp_creado_por').value;
@@ -1344,11 +1251,9 @@ document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=
   const fechaLimite = document.getElementById('tp_fecha_limite').value;
   const tarea = document.getElementById('tp_tarea').value.trim();
   const observacion = document.getElementById('tp_observacion').value.trim();
-
   if(!creadoPor){ showToast('Selecciona quién crea la tarea.'); return; }
   if(!asignadoA){ showToast('Selecciona a quién se asigna.'); return; }
   if(!tarea){ showToast('Escribe la tarea.'); return; }
-
   try{
     await apiPost(null, 'crearTareaPendiente', {data:{creadoPor, asignadoA, tarea, fechaLimite, observacion}});
     showToast(`Tarea registrada y correo enviado a ${asignadoA}.`);
@@ -1361,7 +1266,6 @@ document.getElementById('btn_guardar_tarea').addEventListener('click', async ()=
     renderTareas();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-
 window.marcarTareaCompletada = async function(id){
   try{
     await apiPost(null, 'completarTareaPendiente', {id});
@@ -1370,7 +1274,6 @@ window.marcarTareaCompletada = async function(id){
     renderTareas();
   }catch(e){ showToast('Error: '+e.message); }
 };
-
 window.eliminarTarea = async function(id){
   if(!confirm('¿Eliminar esta tarea?')) return;
   await apiPost('TareasPendientes','delete',{id});
@@ -1378,22 +1281,18 @@ window.eliminarTarea = async function(id){
   TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
   renderTareas();
 };
-
 function renderTareas(){
   const filtroAsignado = document.getElementById('tp_filtro_asignado').value;
   const ocultarCompletadas = document.getElementById('tp_ocultar_completadas').checked;
   const hoy = new Date(); hoy.setHours(0,0,0,0);
-
   let filas = TAREAS.map(t=>({...t, completada: t.completada===true || String(t.completada).trim().toUpperCase()==='TRUE'}));
   if(filtroAsignado) filas = filas.filter(t=>t.asignadoA===filtroAsignado);
   if(ocultarCompletadas) filas = filas.filter(t=>!t.completada);
   filas.sort((a,b)=>new Date(a.fechaLimite||'2100-01-01')-new Date(b.fechaLimite||'2100-01-01'));
-
   const body = document.getElementById('tabla_tareas');
   const empty = document.getElementById('tareas_empty');
   if(filas.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
-
   body.innerHTML = filas.map(t=>{
     let estadoHtml;
     if(t.completada){
@@ -1419,7 +1318,6 @@ function renderTareas(){
 }
 document.getElementById('tp_filtro_asignado').addEventListener('change', renderTareas);
 document.getElementById('tp_ocultar_completadas').addEventListener('change', renderTareas);
-
 initApp();
 </script>
 </body>
