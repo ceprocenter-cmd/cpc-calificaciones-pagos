@@ -319,6 +319,8 @@ let TAREAS = [];
 let NOMINA_TUTOR = [];
 let MATRICULAS_TUTOR = [];
 let CURSOS_MATRICULA = [];
+let FILTROS_INICIALIZADOS = false;
+const MESES_NOMBRES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 async function loadAll(){
   const [cal, facil, nom, mat, mod] = await Promise.all([
     apiGet('CalendarioDocente'),
@@ -917,18 +919,26 @@ function renderTicker(){
   `;
 }
 function renderFiltros(){
-  const anios = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))].sort();
+  const anioActualStr = String(new Date().getFullYear());
+  const anios = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,4) : '').filter(Boolean))];
+  if(!anios.includes(anioActualStr)) anios.push(anioActualStr);
+  anios.sort();
   const selAnio = document.getElementById('filt_anio');
   const prevAnio = selAnio.value;
-  selAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}" ${a===prevAnio?'selected':''}>${a}</option>`).join('');
-  const meses = [...new Set(CALENDARIO.map(c=>c.fechaInicio ? c.fechaInicio.slice(0,7) : '').filter(Boolean))].sort();
+  selAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
+  selAnio.value = FILTROS_INICIALIZADOS ? prevAnio : anioActualStr;
+
+  const mesActualNum = String(new Date().getMonth()+1).padStart(2,'0');
   const selMes = document.getElementById('filt_mes');
   const prevMes = selMes.value;
-  selMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>{
-    const [y,mm] = m.split('-');
-    const nombreMes = new Date(y,mm-1,1).toLocaleDateString('es-EC',{month:'long',year:'numeric'});
-    return `<option value="${m}" ${m===prevMes?'selected':''}>${nombreMes}</option>`;
+  selMes.innerHTML = '<option value="">Todos</option>' + MESES_NOMBRES.map((nombre,i)=>{
+    const val = String(i+1).padStart(2,'0');
+    return `<option value="${val}">${capitalizar(nombre)}</option>`;
   }).join('');
+  selMes.value = FILTROS_INICIALIZADOS ? prevMes : mesActualNum;
+
+  FILTROS_INICIALIZADOS = true;
+
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   const selDoc = document.getElementById('filt_docente');
   const prevDoc = selDoc.value;
@@ -950,7 +960,7 @@ function renderCalendario(){
   let rows = CALENDARIO.slice();
   if(modalidad) rows = rows.filter(c=>c.modalidad===modalidad);
   if(anio) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,4)===anio);
-  if(mes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(0,7)===mes);
+  if(mes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(5,7)===mes);
   if(docente) rows = rows.filter(c=>c.docente===docente);
   if(encargado) rows = rows.filter(c=>c.encargado===encargado);
   if(capacitacion) rows = rows.filter(c=>c.capacitacion===capacitacion);
