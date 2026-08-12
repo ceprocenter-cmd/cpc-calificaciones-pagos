@@ -138,8 +138,8 @@
         <input id="nc_nombre" placeholder="Ej. Diplomado de TDAH en Niños y Adolescentes">
       </div>
       <div class="field">
-        <label>Nómina de Estudiantes (un nombre por línea)</label>
-        <textarea id="nc_nomina" placeholder="María Fernanda López&#10;Carlos Andrade&#10;Ana Gómez..."></textarea>
+        <label>Nómina de Estudiantes (un nombre por línea — opcionalmente "Nombre, correo@ejemplo.com")</label>
+        <textarea id="nc_nomina" placeholder="María Fernanda López, maria@correo.com&#10;Carlos Andrade&#10;Ana Gómez..."></textarea>
       </div>
       <div class="field">
         <label>Módulos o Evaluaciones (uno por línea)</label>
@@ -158,13 +158,14 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" id="btn_agregar_estudiantes">✎ Agregar Estudiantes</button>
         <button class="btn btn-ghost btn-sm" id="btn_agregar_modulos">✎ Agregar Módulos</button>
+        <button class="btn btn-ghost btn-sm" id="btn_editar_correos">✉ Correos de Estudiantes</button>
         <button class="btn btn-ghost btn-sm" id="btn_cambiar_curso">← Cambiar de Curso</button>
       </div>
     </div>
     <div class="panel" id="panel_agregar_estudiantes" style="display:none;">
       <h2>Agregar Estudiantes a este Curso</h2>
       <div class="field">
-        <label>Nombres nuevos (un nombre por línea)</label>
+        <label>Nombres nuevos (un nombre por línea — opcionalmente "Nombre, correo@ejemplo.com")</label>
         <textarea id="ae_nomina" placeholder="Nombre del nuevo estudiante..."></textarea>
       </div>
       <div class="actions">
@@ -183,12 +184,28 @@
         <button class="btn btn-ghost" id="btn_cancelar_modulos">Cancelar</button>
       </div>
     </div>
+    <div class="panel" id="panel_editar_correos" style="display:none;">
+      <h2>Correos de Estudiantes</h2>
+      <p class="hint">Estos correos se usan para enviar los recordatorios de evaluaciones. Escribe o corrige el correo de cada estudiante y guarda.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Estudiante</th><th>Correo</th></tr></thead>
+          <tbody id="tabla_editar_correos"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btn_guardar_correos">Guardar Correos</button>
+        <button class="btn btn-ghost" id="btn_cancelar_correos">Cancelar</button>
+      </div>
+    </div>
     <div class="ticker" id="ticker"></div>
     <div class="tabs">
       <button class="tab active" data-tab="registrar">Registrar</button>
       <button class="tab" data-tab="asistencia">Asistencia</button>
-      <button class="tab" data-tab="facilitadores">Facilitadores</button>
+      <button class="tab" data-tab="evaluaciones">Evaluaciones</button>
       <button class="tab" data-tab="reporte">Reporte</button>
+      <button class="tab" data-tab="certificados">Certificados</button>
+      <button class="tab" data-tab="facilitadores">Facilitadores</button>
       <button class="tab" data-tab="historial">Historial</button>
     </div>
     <div id="tab-registrar">
@@ -207,6 +224,44 @@
           <textarea id="c_retro" placeholder="Comentario sobre el desempeño del estudiante en esta evaluación..." style="min-height:80px;"></textarea>
         </div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_nota">Guardar Calificación</button></div>
+      </div>
+    </div>
+    <div id="tab-evaluaciones" style="display:none;">
+      <div class="panel">
+        <h2>Evaluaciones por Módulo</h2>
+        <p class="hint">Elige un módulo para configurar su ventana de evaluación regular y su recuperativa.</p>
+        <div id="ev_lista_modulos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <div id="ev_sin_modulo" class="empty">Este curso no tiene módulos configurados todavía.</div>
+        <div id="ev_detalle_modulo" style="display:none;">
+          <h3 id="ev_titulo_modulo" style="font-family:'Quicksand',sans-serif;font-size:17px;margin-bottom:14px;"></h3>
+          <div class="panel" style="background:var(--panel-2);box-shadow:none;">
+            <h2>Evaluación Regular</h2>
+            <p class="hint">Apertura y cierre son la ventana normal (nota sobre 10). El límite es la fecha tope para entregas tardías (nota sobre 9).</p>
+            <div class="grid cols3">
+              <div class="field"><label>Fecha de Apertura</label><input id="ev_reg_apertura" type="date"></div>
+              <div class="field"><label>Fecha de Cierre</label><input id="ev_reg_cierre" type="date"></div>
+              <div class="field"><label>Fecha Límite (sobre 9)</label><input id="ev_reg_limite" type="date"></div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-primary btn-sm" id="btn_guardar_ev_regular">Guardar Evaluación Regular</button>
+              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_regular">✉ Enviar Recordatorio a Toda la Nómina</button>
+            </div>
+          </div>
+          <div class="panel" style="background:var(--panel-2);box-shadow:none;">
+            <h2>Evaluación Recuperativa</h2>
+            <p class="hint">Selecciona quiénes harán la recuperativa de este módulo (nota sobre 9). Las fechas se usan para enviar los recordatorios por correo.</p>
+            <div class="grid cols3" style="margin-bottom:14px;">
+              <div class="field"><label>Fecha de Apertura</label><input id="ev_rec_apertura" type="date"></div>
+              <div class="field"><label>Fecha de Cierre</label><input id="ev_rec_cierre" type="date"></div>
+            </div>
+            <div id="ev_rec_estudiantes"></div>
+            <div class="actions">
+              <button class="btn btn-primary btn-sm" id="btn_guardar_ev_recuperativa">Guardar Evaluación Recuperativa</button>
+              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_recuperativa">✉ Enviar Recordatorio a Seleccionados</button>
+            </div>
+          </div>
+          <div id="ev_recordatorio_resultado" style="display:none;"></div>
+        </div>
       </div>
     </div>
     <div id="tab-facilitadores" style="display:none;">
@@ -232,6 +287,46 @@
       </div>
     </div>
     <div id="tab-reporte" style="display:none;">
+      <div class="panel">
+        <h2>Módulos del Curso</h2>
+        <p class="hint">Da clic en un módulo para ver el detalle de notas, tipo, retroalimentación y estado. Usa los filtros para ver solo aprobados, reprobados o sin nota en ese módulo.</p>
+        <div id="lista_modulos_reporte" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <div id="detalle_modulo_seleccionado" style="display:none;">
+          <h3 id="titulo_modulo_seleccionado" style="font-family:'Quicksand',sans-serif;font-size:16px;margin-bottom:10px;"></h3>
+          <div class="filters" id="filtros_modulo_estado">
+            <button class="btn btn-primary btn-sm" data-filtro="todos">Todos</button>
+            <button class="btn btn-ghost btn-sm" data-filtro="aprobado">Aprobados</button>
+            <button class="btn btn-ghost btn-sm" data-filtro="reprobado">Reprobados</button>
+            <button class="btn btn-ghost btn-sm" data-filtro="sinnota">Sin Nota</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>#</th><th>Estudiante</th><th class="num">Nota</th><th>Tipo</th><th>Retroalimentación</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="tabla_modulo_seleccionado"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="modulo_filtro_empty" style="display:none;">Ningún estudiante coincide con este filtro en este módulo.</div>
+          <div class="actions">
+            <button class="btn btn-ghost btn-sm" id="btn_export_modulo_seleccionado">Descargar Notas del Módulo (CSV)</button>
+            <button class="btn btn-ghost btn-sm" id="btn_pdf_modulo_seleccionado">Descargar Notas del Módulo (PDF)</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Reporte del Curso</h2>
+        <div id="reporte_resumen"></div>
+        <div class="table-scroll" style="margin-top:16px;">
+          <table>
+            <thead><tr><th>#</th><th>Estudiante</th><th class="num">Promedio</th><th>Estado</th><th class="num">Módulos Evaluados</th><th></th></tr></thead>
+            <tbody id="tabla_resumen_curso"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
+        </div>
+      </div>
+    </div>
+    <div id="tab-certificados" style="display:none;">
       <div class="panel">
         <h2>Configuración del Certificado</h2>
         <p class="hint">Estos datos son propios de este curso y se usan al generar los certificados.</p>
@@ -263,42 +358,6 @@
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_export_certificados">Descargar Datos (CSV para Canva)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_certificados">Descargar Lista (PDF)</button>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>Reporte del Curso</h2>
-        <div id="reporte_resumen"></div>
-        <div class="table-scroll" style="margin-top:16px;">
-          <table>
-            <thead><tr><th>#</th><th>Estudiante</th><th class="num">Promedio</th><th>Estado</th><th class="num">Módulos Evaluados</th><th></th></tr></thead>
-            <tbody id="tabla_resumen_curso"></tbody>
-          </table>
-        </div>
-        <div class="actions">
-          <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
-        </div>
-        <h2 style="margin-top:26px;">Módulos del Curso</h2>
-        <p class="hint">Da clic en un módulo para ver el detalle de notas, tipo, retroalimentación y estado. Usa los filtros para ver solo aprobados, reprobados o sin nota en ese módulo.</p>
-        <div id="lista_modulos_reporte" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-        <div id="detalle_modulo_seleccionado" style="display:none;">
-          <h3 id="titulo_modulo_seleccionado" style="font-family:'Quicksand',sans-serif;font-size:16px;margin-bottom:10px;"></h3>
-          <div class="filters" id="filtros_modulo_estado">
-            <button class="btn btn-primary btn-sm" data-filtro="todos">Todos</button>
-            <button class="btn btn-ghost btn-sm" data-filtro="aprobado">Aprobados</button>
-            <button class="btn btn-ghost btn-sm" data-filtro="reprobado">Reprobados</button>
-            <button class="btn btn-ghost btn-sm" data-filtro="sinnota">Sin Nota</button>
-          </div>
-          <div class="table-scroll">
-            <table>
-              <thead><tr><th>#</th><th>Estudiante</th><th class="num">Nota</th><th>Tipo</th><th>Retroalimentación</th><th>Estado</th><th></th></tr></thead>
-              <tbody id="tabla_modulo_seleccionado"></tbody>
-            </table>
-          </div>
-          <div class="empty" id="modulo_filtro_empty" style="display:none;">Ningún estudiante coincide con este filtro en este módulo.</div>
-          <div class="actions">
-            <button class="btn btn-ghost btn-sm" id="btn_export_modulo_seleccionado">Descargar Notas del Módulo (CSV)</button>
-            <button class="btn btn-ghost btn-sm" id="btn_pdf_modulo_seleccionado">Descargar Notas del Módulo (PDF)</button>
-          </div>
         </div>
       </div>
       <div class="panel">
@@ -399,6 +458,7 @@ let ASISTENCIA = [];
 let CURSOS_INFO = [];
 let FACILITADORES = [];
 let PAGOS = [];
+let EVALUACIONES = [];
 let CURSO_ACTUAL = null;
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -448,7 +508,7 @@ async function apiPost(sheet, action, extra){
 }
 function normNum(v){ return Number(v)||0; }
 async function loadAll(){
-  const [nom, mod, cal, mat, asi, cinfo, fac, pag] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos')]);
+  const [nom, mod, cal, mat, asi, cinfo, fac, pag, evs] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos'), apiGet('EvaluacionesConfig').catch(()=>[])]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
@@ -457,6 +517,7 @@ async function loadAll(){
   CURSOS_INFO = cinfo;
   FACILITADORES = fac;
   PAGOS = pag;
+  EVALUACIONES = evs || [];
 }
 function modulosSinPagar(estudiante){
   const modulosCurso = modulosDelCurso();
@@ -553,6 +614,15 @@ document.getElementById('btn_nuevo_curso').addEventListener('click', ()=>{
 document.getElementById('btn_cancelar_curso').addEventListener('click', ()=>{
   document.getElementById('panel_nuevo_curso').style.display='none';
 });
+// Interpreta una línea de nómina "Nombre" o "Nombre, correo@ejemplo.com" y
+// devuelve {estudiante, correo}. El correo es opcional y se puede agregar o
+// corregir después desde "✉ Correos de Estudiantes".
+function parsearLineaNomina(linea){
+  const partes = linea.split(',');
+  const estudiante = partes[0].trim();
+  const correo = partes.length>1 ? partes.slice(1).join(',').trim() : '';
+  return {estudiante, correo};
+}
 document.getElementById('btn_guardar_curso').addEventListener('click', async ()=>{
   const nombre = document.getElementById('nc_nombre').value.trim();
   const lineas = document.getElementById('nc_nomina').value.split('\n').map(l=>l.trim()).filter(Boolean);
@@ -561,8 +631,9 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
   if(lineas.length===0){ showToast('Agrega al menos un estudiante a la nómina.'); return; }
   if(modulos.length===0){ showToast('Agrega al menos un módulo o evaluación.'); return; }
   try{
-    for(const estudiante of lineas){
-      await apiPost('Nomina','add',{data:{id:uid(), curso:nombre, estudiante, identificador:''}});
+    for(const linea of lineas){
+      const {estudiante, correo} = parsearLineaNomina(linea);
+      await apiPost('Nomina','add',{data:{id:uid(), curso:nombre, estudiante, identificador:'', correo}});
     }
     for(const modulo of modulos){
       await apiPost('Modulos','add',{data:{id:uid(), curso:nombre, modulo}});
@@ -580,18 +651,20 @@ window.abrirCurso = function(curso){
   document.getElementById('curso_actual_nombre').textContent = curso;
   document.getElementById('panel_agregar_estudiantes').style.display='none';
   document.getElementById('panel_agregar_modulos').style.display='none';
+  document.getElementById('panel_editar_correos').style.display='none';
   // El chat de Zoom pegado (y su resultado de detección) pertenece a la sesión
   // del curso anterior — se limpia para que no se quede visible al cambiar de curso.
   const chatPrevio = document.getElementById('as_zoom_chat');
   const resultadoPrevio = document.getElementById('as_detectar_resultado');
   if(chatPrevio) chatPrevio.value = '';
   if(resultadoPrevio){ resultadoPrevio.style.display='none'; resultadoPrevio.innerHTML=''; }
+  MODULO_SELECCIONADO_EVALUACION = null;
   poblarSelectEstudiantes();
   poblarSelectModulos();
   renderAllCurso();
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.tab[data-tab="registrar"]').classList.add('active');
-  ['registrar','asistencia','facilitadores','reporte','historial'].forEach(t=>{
+  ['registrar','asistencia','evaluaciones','reporte','certificados','facilitadores','historial'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t==='registrar' ? 'block':'none';
   });
 };
@@ -608,8 +681,9 @@ document.getElementById('btn_guardar_agregados').addEventListener('click', async
   const lineas = document.getElementById('ae_nomina').value.split('\n').map(l=>l.trim()).filter(Boolean);
   if(lineas.length===0){ showToast('Escribe al menos un nombre.'); return; }
   try{
-    for(const estudiante of lineas){
-      await apiPost('Nomina','add',{data:{id:uid(), curso:CURSO_ACTUAL, estudiante, identificador:''}});
+    for(const linea of lineas){
+      const {estudiante, correo} = parsearLineaNomina(linea);
+      await apiPost('Nomina','add',{data:{id:uid(), curso:CURSO_ACTUAL, estudiante, identificador:'', correo}});
     }
     showToast(lineas.length + ' estudiante(s) agregados.');
     await loadAll();
@@ -640,6 +714,38 @@ document.getElementById('btn_guardar_modulos_extra').addEventListener('click', a
     document.getElementById('panel_agregar_modulos').style.display='none';
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
+// ---------- CORREOS DE ESTUDIANTES ----------
+document.getElementById('btn_editar_correos').addEventListener('click', ()=>{
+  const p = document.getElementById('panel_editar_correos');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+  renderTablaCorreos();
+});
+document.getElementById('btn_cancelar_correos').addEventListener('click', ()=>{
+  document.getElementById('panel_editar_correos').style.display='none';
+});
+function renderTablaCorreos(){
+  const body = document.getElementById('tabla_editar_correos');
+  const filas = NOMINA.filter(n=>n.curso===CURSO_ACTUAL).sort((a,b)=>a.estudiante.localeCompare(b.estudiante));
+  body.innerHTML = filas.map(f=>`
+    <tr><td>${f.estudiante}</td>
+    <td><input type="email" class="correo-input" data-id="${f.id}" value="${(f.correo||'').replace(/"/g,'&quot;')}" placeholder="correo@ejemplo.com" style="width:260px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:'Nunito',sans-serif;font-size:13px;"></td></tr>
+  `).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso.</td></tr>';
+}
+document.getElementById('btn_guardar_correos').addEventListener('click', async ()=>{
+  const inputs = document.querySelectorAll('.correo-input');
+  try{
+    for(const inp of inputs){
+      await apiPost('Nomina','update',{id:inp.dataset.id, data:{correo:inp.value.trim()}});
+    }
+    showToast('Correos guardados.');
+    await loadAll();
+    document.getElementById('panel_editar_correos').style.display='none';
+  }catch(e){ showToast('Error al guardar correos: '+e.message); }
+});
+function correoDeEstudiante(estudiante){
+  const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
+  return reg ? (reg.correo||'') : '';
+}
 function estudiantesDelCurso(){
   return NOMINA.filter(n=>n.curso===CURSO_ACTUAL).map(n=>n.estudiante).sort();
 }
@@ -674,6 +780,7 @@ function renderAllCurso(){
   renderTomaAsistencia();
   renderResumenAsistencia();
   renderFacilitadores();
+  renderEvaluaciones();
 }
 function renderTickerCurso(){
   const vig = notasVigentesCurso();
@@ -720,6 +827,165 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
     await loadAll();
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+// ---------- EVALUACIONES (config por módulo: regular y recuperativa) ----------
+let MODULO_SELECCIONADO_EVALUACION = null;
+function evaluacionesDelCurso(){
+  return EVALUACIONES.filter(e=>e.curso===CURSO_ACTUAL);
+}
+function configEvaluacion(modulo, tipo){
+  const filas = evaluacionesDelCurso().filter(e=>e.modulo===modulo && e.tipo===tipo);
+  return filas.length ? filas[filas.length-1] : null;
+}
+function renderEvaluaciones(){
+  const box = document.getElementById('ev_lista_modulos');
+  const modulos = modulosDelCurso();
+  const sinModulo = document.getElementById('ev_sin_modulo');
+  if(modulos.length===0){
+    box.innerHTML=''; sinModulo.style.display='block';
+    document.getElementById('ev_detalle_modulo').style.display='none';
+    return;
+  }
+  sinModulo.style.display='none';
+  box.innerHTML = modulos.map(m=>`
+    <button class="btn ${m===MODULO_SELECCIONADO_EVALUACION?'btn-primary':'btn-ghost'} btn-sm" title="${m.replace(/"/g,'&quot;')}" onclick="seleccionarModuloEvaluacion('${m.replace(/'/g,"\\'")}')">${acortarTexto(m,20)}</button>
+  `).join('');
+  if(MODULO_SELECCIONADO_EVALUACION && modulos.includes(MODULO_SELECCIONADO_EVALUACION)){
+    renderDetalleEvaluacion();
+  }else{
+    document.getElementById('ev_detalle_modulo').style.display='none';
+  }
+}
+window.seleccionarModuloEvaluacion = function(modulo){
+  MODULO_SELECCIONADO_EVALUACION = modulo;
+  document.getElementById('ev_recordatorio_resultado').style.display='none';
+  renderEvaluaciones();
+  renderDetalleEvaluacion();
+};
+function renderDetalleEvaluacion(){
+  const wrap = document.getElementById('ev_detalle_modulo');
+  wrap.style.display='block';
+  document.getElementById('ev_titulo_modulo').textContent = MODULO_SELECCIONADO_EVALUACION;
+  const reg = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
+  document.getElementById('ev_reg_apertura').value = reg ? (reg.fechaApertura||'') : '';
+  document.getElementById('ev_reg_cierre').value = reg ? (reg.fechaCierre||'') : '';
+  document.getElementById('ev_reg_limite').value = reg ? (reg.fechaLimite||'') : '';
+  const rec = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
+  document.getElementById('ev_rec_apertura').value = rec ? (rec.fechaApertura||'') : '';
+  document.getElementById('ev_rec_cierre').value = rec ? (rec.fechaCierre||'') : '';
+  const seleccionados = rec && rec.estudiantes ? String(rec.estudiantes).split('|||').filter(Boolean) : [];
+  const box = document.getElementById('ev_rec_estudiantes');
+  box.innerHTML = estudiantesDelCurso().map(est=>`
+    <label class="check-row" style="cursor:pointer;">
+      <input type="checkbox" class="ev-rec-check" value="${est.replace(/"/g,'&quot;')}" ${seleccionados.includes(est)?'checked':''}>
+      <span class="modname">${est}</span>
+      <span class="hint" style="margin:0;">${correoDeEstudiante(est)||'sin correo'}</span>
+    </label>
+  `).join('') || '<p class="hint">Sin estudiantes en este curso.</p>';
+}
+document.getElementById('btn_guardar_ev_regular').addEventListener('click', async ()=>{
+  if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
+  const fechaApertura = document.getElementById('ev_reg_apertura').value;
+  const fechaCierre = document.getElementById('ev_reg_cierre').value;
+  const fechaLimite = document.getElementById('ev_reg_limite').value;
+  const existente = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
+  try{
+    if(existente){
+      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura, fechaCierre, fechaLimite}});
+    }else{
+      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Regular', fechaApertura, fechaCierre, fechaLimite, estudiantes:''}});
+    }
+    showToast('Evaluación regular guardada.');
+    await loadAll();
+    renderDetalleEvaluacion();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+document.getElementById('btn_guardar_ev_recuperativa').addEventListener('click', async ()=>{
+  if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
+  const fechaApertura = document.getElementById('ev_rec_apertura').value;
+  const fechaCierre = document.getElementById('ev_rec_cierre').value;
+  const estudiantes = [...document.querySelectorAll('.ev-rec-check:checked')].map(c=>c.value).join('|||');
+  const existente = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
+  try{
+    if(existente){
+      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura, fechaCierre, estudiantes}});
+    }else{
+      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Recuperativa', fechaApertura, fechaCierre, fechaLimite:'', estudiantes}});
+    }
+    showToast('Evaluación recuperativa guardada.');
+    await loadAll();
+    renderDetalleEvaluacion();
+  }catch(e){ showToast('Error al guardar: '+e.message); }
+});
+// Decide qué tipo de recordatorio corresponde HOY según las fechas configuradas:
+// el día de apertura, cada 3 días mientras la ventana está abierta, la víspera
+// del cierre, y el día de la fecha límite. Devuelve null si hoy no corresponde enviar nada.
+function tipoRecordatorioHoy(fechaApertura, fechaCierre, fechaLimite){
+  if(!fechaApertura) return null;
+  const hoy = new Date().toISOString().slice(0,10);
+  const dias = (a,b)=> Math.round((new Date(b)-new Date(a))/86400000);
+  if(hoy === fechaApertura) return {tipo:'apertura', texto:'Apertura de la actividad'};
+  if(fechaLimite && hoy === fechaLimite) return {tipo:'limite', texto:'Hoy es la fecha límite de entrega'};
+  if(fechaCierre){
+    const diffCierre = Math.round((new Date(fechaCierre)-new Date(hoy))/86400000);
+    if(diffCierre === 1) return {tipo:'vispera_cierre', texto:'Mañana cierra la actividad'};
+  }
+  if(fechaApertura && hoy > fechaApertura && (!fechaCierre || hoy < fechaCierre)){
+    const diasDesdeApertura = Math.round((new Date(hoy)-new Date(fechaApertura))/86400000);
+    if(diasDesdeApertura>0 && diasDesdeApertura % 3 === 0) return {tipo:'cada3', texto:'Recordatorio de actividad pendiente'};
+  }
+  return null;
+}
+async function enviarRecordatoriosPara(estudiantes, fechaApertura, fechaCierre, fechaLimite, contexto){
+  const resultado = document.getElementById('ev_recordatorio_resultado');
+  const motivo = tipoRecordatorioHoy(fechaApertura, fechaCierre, fechaLimite);
+  if(!motivo){
+    resultado.style.display='block';
+    resultado.innerHTML = `<p class="hint" style="margin-top:12px;">Hoy no corresponde enviar recordatorio según las fechas configuradas (apertura ${fechaApertura||'—'}, cierre ${fechaCierre||'—'}${fechaLimite?', límite '+fechaLimite:''}).</p>`;
+    return;
+  }
+  const destinatarios = estudiantes.map(est=>({estudiante:est, correo:correoDeEstudiante(est)}));
+  const sinCorreo = destinatarios.filter(d=>!d.correo);
+  const conCorreo = destinatarios.filter(d=>d.correo);
+  if(conCorreo.length===0){
+    showToast('Ningún estudiante seleccionado tiene correo registrado.');
+    return;
+  }
+  try{
+    await apiPost('EvaluacionesConfig','enviarRecordatorio',{
+      curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, contexto, motivo:motivo.tipo,
+      asunto:`${contexto} — ${MODULO_SELECCIONADO_EVALUACION} — ${motivo.texto}`,
+      destinatarios: conCorreo
+    });
+    resultado.style.display='block';
+    resultado.innerHTML = `<div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
+      ✔ Recordatorio "${motivo.texto}" enviado a ${conCorreo.length} estudiante(s).
+      ${sinCorreo.length>0?`<br>⚠ ${sinCorreo.length} sin correo registrado: ${sinCorreo.map(d=>d.estudiante).join(', ')}.`:''}
+    </div>`;
+    showToast('Recordatorios enviados.');
+  }catch(e){
+    resultado.style.display='block';
+    resultado.innerHTML = `<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
+      El backend (Apps Script) todavía no tiene la acción "enviarRecordatorio". Revisa la nota que te dejé en el chat con el código para agregarla.<br>Detalle: ${e.message}
+    </div>`;
+  }
+}
+document.getElementById('btn_recordatorio_regular').addEventListener('click', async ()=>{
+  if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
+  const fechaApertura = document.getElementById('ev_reg_apertura').value;
+  const fechaCierre = document.getElementById('ev_reg_cierre').value;
+  const fechaLimite = document.getElementById('ev_reg_limite').value;
+  if(!fechaApertura){ showToast('Guarda primero las fechas de la evaluación regular.'); return; }
+  await enviarRecordatoriosPara(estudiantesDelCurso(), fechaApertura, fechaCierre, fechaLimite, 'Evaluación Regular');
+});
+document.getElementById('btn_recordatorio_recuperativa').addEventListener('click', async ()=>{
+  if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
+  const fechaApertura = document.getElementById('ev_rec_apertura').value;
+  const fechaCierre = document.getElementById('ev_rec_cierre').value;
+  const seleccionados = [...document.querySelectorAll('.ev-rec-check:checked')].map(c=>c.value);
+  if(seleccionados.length===0){ showToast('Selecciona al menos un estudiante para la recuperativa.'); return; }
+  if(!fechaApertura){ showToast('Guarda primero las fechas de la evaluación recuperativa.'); return; }
+  await enviarRecordatoriosPara(seleccionados, fechaApertura, fechaCierre, '', 'Evaluación Recuperativa');
 });
 // ---------- REPORTE ----------
 function renderReporteCurso(){
@@ -998,10 +1264,10 @@ window.onafterprint = function(){
 // ---------- MODO DEMO (sin conexión, solo para previsualizar diseño) ----------
 document.getElementById('btn_demo').addEventListener('click', ()=>{
   NOMINA = [
-    {id:'n1', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', identificador:''},
-    {id:'n2', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', identificador:''},
-    {id:'n3', curso:'Diplomado de TDAH', estudiante:'Pedro Salinas', identificador:''},
-    {id:'n4', curso:'Seminario de Interpretación de Informes', estudiante:'Ana Gómez', identificador:''},
+    {id:'n1', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', identificador:'', correo:'maria@correo.com'},
+    {id:'n2', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', identificador:'', correo:''},
+    {id:'n3', curso:'Diplomado de TDAH', estudiante:'Pedro Salinas', identificador:'', correo:''},
+    {id:'n4', curso:'Seminario de Interpretación de Informes', estudiante:'Ana Gómez', identificador:'', correo:'ana@correo.com'},
   ];
   MODULOS = [
     {id:'m1', curso:'Diplomado de TDAH', modulo:'Módulo 1 - Fundamentos'},
@@ -1017,6 +1283,7 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
     {id:'d6', fecha:'2026-06-20', curso:'Diplomado de TDAH', modulo:'Módulo 2 - Evaluación', estudiante:'Carlos Andrade', identificador:'', tipo:'Recuperativa', nota:7.8},
     {id:'d8', fecha:'2026-04-15', curso:'Seminario de Interpretación de Informes', modulo:'Evaluación Final', estudiante:'Ana Gómez', identificador:'', tipo:'Regular', nota:9.4},
   ];
+  EVALUACIONES = [];
   document.getElementById('setup_banner').style.display='none';
   mostrarHome();
   showToast('Datos de ejemplo cargados — nada de esto se guarda. Pedro Salinas está en nómina pero sin notas aún, a propósito.');
@@ -1026,7 +1293,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    ['registrar','asistencia','facilitadores','reporte','historial'].forEach(t=>{
+    ['registrar','asistencia','evaluaciones','reporte','certificados','facilitadores','historial'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
   });
