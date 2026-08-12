@@ -260,7 +260,9 @@
         <div class="actions" style="margin-top:0;margin-bottom:16px;">
           <button class="btn btn-ghost btn-sm" id="btn_export_deudores">Descargar Deudores (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_deudores">Descargar Deudores (PDF)</button>
+          <button class="btn btn-primary btn-sm" id="btn_enviar_avisos_cobro">📧 Enviar Avisos de Cobro por Correo</button>
         </div>
+        <p class="hint" style="margin-top:-10px;">El botón de correo escribe directo a cada estudiante deudor del curso seleccionado (respetando el filtro de asesor). En cuanto un estudiante registra su pago, deja de aparecer como deudor y ya no se le vuelve a escribir, sin importar si el módulo ya empezó.</p>
         <div class="table-scroll">
           <table><thead><tr id="cxc_head"></tr></thead><tbody id="cxc_body"></tbody></table>
         </div>
@@ -534,6 +536,26 @@ async function apiActualizarEstudiante(curso, estudiante, data){
   const res = await fetch(API_URL, {
     method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
     body: JSON.stringify({action:'actualizarDatosEstudiante', clave: CLAVE_ADMIN, curso, estudiante, data})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+// Envía un correo de cobro a UN estudiante deudor específico (botón "✉️ Cobro" de la fila).
+async function apiEnviarAvisoCobroEstudiante(curso, estudiante){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'enviarAvisoCobroEstudianteManual', clave: CLAVE_ADMIN, curso, estudiante})
+  });
+  const json = await res.json();
+  if(json.error) throw new Error(json.error);
+  return json;
+}
+// Envía un correo de cobro a TODOS los deudores activos de un curso (botón "📧 Enviar Avisos de Cobro por Correo").
+async function apiEnviarAvisosCobroCurso(curso, asesor){
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'enviarAvisosCobroCursoManual', clave: CLAVE_ADMIN, curso, asesor})
   });
   const json = await res.json();
   if(json.error) throw new Error(json.error);
@@ -1152,6 +1174,26 @@ window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor)
     renderCXC();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
+// Envía un correo de cobro a un solo estudiante desde su fila en Cuentas por Cobrar.
+window.enviarAvisoCobroFila = async function(curso, estudiante){
+  if(!confirm(`¿Enviar un correo de cobro a ${estudiante} ahora?`)) return;
+  showToast('Enviando correo...');
+  try{
+    const r = await apiEnviarAvisoCobroEstudiante(curso, estudiante);
+    showToast(r.mensaje || (r.enviado ? 'Correo enviado.' : 'No se envió el correo.'));
+  }catch(e){ showToast('Error al enviar: '+e.message); }
+};
+document.getElementById('btn_enviar_avisos_cobro').addEventListener('click', async ()=>{
+  const curso = document.getElementById('cxc_curso').value;
+  if(!curso){ showToast('Selecciona un curso primero.'); return; }
+  const asesor = document.getElementById('cxc_filtro_asesor').value;
+  if(!confirm(`¿Enviar correo de cobro a todos los deudores de "${curso}"${asesor?' (asesor: '+asesor+')':''}? El correo se escribe directo a cada estudiante.`)) return;
+  showToast('Enviando avisos de cobro, espera un momento...');
+  try{
+    const r = await apiEnviarAvisosCobroCurso(curso, asesor);
+    showToast(r.mensaje || 'Avisos de cobro procesados.');
+  }catch(e){ showToast('Error al enviar los avisos: '+e.message); }
+});
 function renderCXC(){
   const curso = document.getElementById('cxc_curso').value;
   const asesorFiltro = document.getElementById('cxc_filtro_asesor').value;
@@ -1167,7 +1209,7 @@ function renderCXC(){
   const inactivos = estudiantes.length - activos;
   document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})`;
   estudiantes.sort((a,b)=>{ const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b); if(activoA===activoB) return a.localeCompare(b); return activoA ? -1 : 1; });
-  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th>';
+  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th><th></th>';
   let filasDeuda = [];
   CXC_CURSO_ACTUAL = curso; CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
@@ -1194,9 +1236,10 @@ function renderCXC(){
     const btnBaja = `<td>${activo ? `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', false)">No Continúa</button>` : `<button class="btn btn-ghost btn-sm" onclick="marcarActivoEstudianteCXC('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}', true)">Reactivar</button>`}</td>`;
     const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante(${i})">↔️ Transferir</button></td>`;
     const btnEditar = `<td><button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✏️ Editar</button></td>`;
+    const btnCobro = `<td>${(activo && saldoTotal>0) ? `<button class="btn btn-ghost btn-sm" onclick="enviarAvisoCobroFila('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✉️ Cobro</button>` : ''}</td>`;
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
-    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}</tr>`;
-  }).join('') || '<tr><td colspan="15" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
+  }).join('') || '<tr><td colspan="16" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
 window.registrarPagoAdicional = function(curso, estudiante){
