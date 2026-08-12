@@ -260,12 +260,10 @@
         <div class="actions" style="margin-top:0;margin-bottom:16px;">
           <button class="btn btn-ghost btn-sm" id="btn_export_deudores">Descargar Deudores (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_deudores">Descargar Deudores (PDF)</button>
-          <button class="btn btn-primary btn-sm" id="btn_enviar_avisos_cobro">📧 Enviar Avisos de Cobro por Correo</button>
         </div>
-        <p class="hint" style="margin-top:-10px;">El botón de correo escribe directo a cada estudiante deudor del curso seleccionado (respetando el filtro de asesor), pero solo le cobra el módulo más próximo pendiente — ya que el cobro es mensual, no le menciona los módulos futuros hasta que les toque. En cuanto un estudiante registra su pago, deja de aparecer como deudor y ya no se le vuelve a escribir, sin importar si el módulo ya empezó.</p>
         <div class="grid cols3" style="margin-bottom:0;align-items:end;">
           <div class="field"><label>Enviar solo a deudores de un módulo</label><select id="cxc_modulo_recordatorio"><option value="">Selecciona un módulo</option></select></div>
-          <div class="field" style="margin-bottom:0;"><button class="btn btn-ghost btn-sm" id="btn_enviar_recordatorio_modulo" style="width:100%;">✉️ Enviar Recordatorio de este Módulo</button></div>
+          <div class="field" style="margin-bottom:0;"><button class="btn btn-primary btn-sm" id="btn_enviar_recordatorio_modulo" style="width:100%;">📧 Enviar Recordatorio de este Módulo</button></div>
         </div>
         <p class="hint" style="margin-top:6px;margin-bottom:16px;">Elige un curso arriba, luego un módulo aquí, y este botón le escribe solo a quienes tienen ese módulo como su próximo pago pendiente (respeta el filtro de asesor). A quien ya no debe ese módulo específico no se le envía nada.</p>
         <div class="table-scroll">
@@ -1198,17 +1196,6 @@ window.enviarAvisoCobroFila = async function(curso, estudiante){
     showToast(r.mensaje || (r.enviado ? 'Correo enviado.' : 'No se envió el correo.'));
   }catch(e){ showToast('Error al enviar: '+e.message); }
 };
-document.getElementById('btn_enviar_avisos_cobro').addEventListener('click', async ()=>{
-  const curso = document.getElementById('cxc_curso').value;
-  if(!curso){ showToast('Selecciona un curso primero.'); return; }
-  const asesor = document.getElementById('cxc_filtro_asesor').value;
-  if(!confirm(`¿Enviar correo de cobro a todos los deudores de "${curso}"${asesor?' (asesor: '+asesor+')':''}? El correo se escribe directo a cada estudiante.`)) return;
-  showToast('Enviando avisos de cobro, espera un momento...');
-  try{
-    const r = await apiEnviarAvisosCobroCurso(curso, asesor);
-    showToast(r.mensaje || 'Avisos de cobro procesados.');
-  }catch(e){ showToast('Error al enviar los avisos: '+e.message); }
-});
 document.getElementById('cxc_curso').addEventListener('change', ()=>{
   const curso = document.getElementById('cxc_curso').value;
   const sel = document.getElementById('cxc_modulo_recordatorio');
