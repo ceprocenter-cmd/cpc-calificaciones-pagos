@@ -726,10 +726,15 @@ document.getElementById('btn_cancelar_correos').addEventListener('click', ()=>{
 function renderTablaCorreos(){
   const body = document.getElementById('tabla_editar_correos');
   const filas = NOMINA.filter(n=>n.curso===CURSO_ACTUAL).sort((a,b)=>a.estudiante.localeCompare(b.estudiante));
-  body.innerHTML = filas.map(f=>`
+  body.innerHTML = filas.map(f=>{
+    // Si Nomina.correo está vacío, se precarga con el de Matriculas (si existe) para
+    // que quede a un clic de "Guardar Correos" copiarlo a Nomina y dejar de depender del respaldo.
+    const valorInicial = (f.correo && String(f.correo).trim()) ? f.correo : correoDeEstudiante(f.estudiante);
+    return `
     <tr><td>${f.estudiante}</td>
-    <td><input type="email" class="correo-input" data-id="${f.id}" value="${(f.correo||'').replace(/"/g,'&quot;')}" placeholder="correo@ejemplo.com" style="width:260px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:'Nunito',sans-serif;font-size:13px;"></td></tr>
-  `).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso.</td></tr>';
+    <td><input type="email" class="correo-input" data-id="${f.id}" value="${(valorInicial||'').replace(/"/g,'&quot;')}" placeholder="correo@ejemplo.com" style="width:260px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:'Nunito',sans-serif;font-size:13px;"></td></tr>
+  `;
+  }).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso.</td></tr>';
 }
 document.getElementById('btn_guardar_correos').addEventListener('click', async ()=>{
   const inputs = document.querySelectorAll('.correo-input');
@@ -742,9 +747,17 @@ document.getElementById('btn_guardar_correos').addEventListener('click', async (
     document.getElementById('panel_editar_correos').style.display='none';
   }catch(e){ showToast('Error al guardar correos: '+e.message); }
 });
+// El correo puede estar guardado en Nomina (editado desde esta misma app) o,
+// si nunca se llenó ahí, ya puede existir en Matriculas (llenado por la
+// herramienta de matrículas/exalumnos al inscribir al estudiante). Nomina
+// manda si tiene un valor; si está vacía, se usa el de la matrícula más
+// reciente de ese estudiante en este curso como respaldo.
 function correoDeEstudiante(estudiante){
   const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
-  return reg ? (reg.correo||'') : '';
+  if(reg && reg.correo && String(reg.correo).trim()) return String(reg.correo).trim();
+  const registrosMat = MATRICULAS.filter(m=>m.curso===CURSO_ACTUAL && m.estudiante===estudiante && m.correo && String(m.correo).trim());
+  if(registrosMat.length>0) return String(registrosMat[registrosMat.length-1].correo).trim();
+  return '';
 }
 function estudiantesDelCurso(){
   return NOMINA.filter(n=>n.curso===CURSO_ACTUAL).map(n=>n.estudiante).sort();
