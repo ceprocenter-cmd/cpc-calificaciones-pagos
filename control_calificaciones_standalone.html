@@ -1040,12 +1040,24 @@ document.getElementById('btn_guardar_ev_recuperativa').addEventListener('click',
     renderDetalleEvaluacion();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
+// IMPORTANTE: new Date().toISOString() da la fecha en UTC, no en tu hora local.
+// Ecuador es UTC-5, así que desde ~7pm hora local hasta medianoche, la fecha en
+// UTC ya es la de MAÑANA — eso hacía que el botón "pareciera no hacer nada" en
+// la noche (comparaba hoy real contra "mañana" y nunca coincidía). Esta función
+// arma la fecha con los componentes LOCALES del dispositivo, no con UTC.
+function hoyISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 // Decide cuál de los 6 correos de la etapa Regular+Prórroga corresponde HOY,
 // comparando la fecha de hoy contra el calendario ya calculado. Devuelve null
 // si hoy no coincide con ninguna de las 6 fechas clave.
 function motivoRegularHoy(fReg){
   if(!fReg) return null;
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = hoyISO();
   if(hoy === fReg.apertura) return 'regular_apertura';
   if(hoy === fReg.recordatorio) return 'regular_recordatorio';
   if(hoy === fReg.avisoCierre) return 'regular_aviso_cierre';
@@ -1057,7 +1069,7 @@ function motivoRegularHoy(fReg){
 // Igual, pero para los 2 correos de la Recuperativa.
 function motivoRecuperativaHoy(fRec){
   if(!fRec) return null;
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = hoyISO();
   if(hoy === fRec.apertura) return 'recuperativa_apertura';
   if(hoy === fRec.cierre) return 'recuperativa_cierre';
   return null;
@@ -1066,7 +1078,10 @@ async function enviarRecordatoriosPara(estudiantes, motivo){
   const resultado = document.getElementById('ev_recordatorio_resultado');
   if(!motivo){
     resultado.style.display='block';
-    resultado.innerHTML = `<p class="hint" style="margin-top:12px;">Hoy no corresponde enviar ningún correo de esta etapa según el calendario calculado — revisa las fechas arriba.</p>`;
+    resultado.innerHTML = `<div style="background:var(--warn-soft);border:1px solid var(--warn);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
+      ⚠ Hoy (${hoyISO()}) no corresponde ningún correo de esta etapa según el calendario calculado arriba. Los correos solo se envían en las fechas exactas de apertura, recordatorio, aviso de cierre, cierre, etc. — si quieres probar hoy, cambia la fecha de apertura guardada para que una de esas fechas caiga hoy.
+    </div>`;
+    showToast('Hoy no corresponde enviar ningún correo de esta etapa.');
     return;
   }
   const destinatarios = estudiantes.map(est=>({estudiante:est, correo:correoDeEstudiante(est)}));
