@@ -1074,7 +1074,11 @@ function motivoRecuperativaHoy(fRec){
   if(hoy === fRec.cierre) return 'recuperativa_cierre';
   return null;
 }
-async function enviarRecordatoriosPara(estudiantes, motivo){
+// forzar=true se usa solo desde el botón "Enviar de todas formas" (cuando el
+// backend ya avisó que ese correo se mandó hoy y el usuario, a propósito,
+// quiere reenviarlo). En el uso normal (clic directo del botón) va sin forzar,
+// y el backend bloquea el duplicado si ese mismo correo ya salió hoy.
+async function enviarRecordatoriosPara(estudiantes, motivo, forzar){
   const resultado = document.getElementById('ev_recordatorio_resultado');
   if(!motivo){
     resultado.style.display='block';
@@ -1091,28 +1095,51 @@ async function enviarRecordatoriosPara(estudiantes, motivo){
     showToast('Ningún estudiante seleccionado tiene correo registrado.');
     return;
   }
+  // Se deshabilitan los dos botones de envío mientras dura la petición — esto
+  // es lo que evita que un doble clic (o clic + clic mientras carga) dispare
+  // dos peticiones casi simultáneas y termine mandando el correo dos veces.
+  const btnReg = document.getElementById('btn_recordatorio_regular');
+  const btnRec = document.getElementById('btn_recordatorio_recuperativa');
+  btnReg.disabled = true; btnRec.disabled = true;
   try{
     const resp = await apiPost('EvaluacionesConfig','enviarRecordatorio',{
       curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, motivo,
-      destinatarios: conCorreo
+      destinatarios: conCorreo, forzar: !!forzar
     });
     resultado.style.display='block';
-    resultado.innerHTML = `<div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
-      ✔ Correo "${motivo}" enviado a ${(resp && resp.enviados) || conCorreo.length} estudiante(s).
-      ${sinCorreo.length>0?`<br>⚠ ${sinCorreo.length} sin correo registrado: ${sinCorreo.map(d=>d.estudiante).join(', ')}.`:''}
-    </div>`;
-    showToast('Correos enviados.');
-    // Refresca el log para que, si el panel de "🔔 Notificaciones Enviadas" está
-    // abierto, se vea de inmediato el envío que se acaba de hacer.
-    await loadAll();
-    if(document.getElementById('panel_notificaciones_evaluacion').style.display!=='none'){
-      renderNotificacionesEvaluacion();
+    const etiqueta = ETIQUETAS_MOTIVO_EVALUACION[motivo] || motivo;
+    if(resp && resp.yaEnviado){
+      // El backend detectó que este correo (mismo curso+módulo+motivo) YA se
+      // envió hoy — no lo volvió a mandar. Se ofrece un botón aparte, explícito,
+      // por si de verdad quieres reenviarlo a propósito.
+      resultado.innerHTML = `<div style="background:var(--warn-soft);border:1px solid var(--warn);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
+        ⚠ "${etiqueta}" ya se había enviado hoy para este módulo — no se volvió a mandar, para no duplicar. Revisa "🔔 Notificaciones Enviadas" para ver la hora/fecha exacta.
+        <div style="margin-top:10px;"><button class="btn btn-ghost btn-sm" id="btn_forzar_reenvio">Enviar de todas formas</button></div>
+      </div>`;
+      showToast('Ya se había enviado hoy — no se duplicó.');
+      document.getElementById('btn_forzar_reenvio').addEventListener('click', ()=>{
+        enviarRecordatoriosPara(estudiantes, motivo, true);
+      });
+    }else{
+      resultado.innerHTML = `<div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
+        ✔ Correo "${etiqueta}" enviado a ${(resp && resp.enviados) || conCorreo.length} estudiante(s).
+        ${sinCorreo.length>0?`<br>⚠ ${sinCorreo.length} sin correo registrado: ${sinCorreo.map(d=>d.estudiante).join(', ')}.`:''}
+      </div>`;
+      showToast('Correos enviados.');
+      // Refresca el log para que, si el panel de "🔔 Notificaciones Enviadas" está
+      // abierto, se vea de inmediato el envío que se acaba de hacer.
+      await loadAll();
+      if(document.getElementById('panel_notificaciones_evaluacion').style.display!=='none'){
+        renderNotificacionesEvaluacion();
+      }
     }
   }catch(e){
     resultado.style.display='block';
     resultado.innerHTML = `<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
-      El backend (Apps Script) todavía no tiene la acción "enviarRecordatorio" con las 8 plantillas. Revisa el código que te dejé para pegar en Code.gs.<br>Detalle: ${e.message}
+      El backend (Apps Script) todavía no tiene la acción "enviarRecordatorio" con las 8 plantillas, o está desactualizado. Revisa que hayas pegado la última versión de Code.gs.<br>Detalle: ${e.message}
     </div>`;
+  }finally{
+    btnReg.disabled = false; btnRec.disabled = false;
   }
 }
 document.getElementById('btn_recordatorio_regular').addEventListener('click', async ()=>{
