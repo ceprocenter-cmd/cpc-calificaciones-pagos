@@ -381,9 +381,10 @@
           <button class="btn btn-ghost btn-sm" id="btn_export_exalumnos_csv">Descargar Base de Datos (CSV)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_exalumnos">Descargar Base de Datos (PDF)</button>
         </div>
+        <div class="setup-banner" id="exal_aviso_duplicados" style="display:none;margin-bottom:16px;"></div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
-            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th></tr></thead>
+            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th><th></th></tr></thead>
             <tbody id="tabla_exalumnos_resultado"></tbody>
           </table>
         </div>
@@ -467,7 +468,29 @@ document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
 document.getElementById('m_pais').addEventListener('change', actualizarCodigoPais);
 document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
 document.getElementById('m_telefono').addEventListener('focus', ()=>{ if(!document.getElementById('m_telefono').value.trim()) actualizarCodigoPais(); });
-function normalizarNombreEst(t){ return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+// Títulos profesionales que a veces se escriben pegados al nombre ("Psic. Juan Pérez", "Dra Ana López") y que deben
+// ignorarse al comparar/emparejar estudiantes, porque el mismo estudiante puede quedar registrado una vez con título
+// y otra vez sin él.
+const TITULOS_PROFESIONALES = ['psic','psicologo','psicologa','dr','dra','lic','ing','mgs','msc','phd','prof','sr','sra','srta'];
+function normalizarNombreEst(t){
+  let s = String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  let cambio = true;
+  while(cambio){
+    cambio = false;
+    for(const tit of TITULOS_PROFESIONALES){
+      const re = new RegExp('^'+tit+'\\.?\\s+');
+      if(re.test(s)){ s = s.replace(re,'').trim(); cambio = true; }
+    }
+  }
+  return s;
+}
+// "Nombre central" de un estudiante: el nombre normalizado (ya sin títulos) quitando además iniciales sueltas de una
+// sola letra (ej. la "I" al final de "Scheznarda Blanco Alvarado I"). Sirve solo para SUGERIR posibles duplicados
+// que valga la pena revisar a mano — nunca se usa para fusionar datos automáticamente, porque dos personas distintas
+// sí pueden compartir nombre y apellido.
+function nombreCentral(nombreNormalizado){
+  return String(nombreNormalizado||'').split(' ').filter(tok=>tok.length>1).join(' ');
+}
 // Devuelve el registro más reciente de MATRICULAS que coincide con el nombre dado (comparación insensible a mayúsculas/acentos).
 function buscarDatosPrevios(estudiante){
   const nombreNorm = normalizarNombreEst(estudiante);
@@ -531,9 +554,20 @@ function listaBuscableEstudiantes(){
 function buscarCoincidenciasEstudiante(texto){
   const q = normalizarNombreEst(texto);
   if(!q) return [];
-  return listaBuscableEstudiantes()
+  const resultados = listaBuscableEstudiantes()
     .filter(e => normalizarNombreEst(e.nombre).includes(q) || normalizarNombreEst(e.cedula||'').includes(q))
     .slice(0, 20);
+  // Aviso (no fusión automática): si dos resultados de esta búsqueda tienen un nombre casi idéntico, probablemente
+  // sean la misma persona registrada dos veces (con/sin título, con/sin inicial) — se marcan para no matricularla
+  // por duplicado sin querer.
+  const porCore = {};
+  resultados.forEach(r=>{
+    const core = nombreCentral(normalizarNombreEst(r.nombre));
+    if(!core) return;
+    (porCore[core] = porCore[core] || []).push(r);
+  });
+  Object.values(porCore).filter(g=>g.length>1).forEach(grupo=>grupo.forEach(r=>{ r._posibleDuplicado = true; }));
+  return resultados;
 }
 function renderResultadosBusquedaEstudiante(resultados){
   const box = document.getElementById('buscador_lista_est');
@@ -544,7 +578,7 @@ function renderResultadosBusquedaEstudiante(resultados){
   }
   box.innerHTML = resultados.map((r,i)=>`
     <div class="buscador-item" data-idx="${i}">
-      <div class="bi-nombre">${r.nombre}</div>
+      <div class="bi-nombre">${r.nombre}${r._posibleDuplicado?' <span class="pill abono">⚠ Revisar: puede repetirse con otro resultado de esta lista</span>':''}</div>
       <div class="bi-meta">${r.cedula ? 'Cédula '+r.cedula+' — ' : ''}${r.curso ? r.curso : 'Sin curso previo'} <span class="pill ${r.origen==='Matriculado'?'ok':'na'}" style="margin-left:6px;">${r.origen}</span></div>
     </div>
   `).join('');
@@ -1867,8 +1901,90 @@ function construirBaseEstudiantes(){
   const soloImportados = Object.entries(deImportados)
     .filter(([key])=>!deMatriculas[key])
     .map(([key,val])=>({...val, curso:[...val.cursos].join(', ')}));
-  return [...yaMatriculados, ...soloImportados];
+  const todos = [...yaMatriculados, ...soloImportados];
+  // Estos ya quedaron unificados como UNA sola persona (misma cédula, o mismo nombre normalizado sin título).
+  // Lo que sigue es solo para AVISAR de nombres muy parecidos que quedaron como personas distintas — casos así
+  // suelen ser la misma persona con una inicial de más/menos o un error de tipeo, pero como también podrían ser
+  // dos personas reales con el mismo nombre, no se fusionan solos: se marcan para que los revises tú.
+  const porNombreCentral = {};
+  todos.forEach(e=>{
+    const core = nombreCentral(normalizarNombreEst(e.nombre));
+    if(!core) return;
+    (porNombreCentral[core] = porNombreCentral[core] || []).push(e);
+  });
+  window._gruposDuplicadosActuales = [];
+  Object.values(porNombreCentral).filter(g=>g.length>1).forEach(grupo=>{
+    const idxGrupo = window._gruposDuplicadosActuales.length;
+    window._gruposDuplicadosActuales.push(grupo);
+    grupo.forEach(e=>{ e._posibleDuplicado = true; e._duplicadoConNombres = grupo.filter(x=>x!==e).map(x=>x.nombre); e._grupoIdx = idxGrupo; });
+  });
+  return todos;
 }
+// ---------- FUSIONAR ESTUDIANTES DUPLICADOS (para cuando no todos tienen acceso al Sheets para corregir el nombre a mano) ----------
+// Reescribe el nombre (y cédula) de TODAS las filas de Matrículas, Pagos, Nómina y Base de Ex-Alumnos que tengan
+// cualquiera de las variantes de nombre del grupo, dejándolas todas con el mismo nombre/cédula elegido. No borra
+// ningún pago ni curso — solo unifica cómo se llama el estudiante en todos los registros.
+window.abrirFusionarDuplicado = function(idxGrupo){
+  const grupo = (window._gruposDuplicadosActuales||[])[idxGrupo];
+  if(!grupo || grupo.length<2){ showToast('No se pudo abrir la fusión, recarga la página e intenta de nuevo.'); return; }
+  const opciones = grupo.map((e,i)=>`
+    <label style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:9px;padding:12px;margin-bottom:8px;cursor:pointer;">
+      <input type="radio" name="fus_elegido" value="${i}" ${i===0?'checked':''} style="margin-top:3px;">
+      <div>
+        <div style="font-weight:700;font-family:'Quicksand',sans-serif;">${e.nombre}</div>
+        <div class="hint" style="margin:2px 0 0;">${e.cedula?'Cédula '+e.cedula+' — ':'Sin cédula — '}${e.curso||'Sin curso'} <span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></div>
+      </div>
+    </label>
+  `).join('');
+  const html = `
+    <h3 style="margin-top:0;">Fusionar Estudiantes Duplicados</h3>
+    <p class="hint">Marca cuál de estos registros tiene el nombre y la cédula CORRECTOS (o corrígelos abajo). Los demás se reescribirán igual en Matrículas, Pagos, Nómina y la Base de Ex-Alumnos — no se borra ningún pago ni curso, solo se unifica el nombre.</p>
+    ${opciones}
+    <div class="field" style="margin-top:6px;"><label>Nombre final</label><input id="fus_nombre_final" value="${grupo[0].nombre.replace(/"/g,'&quot;')}"></div>
+    <div class="field"><label>Cédula final (opcional)</label><input id="fus_cedula_final" value="${grupo[0].cedula||''}"></div>
+    <div class="actions"><button class="btn btn-primary" onclick="confirmarFusionEstudiantes(${idxGrupo})">Fusionar Ahora</button></div>
+  `;
+  abrirModalDoc(html);
+  document.querySelectorAll('input[name="fus_elegido"]').forEach(radio=>{
+    radio.addEventListener('change', ()=>{
+      const e = grupo[Number(radio.value)];
+      document.getElementById('fus_nombre_final').value = e.nombre;
+      document.getElementById('fus_cedula_final').value = e.cedula||'';
+    });
+  });
+};
+window.confirmarFusionEstudiantes = async function(idxGrupo){
+  const grupo = (window._gruposDuplicadosActuales||[])[idxGrupo];
+  if(!grupo){ showToast('Error interno, cierra esta ventana e inténtalo de nuevo.'); return; }
+  const nombreFinal = document.getElementById('fus_nombre_final').value.trim();
+  const cedulaFinal = document.getElementById('fus_cedula_final').value.trim();
+  if(!nombreFinal){ showToast('Escribe el nombre final.'); return; }
+  if(!confirm(`¿Fusionar estos ${grupo.length} registros en "${nombreFinal}"? Esto reescribe el nombre en todos sus pagos, matrículas y nómina.`)) return;
+  showToast('Fusionando, un momento...');
+  try{
+    const nombresVariantes = [...new Set(grupo.map(e=>e.nombre))];
+    let actualizados = 0, fallidos = 0;
+    for(const nombreViejo of nombresVariantes){
+      for(const m of MATRICULAS.filter(x=>x.estudiante===nombreViejo)){
+        try{ await apiPost('Matriculas','update',{id:m.id, data:{estudiante:nombreFinal, cedula: cedulaFinal || m.cedula || ''}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const p of PAGOS.filter(x=>x.estudiante===nombreViejo)){
+        try{ await apiPost('Pagos','update',{id:p.id, data:{estudiante:nombreFinal}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const n of NOMINA.filter(x=>x.estudiante===nombreViejo)){
+        try{ await apiPost('Nomina','update',{id:n.id, data:{estudiante:nombreFinal}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const ex of EXALUMNOS.filter(x=>x.nombre===nombreViejo)){
+        try{ await apiPost('ExAlumnos','update',{id:ex.id, data:{nombre:nombreFinal, cedula: cedulaFinal || ex.cedula || ''}}); actualizados++; }catch(err){ fallidos++; }
+      }
+    }
+    if(fallidos===0){ showToast(`Fusión completa: ${actualizados} fila(s) actualizada(s).`); }
+    else{ showToast(`Fusión parcial: ${actualizados} fila(s) actualizada(s), ${fallidos} fallaron — puede que tu Apps Script no permita editar esas hojas todavía. Revísalas a mano o pide que agreguen esa función.`); }
+    document.getElementById('modal_overlay').classList.remove('show');
+    await loadAll();
+    renderAll();
+  }catch(err){ showToast('Error al fusionar: '+err.message); }
+};
 function renderBaseEstudiantes(){
   const base = construirBaseEstudiantes();
   const selPais = document.getElementById('exal_filtro_pais');
@@ -1880,6 +1996,14 @@ function renderBaseEstudiantes(){
   const cursos = [...new Set(base.flatMap(e=>e.curso.split(', ')).filter(Boolean))].sort();
   selCurso.innerHTML = '<option value="">Todos</option>' + cursos.map(c=>`<option value="${c}" ${c===prevCurso?'selected':''}>${c}</option>`).join('');
   document.getElementById('exal_total_destacado').textContent = base.length;
+  const totalDuplicados = base.filter(e=>e._posibleDuplicado).length;
+  const avisoBox = document.getElementById('exal_aviso_duplicados');
+  if(avisoBox){
+    avisoBox.innerHTML = totalDuplicados>0
+      ? `⚠ Detectamos ${totalDuplicados} registro(s) con nombres muy parecidos a otro estudiante ya en la base (marcados abajo con "Revisar"). Puede ser la misma persona escrita distinto (con/sin título, con/sin inicial) — revísalos y corrige el nombre en el Sheets para que se unifiquen.`
+      : '';
+    avisoBox.style.display = totalDuplicados>0 ? 'block' : 'none';
+  }
   const q = normalizarBusquedaExal(document.getElementById('exal_buscar').value);
   const paisF = selPais.value;
   const cursoF = selCurso.value;
@@ -1895,8 +2019,9 @@ function renderBaseEstudiantes(){
   if(filas.length===0){ body.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No se encontraron estudiantes con este filtro.'; return; }
   empty.style.display = 'none';
   body.innerHTML = filas.map((e,i)=>`
-    <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
-    <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td></tr>
+    <tr><td>${i+1}</td><td>${e.nombre}${e._posibleDuplicado?` <span class="pill abono" title="Nombre parecido a: ${(e._duplicadoConNombres||[]).join(', ').replace(/"/g,'&quot;')}">⚠ Revisar</span>`:''}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
+    <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td>
+    <td>${e._posibleDuplicado?`<button class="btn btn-ghost btn-sm" onclick="abrirFusionarDuplicado(${e._grupoIdx})">🔗 Fusionar</button>`:''}</td></tr>
   `).join('');
 }
 document.getElementById('exal_buscar').addEventListener('input', renderBaseEstudiantes);
