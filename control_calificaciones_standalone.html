@@ -233,31 +233,44 @@
         <div id="ev_lista_modulos" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
         <div id="ev_sin_modulo" class="empty">Este curso no tiene módulos configurados todavía.</div>
         <div id="ev_detalle_modulo" style="display:none;">
-          <h3 id="ev_titulo_modulo" style="font-family:'Quicksand',sans-serif;font-size:17px;margin-bottom:14px;"></h3>
-          <div class="panel" style="background:var(--panel-2);box-shadow:none;">
-            <h2>Evaluación Regular</h2>
-            <p class="hint">Apertura y cierre son la ventana normal (nota sobre 10). El límite es la fecha tope para entregas tardías (nota sobre 9).</p>
-            <div class="grid cols3">
-              <div class="field"><label>Fecha de Apertura</label><input id="ev_reg_apertura" type="date"></div>
-              <div class="field"><label>Fecha de Cierre</label><input id="ev_reg_cierre" type="date"></div>
-              <div class="field"><label>Fecha Límite (sobre 9)</label><input id="ev_reg_limite" type="date"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+            <h3 id="ev_titulo_modulo" style="font-family:'Quicksand',sans-serif;font-size:17px;margin:0;"></h3>
+            <button class="btn btn-ghost btn-sm" id="btn_ver_notificaciones">🔔 Notificaciones Enviadas</button>
+          </div>
+          <div class="panel" id="panel_notificaciones_evaluacion" style="display:none;">
+            <h2>Notificaciones Enviadas — <span id="notif_titulo_modulo"></span></h2>
+            <p class="hint">Historial de los correos que ya se enviaron para este módulo (automáticos o manuales), con fecha de envío.</p>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Fecha</th><th>Correo Enviado</th><th class="num">Estudiantes</th></tr></thead>
+                <tbody id="tabla_notificaciones_evaluacion"></tbody>
+              </table>
             </div>
+            <div class="empty" id="notif_empty" style="display:none;">Todavía no se ha enviado ningún correo para este módulo.</div>
+          </div>
+          <div class="panel" style="background:var(--panel-2);box-shadow:none;">
+            <h2>Evaluación Regular + Prórroga</h2>
+            <p class="hint">Son 3 etapas encadenadas a partir de una sola fecha de apertura: Regular (5 días, nota sobre 10), luego Prórroga automática (2 días, nota sobre 9). Solo necesitas indicar cuándo abre la Regular — el resto de fechas se calculan solas.</p>
+            <div class="grid cols3">
+              <div class="field"><label>Fecha de Apertura (Regular)</label><input id="ev_reg_apertura" type="date"></div>
+            </div>
+            <div id="ev_reg_fechas_calculadas" class="hint" style="margin-top:10px;line-height:1.9;"></div>
             <div class="actions">
               <button class="btn btn-primary btn-sm" id="btn_guardar_ev_regular">Guardar Evaluación Regular</button>
-              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_regular">✉ Enviar Recordatorio a Toda la Nómina</button>
+              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_regular">✉ Enviar Correo de Hoy a Toda la Nómina</button>
             </div>
           </div>
           <div class="panel" style="background:var(--panel-2);box-shadow:none;">
             <h2>Evaluación Recuperativa</h2>
-            <p class="hint">Selecciona quiénes harán la recuperativa de este módulo (nota sobre 9). Las fechas se usan para enviar los recordatorios por correo.</p>
+            <p class="hint">Selecciona quiénes harán la recuperativa de este módulo. Dura 3 días y se califica sobre 9. Solo necesitas la fecha de apertura — el cierre se calcula solo.</p>
             <div class="grid cols3" style="margin-bottom:14px;">
-              <div class="field"><label>Fecha de Apertura</label><input id="ev_rec_apertura" type="date"></div>
-              <div class="field"><label>Fecha de Cierre</label><input id="ev_rec_cierre" type="date"></div>
+              <div class="field"><label>Fecha de Apertura (Recuperativa)</label><input id="ev_rec_apertura" type="date"></div>
             </div>
+            <div id="ev_rec_fechas_calculadas" class="hint" style="margin-bottom:14px;"></div>
             <div id="ev_rec_estudiantes"></div>
             <div class="actions">
               <button class="btn btn-primary btn-sm" id="btn_guardar_ev_recuperativa">Guardar Evaluación Recuperativa</button>
-              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_recuperativa">✉ Enviar Recordatorio a Seleccionados</button>
+              <button class="btn btn-ghost btn-sm" id="btn_recordatorio_recuperativa">✉ Enviar Correo de Hoy a Seleccionados</button>
             </div>
           </div>
           <div id="ev_recordatorio_resultado" style="display:none;"></div>
@@ -459,6 +472,7 @@ let CURSOS_INFO = [];
 let FACILITADORES = [];
 let PAGOS = [];
 let EVALUACIONES = [];
+let RECORDATORIOS_LOG = [];
 let CURSO_ACTUAL = null;
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3200); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -508,7 +522,7 @@ async function apiPost(sheet, action, extra){
 }
 function normNum(v){ return Number(v)||0; }
 async function loadAll(){
-  const [nom, mod, cal, mat, asi, cinfo, fac, pag, evs] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos'), apiGet('EvaluacionesConfig').catch(()=>[])]);
+  const [nom, mod, cal, mat, asi, cinfo, fac, pag, evs, log] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos'), apiGet('EvaluacionesConfig').catch(()=>[]), apiGet('RecordatoriosEvaluacionesLog').catch(()=>[])]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod;
   CALIFICACIONES = cal.map(c=>({...c, nota:normNum(c.nota)}));
@@ -518,6 +532,7 @@ async function loadAll(){
   FACILITADORES = fac;
   PAGOS = pag;
   EVALUACIONES = evs || [];
+  RECORDATORIOS_LOG = log || [];
 }
 function modulosSinPagar(estudiante){
   const modulosCurso = modulosDelCurso();
@@ -841,7 +856,12 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-// ---------- EVALUACIONES (config por módulo: regular y recuperativa) ----------
+// ---------- EVALUACIONES (config por módulo: 3 etapas encadenadas) ----------
+// Regular: 5 días (sobre 10) → Prórroga automática: 2 días (sobre 9), empieza
+// justo al cerrar la Regular. Recuperativa: 3 días (sobre 9), independiente,
+// con su propia fecha de apertura y su propia lista de estudiantes.
+// Solo se pide UNA fecha de apertura por etapa (Regular y Recuperativa) — todas
+// las demás fechas (cierres, apertura de prórroga) se calculan solas.
 let MODULO_SELECCIONADO_EVALUACION = null;
 function evaluacionesDelCurso(){
   return EVALUACIONES.filter(e=>e.curso===CURSO_ACTUAL);
@@ -849,6 +869,35 @@ function evaluacionesDelCurso(){
 function configEvaluacion(modulo, tipo){
   const filas = evaluacionesDelCurso().filter(e=>e.modulo===modulo && e.tipo===tipo);
   return filas.length ? filas[filas.length-1] : null;
+}
+function sumarDias(fechaISO, n){
+  const d = new Date(fechaISO+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+// A partir de la fecha de apertura de la Regular, calcula las 6 fechas clave
+// de las etapas Regular + Prórroga (día1..día5 Regular, día1..día2 Prórroga).
+function calcularFechasRegular(fechaApertura){
+  if(!fechaApertura) return null;
+  return {
+    apertura: fechaApertura,                  // día 1 Regular
+    recordatorio: sumarDias(fechaApertura,2),  // día 3 Regular
+    avisoCierre: sumarDias(fechaApertura,3),   // día 4 Regular
+    cierre: sumarDias(fechaApertura,4),        // día 5 Regular (cierre)
+    aperturaProrroga: sumarDias(fechaApertura,5), // día 1 Prórroga
+    cierreProrroga: sumarDias(fechaApertura,6)    // día 2 Prórroga (cierre)
+  };
+}
+// A partir de la fecha de apertura de la Recuperativa, calcula sus 2 fechas clave.
+function calcularFechasRecuperativa(fechaApertura){
+  if(!fechaApertura) return null;
+  return {
+    apertura: fechaApertura,             // día 1 Recuperativa
+    cierre: sumarDias(fechaApertura,2)   // día 3 Recuperativa (cierre)
+  };
+}
+function formatoCorto(fechaISO){
+  return fechaISO ? formatFechaDMY(fechaISO) : '—';
 }
 function renderEvaluaciones(){
   const box = document.getElementById('ev_lista_modulos');
@@ -872,20 +921,66 @@ function renderEvaluaciones(){
 window.seleccionarModuloEvaluacion = function(modulo){
   MODULO_SELECCIONADO_EVALUACION = modulo;
   document.getElementById('ev_recordatorio_resultado').style.display='none';
+  document.getElementById('panel_notificaciones_evaluacion').style.display='none';
   renderEvaluaciones();
   renderDetalleEvaluacion();
 };
+// Traduce el código interno de cada uno de los 8 correos a un texto legible
+// para mostrar en el historial de notificaciones.
+const ETIQUETAS_MOTIVO_EVALUACION = {
+  regular_apertura: 'Evaluación Regular — Apertura',
+  regular_recordatorio: 'Evaluación Regular — Recordatorio',
+  regular_aviso_cierre: 'Evaluación Regular — Aviso de Cierre',
+  regular_cierre: 'Evaluación Regular — Fecha de Cierre',
+  prorroga_apertura: 'Prórroga — Apertura',
+  prorroga_cierre: 'Prórroga — Fecha de Cierre',
+  recuperativa_apertura: 'Evaluación Recuperativa — Apertura',
+  recuperativa_cierre: 'Evaluación Recuperativa — Fecha de Cierre'
+};
+function notificacionesDelModulo(){
+  return RECORDATORIOS_LOG
+    .filter(r=>r.curso===CURSO_ACTUAL && r.modulo===MODULO_SELECCIONADO_EVALUACION)
+    .sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+}
+function renderNotificacionesEvaluacion(){
+  document.getElementById('notif_titulo_modulo').textContent = MODULO_SELECCIONADO_EVALUACION;
+  const filas = notificacionesDelModulo();
+  const body = document.getElementById('tabla_notificaciones_evaluacion');
+  const empty = document.getElementById('notif_empty');
+  if(filas.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = filas.map(f=>`
+    <tr><td>${formatFechaDMY(f.fecha)}</td>
+    <td>${ETIQUETAS_MOTIVO_EVALUACION[f.motivo] || f.motivo}</td>
+    <td class="num">${f.cantidadEnviados || ''}</td></tr>
+  `).join('');
+}
+document.getElementById('btn_ver_notificaciones').addEventListener('click', ()=>{
+  const p = document.getElementById('panel_notificaciones_evaluacion');
+  const abrir = p.style.display==='none';
+  p.style.display = abrir ? 'block' : 'none';
+  if(abrir) renderNotificacionesEvaluacion();
+});
 function renderDetalleEvaluacion(){
   const wrap = document.getElementById('ev_detalle_modulo');
   wrap.style.display='block';
   document.getElementById('ev_titulo_modulo').textContent = MODULO_SELECCIONADO_EVALUACION;
+
   const reg = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
-  document.getElementById('ev_reg_apertura').value = reg ? (reg.fechaApertura||'') : '';
-  document.getElementById('ev_reg_cierre').value = reg ? (reg.fechaCierre||'') : '';
-  document.getElementById('ev_reg_limite').value = reg ? (reg.fechaLimite||'') : '';
+  const fechaAperturaReg = reg ? (reg.fechaApertura||'') : '';
+  document.getElementById('ev_reg_apertura').value = fechaAperturaReg;
+  const fReg = calcularFechasRegular(fechaAperturaReg);
+  document.getElementById('ev_reg_fechas_calculadas').innerHTML = fReg ? `
+    <b>Regular (sobre 10):</b> apertura ${formatoCorto(fReg.apertura)} · recordatorio ${formatoCorto(fReg.recordatorio)} · aviso de cierre ${formatoCorto(fReg.avisoCierre)} · cierre ${formatoCorto(fReg.cierre)}<br>
+    <b>Prórroga (sobre 9):</b> apertura ${formatoCorto(fReg.aperturaProrroga)} · cierre ${formatoCorto(fReg.cierreProrroga)}
+  ` : 'Guarda una fecha de apertura para ver el calendario completo calculado.';
+
   const rec = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
-  document.getElementById('ev_rec_apertura').value = rec ? (rec.fechaApertura||'') : '';
-  document.getElementById('ev_rec_cierre').value = rec ? (rec.fechaCierre||'') : '';
+  const fechaAperturaRec = rec ? (rec.fechaApertura||'') : '';
+  document.getElementById('ev_rec_apertura').value = fechaAperturaRec;
+  const fRec = calcularFechasRecuperativa(fechaAperturaRec);
+  document.getElementById('ev_rec_fechas_calculadas').innerHTML = fRec ? `<b>Recuperativa (sobre 9):</b> apertura ${formatoCorto(fRec.apertura)} · cierre ${formatoCorto(fRec.cierre)}` : 'Guarda una fecha de apertura para ver el cierre calculado.';
+
   const seleccionados = rec && rec.estudiantes ? String(rec.estudiantes).split('|||').filter(Boolean) : [];
   const box = document.getElementById('ev_rec_estudiantes');
   box.innerHTML = estudiantesDelCurso().map(est=>`
@@ -899,16 +994,15 @@ function renderDetalleEvaluacion(){
 document.getElementById('btn_guardar_ev_regular').addEventListener('click', async ()=>{
   if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
   const fechaApertura = document.getElementById('ev_reg_apertura').value;
-  const fechaCierre = document.getElementById('ev_reg_cierre').value;
-  const fechaLimite = document.getElementById('ev_reg_limite').value;
+  if(!fechaApertura){ showToast('Escribe la fecha de apertura.'); return; }
   const existente = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
   try{
     if(existente){
-      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura, fechaCierre, fechaLimite}});
+      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura}});
     }else{
-      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Regular', fechaApertura, fechaCierre, fechaLimite, estudiantes:''}});
+      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Regular', fechaApertura, fechaCierre:'', fechaLimite:'', estudiantes:''}});
     }
-    showToast('Evaluación regular guardada.');
+    showToast('Evaluación regular guardada — calendario recalculado.');
     await loadAll();
     renderDetalleEvaluacion();
   }catch(e){ showToast('Error al guardar: '+e.message); }
@@ -916,45 +1010,47 @@ document.getElementById('btn_guardar_ev_regular').addEventListener('click', asyn
 document.getElementById('btn_guardar_ev_recuperativa').addEventListener('click', async ()=>{
   if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
   const fechaApertura = document.getElementById('ev_rec_apertura').value;
-  const fechaCierre = document.getElementById('ev_rec_cierre').value;
+  if(!fechaApertura){ showToast('Escribe la fecha de apertura.'); return; }
   const estudiantes = [...document.querySelectorAll('.ev-rec-check:checked')].map(c=>c.value).join('|||');
   const existente = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
   try{
     if(existente){
-      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura, fechaCierre, estudiantes}});
+      await apiPost('EvaluacionesConfig','update',{id:existente.id, data:{fechaApertura, estudiantes}});
     }else{
-      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Recuperativa', fechaApertura, fechaCierre, fechaLimite:'', estudiantes}});
+      await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Recuperativa', fechaApertura, fechaCierre:'', fechaLimite:'', estudiantes}});
     }
-    showToast('Evaluación recuperativa guardada.');
+    showToast('Evaluación recuperativa guardada — calendario recalculado.');
     await loadAll();
     renderDetalleEvaluacion();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
-// Decide qué tipo de recordatorio corresponde HOY según las fechas configuradas:
-// el día de apertura, cada 3 días mientras la ventana está abierta, la víspera
-// del cierre, y el día de la fecha límite. Devuelve null si hoy no corresponde enviar nada.
-function tipoRecordatorioHoy(fechaApertura, fechaCierre, fechaLimite){
-  if(!fechaApertura) return null;
+// Decide cuál de los 6 correos de la etapa Regular+Prórroga corresponde HOY,
+// comparando la fecha de hoy contra el calendario ya calculado. Devuelve null
+// si hoy no coincide con ninguna de las 6 fechas clave.
+function motivoRegularHoy(fReg){
+  if(!fReg) return null;
   const hoy = new Date().toISOString().slice(0,10);
-  const dias = (a,b)=> Math.round((new Date(b)-new Date(a))/86400000);
-  if(hoy === fechaApertura) return {tipo:'apertura', texto:'Apertura de la actividad'};
-  if(fechaLimite && hoy === fechaLimite) return {tipo:'limite', texto:'Hoy es la fecha límite de entrega'};
-  if(fechaCierre){
-    const diffCierre = Math.round((new Date(fechaCierre)-new Date(hoy))/86400000);
-    if(diffCierre === 1) return {tipo:'vispera_cierre', texto:'Mañana cierra la actividad'};
-  }
-  if(fechaApertura && hoy > fechaApertura && (!fechaCierre || hoy < fechaCierre)){
-    const diasDesdeApertura = Math.round((new Date(hoy)-new Date(fechaApertura))/86400000);
-    if(diasDesdeApertura>0 && diasDesdeApertura % 3 === 0) return {tipo:'cada3', texto:'Recordatorio de actividad pendiente'};
-  }
+  if(hoy === fReg.apertura) return 'regular_apertura';
+  if(hoy === fReg.recordatorio) return 'regular_recordatorio';
+  if(hoy === fReg.avisoCierre) return 'regular_aviso_cierre';
+  if(hoy === fReg.cierre) return 'regular_cierre';
+  if(hoy === fReg.aperturaProrroga) return 'prorroga_apertura';
+  if(hoy === fReg.cierreProrroga) return 'prorroga_cierre';
   return null;
 }
-async function enviarRecordatoriosPara(estudiantes, fechaApertura, fechaCierre, fechaLimite, contexto){
+// Igual, pero para los 2 correos de la Recuperativa.
+function motivoRecuperativaHoy(fRec){
+  if(!fRec) return null;
+  const hoy = new Date().toISOString().slice(0,10);
+  if(hoy === fRec.apertura) return 'recuperativa_apertura';
+  if(hoy === fRec.cierre) return 'recuperativa_cierre';
+  return null;
+}
+async function enviarRecordatoriosPara(estudiantes, motivo){
   const resultado = document.getElementById('ev_recordatorio_resultado');
-  const motivo = tipoRecordatorioHoy(fechaApertura, fechaCierre, fechaLimite);
   if(!motivo){
     resultado.style.display='block';
-    resultado.innerHTML = `<p class="hint" style="margin-top:12px;">Hoy no corresponde enviar recordatorio según las fechas configuradas (apertura ${fechaApertura||'—'}, cierre ${fechaCierre||'—'}${fechaLimite?', límite '+fechaLimite:''}).</p>`;
+    resultado.innerHTML = `<p class="hint" style="margin-top:12px;">Hoy no corresponde enviar ningún correo de esta etapa según el calendario calculado — revisa las fechas arriba.</p>`;
     return;
   }
   const destinatarios = estudiantes.map(est=>({estudiante:est, correo:correoDeEstudiante(est)}));
@@ -965,40 +1061,44 @@ async function enviarRecordatoriosPara(estudiantes, fechaApertura, fechaCierre, 
     return;
   }
   try{
-    await apiPost('EvaluacionesConfig','enviarRecordatorio',{
-      curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, contexto, motivo:motivo.tipo,
-      asunto:`${contexto} — ${MODULO_SELECCIONADO_EVALUACION} — ${motivo.texto}`,
+    const resp = await apiPost('EvaluacionesConfig','enviarRecordatorio',{
+      curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, motivo,
       destinatarios: conCorreo
     });
     resultado.style.display='block';
     resultado.innerHTML = `<div style="background:var(--accent-soft);border:1px solid var(--accent);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
-      ✔ Recordatorio "${motivo.texto}" enviado a ${conCorreo.length} estudiante(s).
+      ✔ Correo "${motivo}" enviado a ${(resp && resp.enviados) || conCorreo.length} estudiante(s).
       ${sinCorreo.length>0?`<br>⚠ ${sinCorreo.length} sin correo registrado: ${sinCorreo.map(d=>d.estudiante).join(', ')}.`:''}
     </div>`;
-    showToast('Recordatorios enviados.');
+    showToast('Correos enviados.');
+    // Refresca el log para que, si el panel de "🔔 Notificaciones Enviadas" está
+    // abierto, se vea de inmediato el envío que se acaba de hacer.
+    await loadAll();
+    if(document.getElementById('panel_notificaciones_evaluacion').style.display!=='none'){
+      renderNotificacionesEvaluacion();
+    }
   }catch(e){
     resultado.style.display='block';
     resultado.innerHTML = `<div style="background:var(--danger-soft);border:1px solid var(--danger);border-radius:9px;padding:12px 14px;margin-top:12px;font-size:13px;">
-      El backend (Apps Script) todavía no tiene la acción "enviarRecordatorio". Revisa la nota que te dejé en el chat con el código para agregarla.<br>Detalle: ${e.message}
+      El backend (Apps Script) todavía no tiene la acción "enviarRecordatorio" con las 8 plantillas. Revisa el código que te dejé para pegar en Code.gs.<br>Detalle: ${e.message}
     </div>`;
   }
 }
 document.getElementById('btn_recordatorio_regular').addEventListener('click', async ()=>{
   if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
   const fechaApertura = document.getElementById('ev_reg_apertura').value;
-  const fechaCierre = document.getElementById('ev_reg_cierre').value;
-  const fechaLimite = document.getElementById('ev_reg_limite').value;
-  if(!fechaApertura){ showToast('Guarda primero las fechas de la evaluación regular.'); return; }
-  await enviarRecordatoriosPara(estudiantesDelCurso(), fechaApertura, fechaCierre, fechaLimite, 'Evaluación Regular');
+  if(!fechaApertura){ showToast('Guarda primero la fecha de apertura de la evaluación regular.'); return; }
+  const motivo = motivoRegularHoy(calcularFechasRegular(fechaApertura));
+  await enviarRecordatoriosPara(estudiantesDelCurso(), motivo);
 });
 document.getElementById('btn_recordatorio_recuperativa').addEventListener('click', async ()=>{
   if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
   const fechaApertura = document.getElementById('ev_rec_apertura').value;
-  const fechaCierre = document.getElementById('ev_rec_cierre').value;
   const seleccionados = [...document.querySelectorAll('.ev-rec-check:checked')].map(c=>c.value);
   if(seleccionados.length===0){ showToast('Selecciona al menos un estudiante para la recuperativa.'); return; }
-  if(!fechaApertura){ showToast('Guarda primero las fechas de la evaluación recuperativa.'); return; }
-  await enviarRecordatoriosPara(seleccionados, fechaApertura, fechaCierre, '', 'Evaluación Recuperativa');
+  if(!fechaApertura){ showToast('Guarda primero la fecha de apertura de la evaluación recuperativa.'); return; }
+  const motivo = motivoRecuperativaHoy(calcularFechasRecuperativa(fechaApertura));
+  await enviarRecordatoriosPara(seleccionados, motivo);
 });
 // ---------- REPORTE ----------
 function renderReporteCurso(){
