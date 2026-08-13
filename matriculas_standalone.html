@@ -42,6 +42,9 @@
   .grid.cols3{grid-template-columns:1fr 1fr 1fr;}
   @media(max-width:640px){.grid,.grid.cols3{grid-template-columns:1fr;}}
   .field label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:6px;}
+  .field.campo-destacado label{color:var(--warn);font-weight:700;}
+  .field.campo-destacado input{border:2px solid var(--warn);background:var(--warn-soft);font-weight:700;}
+  .field.campo-destacado input:focus{border-color:var(--warn);}
   .field input, .field select, .field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;}
   .field input:focus, .field select:focus{outline:none;border-color:var(--accent-dark);}
   .btn{font-family:'Quicksand',sans-serif;font-size:14.5px;font-weight:700;border-radius:9px;padding:11px 20px;border:1px solid transparent;cursor:pointer;}
@@ -200,7 +203,7 @@
           <div class="field"><label>Profesión</label><input id="m_profesion" placeholder="Profesión"></div>
           <div class="field"><label>Usuario de Instagram</label><input id="m_instagram" placeholder="@usuario"></div>
           <div class="field"><label>Certificado a Nombre de (opcional)</label><input id="m_certificado" placeholder="Ej. Lic, Dr, Psi"></div>
-          <div class="field"><label>Monto Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
+          <div class="field campo-destacado"><label>⚠ Monto Acordado ($)</label><input id="m_monto_mensual" type="number" step="0.01" min="0" placeholder="Dejar vacío si paga precio normal"></div>
         </div>
         <datalist id="lista_est_curso"></datalist>
         <div style="margin-top:20px;">
@@ -740,7 +743,7 @@ async function loadAll(){
   ]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
-  PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado), confirmadoBanco:normBool(p.confirmadoBanco)}));
+  PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado), confirmadoBanco:normBool(p.confirmadoBanco), exonerado:normBool(p.exonerado)}));
   MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
   SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
   EXALUMNOS = exal;
@@ -796,6 +799,15 @@ window.seleccionarCategoriaCurso = function(cat){
   renderTablaCursos();
 };
 function itemsDe(curso){ return MODULOS.filter(m=>m.curso===curso); }
+// Igual que itemsDe(), pero con la Inscripción siempre primero — para las vistas donde Inscripción debe
+// aparecer de primera en la lista de columnas/ítems (Cuentas por Cobrar, reporte individual), sin importar
+// el orden en que se haya guardado en el Sheets.
+function itemsDeOrdenado(curso){
+  const items = itemsDe(curso);
+  const inscripcion = items.filter(it=>/inscripci[oó]n/i.test(it.modulo));
+  const resto = items.filter(it=>!/inscripci[oó]n/i.test(it.modulo));
+  return [...inscripcion, ...resto];
+}
 // Un curso se considera visible en la Vista de Formulario (Solicitud Pública) salvo que TODOS sus ítems estén marcados como ocultos.
 function cursoVisiblePublico(curso){
   const items = itemsDe(curso);
@@ -968,7 +980,7 @@ function renderSolicitudes(){
         <div class="field"><label>Profesión</label><input class="sol-profesion" value="${s.profesion||''}"></div>
         <div class="field"><label>Usuario de Instagram</label><input class="sol-instagram" value="${s.instagram||''}"></div>
         <div class="field"><label>Certificado a Nombre de</label><input class="sol-certificado" value="${s.certificado||''}"></div>
-        <div class="field"><label>Monto Acordado a Cobrar Mensual ($)</label><input class="sol-monto-mensual" type="number" step="0.01" min="0" value="${s.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
+        <div class="field campo-destacado"><label>⚠ Monto Acordado a Cobrar Mensual ($)</label><input class="sol-monto-mensual" type="number" step="0.01" min="0" value="${s.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
         <div class="field"><label>¿Quién le atendió? (dice el cliente)</label>
           <select class="sol-asesor">
             <option value="Jose" ${s.asesorMencionado==='Jose'?'selected':''}>Jose</option>
@@ -1035,10 +1047,28 @@ function agregarLineaPagoSolicitud(solId){
       <div class="field small"><label>Monto Pagado ($)</label><input class="sol-pl-monto" type="number" step="0.01" placeholder="0.00"></div>
       <button class="btn btn-ghost btn-sm" onclick="this.closest('.pago-line').remove();">✕</button>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" class="sol-pl-exonerado" style="width:16px;height:16px;">
+      🎁 Este ítem es gratis / exonerado para este estudiante (no se le cobra nada)
+    </label>
   `;
   document.getElementById('sol_pago_lines_'+solId).appendChild(row);
   const inputModulo = row.querySelector('.sol-pl-modulo');
   const inputAcordado = row.querySelector('.sol-pl-acordado');
+  const inputMontoPagado = row.querySelector('.sol-pl-monto');
+  const checkExonerado = row.querySelector('.sol-pl-exonerado');
+  checkExonerado.addEventListener('change', ()=>{
+    if(checkExonerado.checked){
+      inputAcordado.dataset.valorPrevio = inputAcordado.value;
+      inputMontoPagado.dataset.valorPrevio = inputMontoPagado.value;
+      inputAcordado.value = '0'; inputMontoPagado.value = '0';
+      inputAcordado.disabled = true; inputMontoPagado.disabled = true;
+    } else {
+      inputAcordado.disabled = false; inputMontoPagado.disabled = false;
+      inputAcordado.value = inputAcordado.dataset.valorPrevio || '';
+      inputMontoPagado.value = inputMontoPagado.dataset.valorPrevio || '';
+    }
+  });
   inputModulo.addEventListener('input', ()=>{
     const estudiante = card.querySelector('.sol-estudiante').value.trim();
     const modulo = inputModulo.value.trim();
@@ -1074,14 +1104,15 @@ window.confirmarSolicitud = async function(solId){
   let error = null;
   card.querySelectorAll('.pago-line').forEach(row=>{
     const modulo = row.querySelector('.sol-pl-modulo').value.trim();
+    const exonerado = row.querySelector('.sol-pl-exonerado').checked;
     const montoAcordado = Number(row.querySelector('.sol-pl-acordado').value)||0;
     const monto = Number(row.querySelector('.sol-pl-monto').value)||0;
     if(!modulo){ error = 'Cada línea necesita un concepto.'; return; }
-    if(monto<=0){ error = 'Cada línea necesita un monto pagado mayor a 0.'; return; }
+    if(!exonerado && monto<=0){ error = 'Cada línea necesita un monto pagado mayor a 0 (o marcar "Exonerado" si es gratis).'; return; }
     const itemCoincide = itemsDe(curso).find(i=>i.modulo.trim().toLowerCase()===modulo.toLowerCase());
     const moduloFinal = itemCoincide ? itemCoincide.modulo : modulo;
-    const esAbono = montoAcordado>0 && monto < (montoAcordado - 0.009);
-    modulosPagados.push({modulo: moduloFinal, monto, esAbono, precioAcordado: montoAcordado});
+    const esAbono = !exonerado && montoAcordado>0 && monto < (montoAcordado - 0.009);
+    modulosPagados.push({modulo: moduloFinal, monto, esAbono, precioAcordado: montoAcordado, exonerado});
   });
   if(error){ showToast(error); return; }
   if(modulosPagados.length===0){ showToast('Agrega al menos un concepto pagado.'); return; }
@@ -1110,7 +1141,9 @@ function renderSelectsCurso(){
   const opts = cursos.map(c=>`<option value="${c}">${c}</option>`).join('');
   const mCurso = document.getElementById('m_curso');
   const prevM = mCurso.value;
-  mCurso.innerHTML = opts;
+  // Sin placeholder, el navegador selecciona solo el primer <option> — eso hacía que quedara marcado "el primer
+  // diplomado" sin querer. Con esta opción vacía obligamos a elegir el curso a propósito.
+  mCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
   if(cursos.includes(prevM)) mCurso.value = prevM;
   const cxcCurso = document.getElementById('cxc_curso');
   const prevC = cxcCurso.value;
@@ -1162,6 +1195,10 @@ function agregarLineaPago(){
       </div>
       <button class="btn btn-ghost btn-sm" onclick="this.closest('.pago-line').remove(); actualizarTotalPago();">✕</button>
     </div>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" class="pl-exonerado" style="width:16px;height:16px;">
+      🎁 Este ítem es gratis / exonerado para este estudiante (no se le cobra nada)
+    </label>
     <div class="pl-estado hint" style="margin-top:6px;"></div>
   `;
   document.getElementById('pago_lines').appendChild(row);
@@ -1169,6 +1206,21 @@ function agregarLineaPago(){
   const inputMonto = row.querySelector('.pl-monto');
   const inputPrecio = row.querySelector('.pl-precio-acordado');
   const otroWrap = row.querySelector('.pl-otro-wrap');
+  const checkExonerado = row.querySelector('.pl-exonerado');
+  checkExonerado.addEventListener('change', ()=>{
+    if(checkExonerado.checked){
+      inputPrecio.dataset.valorPrevio = inputPrecio.value;
+      inputMonto.dataset.valorPrevio = inputMonto.value;
+      inputPrecio.value = '0'; inputMonto.value = '0';
+      inputPrecio.disabled = true; inputMonto.disabled = true;
+    } else {
+      inputPrecio.disabled = false; inputMonto.disabled = false;
+      inputPrecio.value = inputPrecio.dataset.valorPrevio || '';
+      inputMonto.value = inputMonto.dataset.valorPrevio || '';
+    }
+    actualizarEstadoLinea(row);
+    actualizarTotalPago();
+  });
   selConcepto.addEventListener('change', ()=>{
     const curso = document.getElementById('m_curso').value;
     const estudiante = document.getElementById('m_estudiante').value.trim();
@@ -1222,10 +1274,21 @@ function agregarLineaPagoRapida(nombre){
 }
 document.getElementById('m_curso').addEventListener('change', renderChipsConceptos);
 function precioEsperado(curso, estudiante, concepto){
-  const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto && p.precioAcordado);
+  // "exonerado" son los pagos marcados a propósito como gratis (precio esperado = 0, no debe nada de ese ítem).
+  // Los demás pagos con precioAcordado siguen funcionando igual que antes: un precioAcordado en 0 sin la marca
+  // de exonerado se ignora (para no confundir "nunca se llenó ese campo" con "de verdad cuesta 0"), y se usa
+  // el precio de referencia del curso.
+  const pagosConcepto = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
+  const pagoExonerado = pagosConcepto.filter(p=>p.exonerado).slice(-1)[0];
+  if(pagoExonerado) return 0;
+  const pagos = pagosConcepto.filter(p=>p.precioAcordado);
   if(pagos.length>0) return pagos[pagos.length-1].precioAcordado;
   const item = itemsDe(curso).find(i=>i.modulo===concepto);
   const precioRef = item ? item.precio : 0;
+  // El "Monto Acordado" (precio especial por promo) es por MÓDULO/mensualidad — la Inscripción no se ve afectada
+  // por él (a veces se regala aparte, con su propio precio o gratis), así que nunca se le aplica el monto acordado
+  // general: para Inscripción siempre se usa lo que se le cobró realmente o el precio de referencia del curso.
+  if(/inscripci[oó]n/i.test(concepto)) return precioRef;
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0];
   const montoMensual = registro && registro.montoMensual ? Number(registro.montoMensual) : 0;
   if(montoMensual>0) return montoMensual;
@@ -1239,7 +1302,12 @@ function actualizarEstadoLinea(row){
   if(concepto === CONCEPTO_LIBRE){ estadoBox.textContent=''; return; }
   const precioTotal = Number(row.querySelector('.pl-precio-acordado').value)||0;
   const montoAhora = Number(row.querySelector('.pl-monto').value)||0;
+  const checkExonerado = row.querySelector('.pl-exonerado');
   let mensaje = '';
+  if(checkExonerado && checkExonerado.checked){
+    estadoBox.textContent = '🎁 Este ítem queda registrado como GRATIS/exonerado — no aparecerá como deuda en Cuentas por Cobrar.';
+    return;
+  }
   if(estudiante){
     const pagosPrevios = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
     if(pagosPrevios.length>0){
@@ -1289,13 +1357,14 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
   document.querySelectorAll('#pago_lines .pago-line').forEach(row=>{
     const concepto = row.querySelector('.pl-concepto').value;
     const otro = row.querySelector('.pl-otro').value.trim();
+    const exonerado = row.querySelector('.pl-exonerado').checked;
     const monto = Number(row.querySelector('.pl-monto').value)||0;
     const precioAcordado = Number(row.querySelector('.pl-precio-acordado').value)||0;
-    const esAbono = precioAcordado>0 && monto < (precioAcordado - 0.009);
+    const esAbono = !exonerado && precioAcordado>0 && monto < (precioAcordado - 0.009);
     const nombreFinal = concepto === CONCEPTO_LIBRE ? otro : concepto;
     if(concepto === CONCEPTO_LIBRE && !otro){ error = 'Especifica el concepto de penalidad/otro.'; return; }
-    if(monto <= 0){ error = 'Cada línea de pago debe tener un monto mayor a 0.'; return; }
-    modulosPagados.push({modulo: nombreFinal, monto, esAbono, precioAcordado});
+    if(!exonerado && monto <= 0){ error = 'Cada línea de pago debe tener un monto mayor a 0 (o marcar "Exonerado" si es gratis).'; return; }
+    modulosPagados.push({modulo: nombreFinal, monto, esAbono, precioAcordado, exonerado});
   });
   if(error){ showToast(error); return; }
   if(modulosPagados.length===0){ showToast('Agrega al menos un concepto de pago.'); return; }
@@ -1353,7 +1422,7 @@ document.getElementById('cxc_curso').addEventListener('change', ()=>{
   const curso = document.getElementById('cxc_curso').value;
   const sel = document.getElementById('cxc_modulo_recordatorio');
   if(!curso){ sel.innerHTML = '<option value="">Selecciona un módulo</option>'; return; }
-  const items = itemsDe(curso);
+  const items = itemsDeOrdenado(curso);
   sel.innerHTML = '<option value="">Selecciona un módulo</option>' + items.map(it=>`<option value="${it.modulo.replace(/"/g,'&quot;')}">${it.modulo}</option>`).join('');
 });
 document.getElementById('btn_enviar_recordatorio_modulo').addEventListener('click', async ()=>{
@@ -1377,7 +1446,7 @@ function renderCXC(){
   const empty = document.getElementById('cxc_empty');
   if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; document.getElementById('cxc_contador').textContent=''; return; }
   empty.style.display='none';
-  const items = itemsDe(curso);
+  const items = itemsDeOrdenado(curso);
   let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
   const activos = estudiantes.filter(est=>nominaActivaCXC(curso, est)).length;
@@ -1668,7 +1737,7 @@ window.guardarEdicionEstudiante = async function(curso, estudiante){
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
 window.pdfEstudianteIndividual = function(curso, estudiante){
-  const items = itemsDe(curso);
+  const items = itemsDeOrdenado(curso);
   let saldoTotal = 0;
   const filasModulo = items.map(it=>{
     const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===it.modulo);
