@@ -1159,6 +1159,7 @@ function agregarLineaPago(){
       <div class="field">
         <label>Concepto</label>
         <select class="pl-concepto">
+          <option value="">Selecciona un concepto</option>
           ${opciones}
           <option value="${CONCEPTO_LIBRE}">Penalidad / Otro (especificar)</option>
         </select>
@@ -1187,7 +1188,8 @@ function agregarLineaPago(){
   selConcepto.addEventListener('change', ()=>{
     const curso = document.getElementById('m_curso').value;
     const estudiante = document.getElementById('m_estudiante').value.trim();
-    if(selConcepto.value === CONCEPTO_LIBRE){ otroWrap.style.display = 'block'; inputMonto.value = ''; inputPrecio.value = ''; }
+    if(!selConcepto.value){ otroWrap.style.display = 'none'; inputMonto.value = ''; inputPrecio.value = ''; }
+    else if(selConcepto.value === CONCEPTO_LIBRE){ otroWrap.style.display = 'block'; inputMonto.value = ''; inputPrecio.value = ''; }
     else{
       otroWrap.style.display = 'none';
       const opt = selConcepto.selectedOptions[0];
@@ -1201,7 +1203,10 @@ function agregarLineaPago(){
   });
   inputMonto.addEventListener('input', ()=>{ actualizarEstadoLinea(row); actualizarTotalPago(); });
   inputPrecio.addEventListener('input', ()=>{ actualizarEstadoLinea(row); });
-  selConcepto.dispatchEvent(new Event('change'));
+  // Ya no se dispara el 'change' automáticamente al crear la línea — antes eso dejaba
+  // seleccionado por default el primer concepto de la lista (normalmente "Módulo 1") sin
+  // que nadie lo eligiera a propósito. Ahora la línea arranca en blanco ("Selecciona un
+  // concepto") y hay que elegir la opción de forma explícita.
 }
 document.getElementById('btn_add_pago_line').addEventListener('click', agregarLineaPago);
 function renderChipsConceptos(){
@@ -1318,6 +1323,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     const precioAcordado = Number(row.querySelector('.pl-precio-acordado').value)||0;
     const esAbono = precioAcordado>0 && monto < (precioAcordado - 0.009);
     const nombreFinal = concepto === CONCEPTO_LIBRE ? otro : concepto;
+    if(!concepto){ error = 'Selecciona el concepto de cada línea de pago.'; return; }
     if(concepto === CONCEPTO_LIBRE && !otro){ error = 'Especifica el concepto de penalidad/otro.'; return; }
     if(monto <= 0){ error = 'Cada línea de pago debe tener un monto mayor a 0.'; return; }
     modulosPagados.push({modulo: nombreFinal, monto, esAbono, precioAcordado});
@@ -1428,7 +1434,8 @@ function renderCXC(){
       const btnGratis = /inscripci[oó]n/i.test(it.modulo)
         ? `<button class="btn btn-ghost btn-sm" title="Marcar la Inscripción como gratis/exonerada para ${est.replace(/"/g,'&quot;')}" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarItemGratis('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}','${it.modulo.replace(/'/g,"\\'")}')">🎁</button>`
         : '';
-      if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
+      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td style="width:130px;white-space:normal;"><span class="pill ok">${estadoTxt}</span></td>`; }
+      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
       else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td style="width:130px;white-space:normal;"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
       else { estadoTxt = 'Pagado'; celda = `<td style="width:130px;white-space:normal;"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
@@ -1730,7 +1737,8 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
     const saldo = Math.max(0, esperado - pagado);
     saldoTotal += saldo;
     let estado;
-    if(pagado===0) estado = `<span class="pill fail">Debe ${fmt(esperado)}</span>`;
+    if(esperado<=0) estado = `<span class="pill ok">Gratis</span>`;
+    else if(pagado===0) estado = `<span class="pill fail">Debe ${fmt(esperado)}</span>`;
     else if(saldo>0) estado = `<span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span>`;
     else estado = `<span class="pill ok">Pagado</span>`;
     return `<tr><td>${it.modulo}</td><td>${estado}</td></tr>`;
