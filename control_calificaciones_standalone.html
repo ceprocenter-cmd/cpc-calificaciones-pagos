@@ -1287,8 +1287,12 @@ function renderDetalleModuloSeleccionado(){
   const filas = datosModuloSeleccionado();
   // Filtro por estado dentro de ESTE módulo: aprobado/reprobado/sin nota se
   // calculan con la nota de este módulo específicamente, no con el promedio del curso.
+  // Los estudiantes "No continuó" quedan EXCLUIDOS de los filtros de acción
+  // (Aprobados/Reprobados/Sin Nota) para que no aparezcan al copiar la lista —
+  // en "Todos" sí se siguen mostrando, con su pastilla de estado.
   const filasFiltradas = filas.filter(f=>{
     if(FILTRO_MODULO_ESTADO==='todos') return true;
+    if(f.baja) return false;
     if(FILTRO_MODULO_ESTADO==='aprobado') return f.aprobado===true;
     if(FILTRO_MODULO_ESTADO==='reprobado') return f.aprobado===false;
     if(FILTRO_MODULO_ESTADO==='sinnota') return f.aprobado===null;
