@@ -514,14 +514,14 @@ function listaBuscableEstudiantes(){
   const porClave = {};
   MATRICULAS.forEach(m=>{
     if(!m.estudiante) return;
-    const key = normalizarNombreEst(m.cedula || m.estudiante);
+    const key = claveEstudiante(m.cedula, m.estudiante);
     if(!porClave[key] || (m.fecha||'') >= (porClave[key].fecha||'')){
       porClave[key] = { nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, profesion:m.profesion, instagram:m.instagram, ciudad:m.ciudad, pais:m.pais, certificado:m.certificado, montoMensual:m.montoMensual, curso:m.curso, fecha:m.fecha, origen:'Matriculado' };
     }
   });
   EXALUMNOS.forEach(e=>{
     if(!e.nombre) return;
-    const key = normalizarNombreEst(e.cedula || e.nombre);
+    const key = claveEstudiante(e.cedula, e.nombre);
     if(!porClave[key]){
       porClave[key] = { nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, profesion:e.profesion, instagram:'', ciudad:e.ciudad, pais:e.pais, certificado:'', montoMensual:0, curso:e.curso, fecha:e.fecha, origen:'Base importada' };
     }
@@ -1824,20 +1824,36 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
 });
 // ---------- BASE DE DATOS DE ESTUDIANTES (Historial) ----------
 function normalizarBusquedaExal(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
-function claveEstudiante(cedula, nombre){ return String(cedula||nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+// Identidad única de un estudiante: si tiene cédula, se usa solo los dígitos de la cédula (así "091-234-5678",
+// "0912345678" y el número 912345678 -que Google Sheets a veces devuelve sin el cero inicial- cuentan como la MISMA persona).
+// Si no hay cédula, se cae al nombre normalizado (sin tildes, sin espacios extra, sin mayúsculas). Esto evita que
+// pequeñas diferencias de formato o tipeo generen estudiantes duplicados en la Base de Datos y en el buscador.
+function soloDigitos(t){
+  let d = String(t==null?'':t).replace(/\D+/g,'');
+  // Si el Sheets guardó la cédula como NÚMERO (no texto), Google/JS le borran el 0 inicial y una
+  // cédula ecuatoriana de 10 dígitos queda en 9. Se le devuelve el cero para que siga siendo la misma clave.
+  if(d.length===9) d = '0'+d;
+  return d;
+}
+function claveEstudiante(cedula, nombre){
+  const ced = soloDigitos(cedula);
+  if(ced) return 'ced:'+ced;
+  return 'nom:'+normalizarNombreEst(nombre);
+}
 function construirBaseEstudiantes(){
   const deMatriculas = {};
   MATRICULAS.forEach(m=>{
-    const key = String(m.cedula||m.estudiante).toLowerCase();
+    const key = claveEstudiante(m.cedula, m.estudiante);
     if(!deMatriculas[key]) deMatriculas[key] = {nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, pais:m.pais, cursos:new Set(), origen:'Ya matriculado'};
     deMatriculas[key].cursos.add(m.curso);
+    if(!deMatriculas[key].cedula && m.cedula) deMatriculas[key].cedula = m.cedula;
     if(!deMatriculas[key].pais && m.pais) deMatriculas[key].pais = m.pais;
     if(!deMatriculas[key].correo && m.correo) deMatriculas[key].correo = m.correo;
     if(!deMatriculas[key].telefono && m.telefono) deMatriculas[key].telefono = m.telefono;
   });
   const deImportados = {};
   EXALUMNOS.forEach(e=>{
-    const key = String(e.cedula||e.nombre).toLowerCase();
+    const key = claveEstudiante(e.cedula, e.nombre);
     if(!deImportados[key]) deImportados[key] = {nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, pais:e.pais, cursos:new Set(), origen:'Base importada'};
     if(e.curso) deImportados[key].cursos.add(e.curso);
     if(!deImportados[key].correo && e.correo) deImportados[key].correo = e.correo;
