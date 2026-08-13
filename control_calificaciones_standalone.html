@@ -320,6 +320,7 @@
           </div>
           <div class="empty" id="modulo_filtro_empty" style="display:none;">Ningún estudiante coincide con este filtro en este módulo.</div>
           <div class="actions">
+            <button class="btn btn-primary btn-sm" id="btn_copiar_lista_modulo">📋 Copiar Lista (solo nombres)</button>
             <button class="btn btn-ghost btn-sm" id="btn_export_modulo_seleccionado">Descargar Notas del Módulo (CSV)</button>
             <button class="btn btn-ghost btn-sm" id="btn_pdf_modulo_seleccionado">Descargar Notas del Módulo (PDF)</button>
           </div>
@@ -555,6 +556,18 @@ function ordenarPorBaja(estudiantes){
     return a.localeCompare(b);
   });
 }
+// Pastilla "No continuó" reutilizable en CUALQUIER lugar donde se muestre un
+// nombre de estudiante (tablas, listas, checklists), para que el estado de
+// baja se vea igual en toda la app, no solo en Asistencia/Reporte.
+function pillBaja(estudiante){
+  return estaDadoDeBaja(estudiante) ? ' <span class="pill na">No continuó</span>' : '';
+}
+// Devuelve solo a los estudiantes ACTIVOS de la nómina (excluye "No continuó").
+// Se usa en todo lo que implique certificar/graduar — un estudiante que ya no
+// continúa no debería aparecer en certificados, diplomas ni menciones de honor.
+function estudiantesActivosDelCurso(){
+  return estudiantesDelCurso().filter(est=>!estaDadoDeBaja(est));
+}
 window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
   const reg = NOMINA.find(n=>n.curso===CURSO_ACTUAL && n.estudiante===estudiante);
   if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
@@ -782,7 +795,12 @@ function modulosDelCurso(){
 }
 function poblarSelectEstudiantes(){
   const sel = document.getElementById('c_estudiante');
-  sel.innerHTML = estudiantesDelCurso().map(e=>`<option value="${e}">${e}</option>`).join('') || '<option value="">(sin estudiantes)</option>';
+  const prev = sel.value;
+  sel.innerHTML = ordenarPorBaja(estudiantesDelCurso()).map(e=>{
+    const baja = estaDadoDeBaja(e);
+    return `<option value="${e}"${baja?' style="color:#999;"':''}>${e}${baja?' — No continuó':''}</option>`;
+  }).join('') || '<option value="">(sin estudiantes)</option>';
+  if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
 }
 function poblarSelectModulos(){
   const sel = document.getElementById('c_modulo');
@@ -800,6 +818,7 @@ function notasVigentesCurso(){
   return Object.values(map);
 }
 function renderAllCurso(){
+  poblarSelectEstudiantes();
   cargarConfigCertificado();
   poblarSelectCertModulo();
   renderTickerCurso();
@@ -999,13 +1018,16 @@ function renderDetalleEvaluacion(){
 
   const seleccionados = rec && rec.estudiantes ? String(rec.estudiantes).split('|||').filter(Boolean) : [];
   const box = document.getElementById('ev_rec_estudiantes');
-  box.innerHTML = estudiantesDelCurso().map(est=>`
-    <label class="check-row" style="cursor:pointer;">
+  box.innerHTML = ordenarPorBaja(estudiantesDelCurso()).map(est=>{
+    const baja = estaDadoDeBaja(est);
+    return `
+    <label class="check-row" style="cursor:pointer;${baja?'opacity:0.5;background:var(--panel-2);':''}">
       <input type="checkbox" class="ev-rec-check" value="${est.replace(/"/g,'&quot;')}" ${seleccionados.includes(est)?'checked':''}>
-      <span class="modname">${est}</span>
+      <span class="modname">${est}${pillBaja(est)}</span>
       <span class="hint" style="margin:0;">${correoDeEstudiante(est)||'sin correo'}</span>
     </label>
-  `).join('') || '<p class="hint">Sin estudiantes en este curso.</p>';
+  `;
+  }).join('') || '<p class="hint">Sin estudiantes en este curso.</p>';
 }
 document.getElementById('btn_guardar_ev_regular').addEventListener('click', async ()=>{
   if(!MODULO_SELECCIONADO_EVALUACION){ showToast('Selecciona un módulo primero.'); return; }
@@ -1240,10 +1262,11 @@ document.querySelectorAll('#filtros_modulo_estado .btn').forEach(btn=>{
 function datosModuloSeleccionado(){
   const modulo = MODULO_SELECCIONADO_REPORTE;
   const vig = notasVigentesCurso().filter(v=>v.modulo===modulo);
-  return estudiantesDelCurso().map(est=>{
+  return ordenarPorBaja(estudiantesDelCurso()).map(est=>{
     const n = vig.find(v=>v.estudiante===est);
     return {
       estudiante: est,
+      baja: estaDadoDeBaja(est),
       id: n ? n.id : null,
       nota: n ? n.nota : null,
       tipo: n ? n.tipo : '',
@@ -1252,6 +1275,10 @@ function datosModuloSeleccionado(){
     };
   });
 }
+// Guarda la última lista filtrada renderizada (Aprobados/Reprobados/Sin Nota)
+// para que el botón "Copiar Lista" pueda copiar exactamente lo que se ve en
+// pantalla, sin tener que recalcular el filtro de nuevo.
+let FILAS_MODULO_FILTRADAS_ACTUAL = [];
 function renderDetalleModuloSeleccionado(){
   const wrap = document.getElementById('detalle_modulo_seleccionado');
   if(!MODULO_SELECCIONADO_REPORTE){ wrap.style.display='none'; return; }
@@ -1267,6 +1294,7 @@ function renderDetalleModuloSeleccionado(){
     if(FILTRO_MODULO_ESTADO==='sinnota') return f.aprobado===null;
     return true;
   });
+  FILAS_MODULO_FILTRADAS_ACTUAL = filasFiltradas;
   const tbl = document.getElementById('tabla_modulo_seleccionado');
   const emptyFiltro = document.getElementById('modulo_filtro_empty');
   if(filasFiltradas.length===0){
@@ -1275,7 +1303,7 @@ function renderDetalleModuloSeleccionado(){
   }else{
     emptyFiltro.style.display='none';
     tbl.innerHTML = filasFiltradas.map((f,i)=>`
-      <tr><td>${i+1}</td><td>${f.estudiante}</td>
+      <tr style="${f.baja?'opacity:0.5;background:var(--panel-2);':''}"><td>${i+1}</td><td>${f.estudiante}${pillBaja(f.estudiante)}</td>
       <td class="num">${f.nota===null?'—':f.nota.toFixed(1)}</td>
       <td>${f.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':(f.tipo?'Regular':'—')}</td>
       <td style="white-space:normal;max-width:280px;">${f.retro||'—'}</td>
@@ -1319,6 +1347,23 @@ window.guardarNotaEditada = async function(id){
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
+// Copia SOLO los nombres (uno por línea) de la lista que se ve en pantalla en
+// este momento, respetando el filtro activo (Todos/Aprobados/Reprobados/Sin
+// Nota). Sirve para pegar en WhatsApp, un correo, otro documento, etc. sin
+// arrastrar las demás columnas de la tabla (nota, tipo, retroalimentación...),
+// que es lo que pasaba al copiar directamente la tabla con el mouse.
+document.getElementById('btn_copiar_lista_modulo').addEventListener('click', async ()=>{
+  if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
+  if(FILAS_MODULO_FILTRADAS_ACTUAL.length===0){ showToast('No hay estudiantes en este filtro para copiar.'); return; }
+  const nombres = FILAS_MODULO_FILTRADAS_ACTUAL.map(f=>f.estudiante);
+  const texto = nombres.join('\n');
+  try{
+    await navigator.clipboard.writeText(texto);
+    showToast(`Lista copiada — ${nombres.length} nombre(s).`);
+  }catch(e){
+    showToast('No se pudo copiar automáticamente. Selecciona y copia el texto manualmente.');
+  }
+});
 document.getElementById('btn_export_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
   const filas = datosModuloSeleccionado();
@@ -1372,7 +1417,7 @@ function renderHistorialCurso(){
   else{
     empty.style.display='none';
     body.innerHTML = rows.map(r=>`
-      <tr><td>${formatFechaDMY(r.fecha)}</td><td>${r.estudiante}</td><td>${r.modulo}</td>
+      <tr style="${estaDadoDeBaja(r.estudiante)?'opacity:0.5;background:var(--panel-2);':''}"><td>${formatFechaDMY(r.fecha)}</td><td>${r.estudiante}${pillBaja(r.estudiante)}</td><td>${r.modulo}</td>
       <td class="num">${Number(r.nota).toFixed(1)}</td>
       <td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="eliminarNota('${r.id}')">Eliminar</button></td></tr>
@@ -1491,7 +1536,10 @@ document.getElementById('btn_guardar_curso_info').addEventListener('click', asyn
     await loadAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
+// Un estudiante marcado "No continuó" nunca cumple para certificarse — ni por
+// módulo ni el diplomado completo — sin importar qué nota tenga registrada.
 function cumpleAprobacionModulo(estudiante, modulo){
+  if(estaDadoDeBaja(estudiante)) return false;
   const nota = notasVigentesCurso().find(v=>v.estudiante===estudiante && v.modulo===modulo);
   if(!nota) return false;
   return nota.nota >= NOTA_MINIMA;
@@ -1502,6 +1550,7 @@ function promedioFinalEstudiante(estudiante){
   return vig.reduce((s,v)=>s+v.nota,0)/vig.length;
 }
 function cumpleAprobacionFinal(estudiante){
+  if(estaDadoDeBaja(estudiante)) return false;
   const prom = promedioFinalEstudiante(estudiante);
   return prom!==null && prom >= NOTA_MINIMA;
 }
@@ -1527,7 +1576,7 @@ function promedioHonorEstudiante(estudiante){
   return suma / modulosActivos.length;
 }
 function obtenerTop3Honor(){
-  return estudiantesDelCurso()
+  return estudiantesActivosDelCurso()
     .filter(est=>notasVigentesCurso().some(v=>v.estudiante===est))
     .map(est=>({estudiante:est, promedio:promedioHonorEstudiante(est)}))
     .filter(t=>t.promedio!==null)
