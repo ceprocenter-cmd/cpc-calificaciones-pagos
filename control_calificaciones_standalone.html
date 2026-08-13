@@ -870,14 +870,29 @@ function configEvaluacion(modulo, tipo){
   const filas = evaluacionesDelCurso().filter(e=>e.modulo===modulo && e.tipo===tipo);
   return filas.length ? filas[filas.length-1] : null;
 }
+// Google Sheets suele convertir una fecha que guardas como texto "2026-08-12"
+// en un valor de fecha real, y al leerla de vuelta llega como ISO completo con
+// hora (ej. "2026-08-12T05:00:00.000Z"). Si eso se concatena tal cual con
+// "T00:00:00" (como hace sumarDias), el resultado queda inválido y explota con
+// "Invalid time value". Esta función siempre devuelve solo "AAAA-MM-DD" limpio,
+// sin importar en qué formato haya llegado el valor.
+function normalizarFechaISO(valor){
+  if(!valor) return '';
+  const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(valor);
+  if(isNaN(d)) return '';
+  return d.toISOString().slice(0,10);
+}
 function sumarDias(fechaISO, n){
-  const d = new Date(fechaISO+'T00:00:00');
+  const d = new Date(normalizarFechaISO(fechaISO)+'T00:00:00');
   d.setDate(d.getDate()+n);
   return d.toISOString().slice(0,10);
 }
 // A partir de la fecha de apertura de la Regular, calcula las 6 fechas clave
 // de las etapas Regular + Prórroga (día1..día5 Regular, día1..día2 Prórroga).
 function calcularFechasRegular(fechaApertura){
+  fechaApertura = normalizarFechaISO(fechaApertura);
   if(!fechaApertura) return null;
   return {
     apertura: fechaApertura,                  // día 1 Regular
@@ -890,6 +905,7 @@ function calcularFechasRegular(fechaApertura){
 }
 // A partir de la fecha de apertura de la Recuperativa, calcula sus 2 fechas clave.
 function calcularFechasRecuperativa(fechaApertura){
+  fechaApertura = normalizarFechaISO(fechaApertura);
   if(!fechaApertura) return null;
   return {
     apertura: fechaApertura,             // día 1 Recuperativa
@@ -967,7 +983,7 @@ function renderDetalleEvaluacion(){
   document.getElementById('ev_titulo_modulo').textContent = MODULO_SELECCIONADO_EVALUACION;
 
   const reg = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
-  const fechaAperturaReg = reg ? (reg.fechaApertura||'') : '';
+  const fechaAperturaReg = normalizarFechaISO(reg ? reg.fechaApertura : '');
   document.getElementById('ev_reg_apertura').value = fechaAperturaReg;
   const fReg = calcularFechasRegular(fechaAperturaReg);
   document.getElementById('ev_reg_fechas_calculadas').innerHTML = fReg ? `
@@ -976,7 +992,7 @@ function renderDetalleEvaluacion(){
   ` : 'Guarda una fecha de apertura para ver el calendario completo calculado.';
 
   const rec = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
-  const fechaAperturaRec = rec ? (rec.fechaApertura||'') : '';
+  const fechaAperturaRec = normalizarFechaISO(rec ? rec.fechaApertura : '');
   document.getElementById('ev_rec_apertura').value = fechaAperturaRec;
   const fRec = calcularFechasRecuperativa(fechaAperturaRec);
   document.getElementById('ev_rec_fechas_calculadas').innerHTML = fRec ? `<b>Recuperativa (sobre 9):</b> apertura ${formatoCorto(fRec.apertura)} · cierre ${formatoCorto(fRec.cierre)}` : 'Guarda una fecha de apertura para ver el cierre calculado.';
