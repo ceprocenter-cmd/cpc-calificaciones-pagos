@@ -105,6 +105,14 @@
   .modal-overlay.show{display:flex;}
   .modal-box{background:#fff;border-radius:14px;max-width:750px;width:100%;max-height:90vh;overflow-y:auto;}
   .modal-actions{padding:16px 32px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff;}
+  .buscador-resultados{position:relative;}
+  .buscador-lista{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 6px 18px rgba(36,39,58,0.12);max-height:260px;overflow-y:auto;z-index:50;display:none;}
+  .buscador-lista.show{display:block;}
+  .buscador-item{padding:10px 13px;cursor:pointer;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .buscador-item:last-child{border-bottom:none;}
+  .buscador-item:hover{background:var(--panel-2);}
+  .buscador-item .bi-nombre{font-weight:700;font-family:'Quicksand',sans-serif;}
+  .buscador-item .bi-meta{color:var(--text-dim);font-size:12px;margin-top:2px;}
   @media print{
     body.printing-doc > .wrap, body.printing-doc .toast{display:none !important;}
     body.printing-doc .modal-overlay{position:static !important;background:none !important;padding:0 !important;display:block !important;}
@@ -168,7 +176,18 @@
     <div id="tab-matricular" style="display:none;">
       <div class="panel">
         <h2>Registrar Matrícula y Pago</h2>
-        <p class="hint">Si el estudiante ya existe en este curso, escribe su nombre exacto para ver qué ha pagado.</p>
+        <p class="hint">¿Es un cliente recurrente? Usa "Buscar Estudiante" para encontrarlo por nombre o cédula — se cargan sus datos ya registrados y solo editas lo que haga falta.</p>
+        <div class="field" style="margin-bottom:16px;">
+          <label>Buscar Estudiante (cliente recurrente)</label>
+          <div class="buscador-resultados">
+            <div style="display:flex;gap:8px;">
+              <input id="buscar_estudiante_input" placeholder="Escribe el nombre o cédula para buscar..." style="flex:1;" autocomplete="off">
+              <button type="button" class="btn btn-ghost btn-sm" id="btn_limpiar_busqueda_est">✕ Limpiar</button>
+            </div>
+            <div class="buscador-lista" id="buscador_lista_est"></div>
+          </div>
+          <p class="hint" style="margin:6px 0 0;">Selecciona un resultado para autocompletar sus datos personales. El curso, ítems y pago se llenan aparte, abajo.</p>
+        </div>
         <div class="grid cols3">
           <div class="field"><label>Diplomado</label><select id="m_curso"></select></div>
           <div class="field"><label>Nombre Completo</label><input id="m_estudiante" list="lista_est_curso" placeholder="Nombre completo"></div>
@@ -449,11 +468,29 @@ document.getElementById('m_pais').addEventListener('change', actualizarCodigoPai
 document.getElementById('m_pais').addEventListener('blur', actualizarCodigoPais);
 document.getElementById('m_telefono').addEventListener('focus', ()=>{ if(!document.getElementById('m_telefono').value.trim()) actualizarCodigoPais(); });
 function normalizarNombreEst(t){ return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+// Devuelve el registro más reciente de MATRICULAS que coincide con el nombre dado (comparación insensible a mayúsculas/acentos).
 function buscarDatosPrevios(estudiante){
   const nombreNorm = normalizarNombreEst(estudiante);
   const coincidencias = MATRICULAS.filter(m => normalizarNombreEst(m.estudiante||'') === nombreNorm);
   if(coincidencias.length===0) return null;
   return coincidencias[coincidencias.length-1];
+}
+// Aplica al formulario de matrícula los datos de un registro previo (de MATRICULAS o de EXALUMNOS),
+// sin pisar nada que el usuario ya haya escrito a mano. Devuelve true si rellenó algo.
+function aplicarDatosAlFormulario(previo){
+  if(!previo) return false;
+  const campos = {
+    m_cedula: previo.cedula, m_correo: previo.correo, m_telefono: previo.telefono,
+    m_profesion: previo.profesion, m_instagram: previo.instagram, m_ciudad: previo.ciudad,
+    m_pais: previo.pais, m_certificado: previo.certificado,
+    m_monto_mensual: previo.montoMensual
+  };
+  let rellenoAlgo = false;
+  Object.entries(campos).forEach(([id, val])=>{
+    const campo = document.getElementById(id);
+    if(campo && !campo.value.trim() && val){ campo.value = val; rellenoAlgo = true; }
+  });
+  return rellenoAlgo;
 }
 document.getElementById('m_estudiante').addEventListener('blur', ()=>{
   const el = document.getElementById('m_estudiante');
@@ -466,14 +503,86 @@ document.getElementById('m_estudiante').addEventListener('blur', ()=>{
   }
   const previo = buscarDatosPrevios(el.value.trim());
   if(previo){
-    const campos = { m_cedula: previo.cedula, m_correo: previo.correo, m_telefono: previo.telefono, m_profesion: previo.profesion, m_instagram: previo.instagram, m_ciudad: previo.ciudad, m_pais: previo.pais, m_certificado: previo.certificado };
-    let rellenoAlgo = false;
-    Object.entries(campos).forEach(([id, val])=>{
-      const campo = document.getElementById(id);
-      if(campo && !campo.value.trim() && val){ campo.value = val; rellenoAlgo = true; }
-    });
+    const rellenoAlgo = aplicarDatosAlFormulario(previo);
     if(rellenoAlgo){ showToast(`Encontramos una matrícula anterior de ${el.value.trim()} (en "${previo.curso}") — autocompletamos sus datos, revisa que sigan vigentes.`); }
   }
+});
+// ---------- BUSCADOR DE ESTUDIANTES RECURRENTES (arriba del formulario de Matricular) ----------
+// Junta MATRICULAS (matrículas ya hechas en el sistema) + EXALUMNOS (base importada) en una sola lista
+// buscable por nombre o cédula, para poder encontrar rápido a un cliente recurrente y cargar sus datos.
+function listaBuscableEstudiantes(){
+  const porClave = {};
+  MATRICULAS.forEach(m=>{
+    if(!m.estudiante) return;
+    const key = normalizarNombreEst(m.cedula || m.estudiante);
+    if(!porClave[key] || (m.fecha||'') >= (porClave[key].fecha||'')){
+      porClave[key] = { nombre:m.estudiante, cedula:m.cedula, correo:m.correo, telefono:m.telefono, profesion:m.profesion, instagram:m.instagram, ciudad:m.ciudad, pais:m.pais, certificado:m.certificado, montoMensual:m.montoMensual, curso:m.curso, fecha:m.fecha, origen:'Matriculado' };
+    }
+  });
+  EXALUMNOS.forEach(e=>{
+    if(!e.nombre) return;
+    const key = normalizarNombreEst(e.cedula || e.nombre);
+    if(!porClave[key]){
+      porClave[key] = { nombre:e.nombre, cedula:e.cedula, correo:e.correo, telefono:e.telefono, profesion:e.profesion, instagram:'', ciudad:e.ciudad, pais:e.pais, certificado:'', montoMensual:0, curso:e.curso, fecha:e.fecha, origen:'Base importada' };
+    }
+  });
+  return Object.values(porClave);
+}
+function buscarCoincidenciasEstudiante(texto){
+  const q = normalizarNombreEst(texto);
+  if(!q) return [];
+  return listaBuscableEstudiantes()
+    .filter(e => normalizarNombreEst(e.nombre).includes(q) || normalizarNombreEst(e.cedula||'').includes(q))
+    .slice(0, 20);
+}
+function renderResultadosBusquedaEstudiante(resultados){
+  const box = document.getElementById('buscador_lista_est');
+  if(resultados.length===0){
+    box.innerHTML = `<div class="buscador-item" style="color:var(--text-dim);cursor:default;">Sin coincidencias — puede ser un estudiante nuevo.</div>`;
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML = resultados.map((r,i)=>`
+    <div class="buscador-item" data-idx="${i}">
+      <div class="bi-nombre">${r.nombre}</div>
+      <div class="bi-meta">${r.cedula ? 'Cédula '+r.cedula+' — ' : ''}${r.curso ? r.curso : 'Sin curso previo'} <span class="pill ${r.origen==='Matriculado'?'ok':'na'}" style="margin-left:6px;">${r.origen}</span></div>
+    </div>
+  `).join('');
+  window._resultadosBusquedaEstudianteActual = resultados;
+  box.classList.add('show');
+}
+const inputBuscarEst = document.getElementById('buscar_estudiante_input');
+inputBuscarEst.addEventListener('input', ()=>{
+  const resultados = buscarCoincidenciasEstudiante(inputBuscarEst.value.trim());
+  if(!inputBuscarEst.value.trim()){ document.getElementById('buscador_lista_est').classList.remove('show'); return; }
+  renderResultadosBusquedaEstudiante(resultados);
+});
+inputBuscarEst.addEventListener('focus', ()=>{
+  if(inputBuscarEst.value.trim()){ renderResultadosBusquedaEstudiante(buscarCoincidenciasEstudiante(inputBuscarEst.value.trim())); }
+});
+document.getElementById('buscador_lista_est').addEventListener('click', (e)=>{
+  const item = e.target.closest('.buscador-item[data-idx]');
+  if(!item) return;
+  const idx = Number(item.dataset.idx);
+  const seleccionado = (window._resultadosBusquedaEstudianteActual||[])[idx];
+  if(!seleccionado) return;
+  document.getElementById('m_estudiante').value = seleccionado.nombre;
+  const rellenoAlgo = aplicarDatosAlFormulario(seleccionado);
+  document.getElementById('buscador_lista_est').classList.remove('show');
+  inputBuscarEst.value = '';
+  showToast(rellenoAlgo
+    ? `Cargamos los datos de ${seleccionado.nombre} — revisa que sigan vigentes y elige el curso/pago de esta nueva matrícula.`
+    : `Encontramos a ${seleccionado.nombre}, pero no tenía más datos guardados que copiar — complétalos y sigue con el curso/pago.`);
+  document.getElementById('m_estudiante').focus();
+});
+document.addEventListener('click', (e)=>{
+  const wrap = document.querySelector('.buscador-resultados');
+  if(wrap && !wrap.contains(e.target)) document.getElementById('buscador_lista_est').classList.remove('show');
+});
+document.getElementById('btn_limpiar_busqueda_est').addEventListener('click', ()=>{
+  inputBuscarEst.value = '';
+  document.getElementById('buscador_lista_est').classList.remove('show');
+  inputBuscarEst.focus();
 });
 let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
 const CONCEPTO_LIBRE = '__PENALIDAD_OTRO__';
@@ -977,7 +1086,8 @@ function actualizarDatalistEstudiantes(){
   const datalist = document.getElementById('lista_est_curso');
   const delCurso = NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante);
   const historicos = MATRICULAS.map(m=>m.estudiante).filter(Boolean);
-  const todos = [...new Set([...delCurso, ...historicos])].sort();
+  const importados = EXALUMNOS.map(e=>e.nombre).filter(Boolean);
+  const todos = [...new Set([...delCurso, ...historicos, ...importados])].sort();
   datalist.innerHTML = todos.map(nombre=>`<option value="${nombre.replace(/"/g,'&quot;')}">`).join('');
 }
 function agregarLineaPago(){
