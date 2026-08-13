@@ -390,7 +390,7 @@
         </div>
         <div class="table-scroll" style="margin-top:16px;">
           <table>
-            <thead><tr><th>#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th><th></th></tr></thead>
+            <thead><tr><th class="sticky-col sticky-1">#</th><th>Nombre</th><th>Cédula</th><th>Correo</th><th>Teléfono</th><th>País</th><th>Curso(s)</th><th>Origen</th><th></th></tr></thead>
             <tbody id="tabla_exalumnos_resultado"></tbody>
           </table>
         </div>
@@ -2045,9 +2045,11 @@ function renderBaseEstudiantes(){
   if(filas.length===0){ body.innerHTML = ''; empty.style.display = 'block'; empty.textContent = _modoSoloDuplicados ? '¡Ya no quedan duplicados por revisar!' : 'No se encontraron estudiantes con este filtro.'; return; }
   empty.style.display = 'none';
   body.innerHTML = filas.map((e,i)=>`
-    <tr${e._posibleDuplicado?' style="background:var(--warn-soft);"':''}><td>${i+1}</td><td>${e.nombre}${e._posibleDuplicado?` <span class="pill abono" title="Nombre parecido a: ${(e._duplicadoConNombres||[]).join(', ').replace(/"/g,'&quot;')}">⚠ Revisar</span>`:''}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
+    <tr${e._posibleDuplicado?' style="background:var(--warn-soft);"':''}>
+    <td class="sticky-col sticky-1"${e._posibleDuplicado?' style="background:var(--warn-soft);"':''}>${i+1}${e._posibleDuplicado?` <button class="btn btn-primary btn-sm" style="margin-left:4px;padding:4px 9px;font-size:11.5px;" onclick="abrirFusionarDuplicado(${e._grupoIdx})">🔗 Fusionar</button>`:''}</td>
+    <td>${e.nombre}${e._posibleDuplicado?` <span class="pill abono" title="Nombre parecido a: ${(e._duplicadoConNombres||[]).join(', ').replace(/"/g,'&quot;')}">⚠ Revisar</span>`:''}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td>
     <td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td><span class="pill ${e.origen==='Ya matriculado'?'ok':'na'}">${e.origen}</span></td>
-    <td>${e._posibleDuplicado?`<button class="btn btn-primary btn-sm" onclick="abrirFusionarDuplicado(${e._grupoIdx})">🔗 Fusionar</button>`:''}</td></tr>
+    <td></td></tr>
   `).join('');
 }
 document.getElementById('btn_ver_solo_duplicados').addEventListener('click', ()=>{ _modoSoloDuplicados = true; renderBaseEstudiantes(); });
