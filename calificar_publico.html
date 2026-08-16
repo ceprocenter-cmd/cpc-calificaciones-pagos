@@ -12,6 +12,7 @@
     --ink: #16241A; --bg: #F3F6EC; --panel: #FFFFFF; --panel-2: #FAFBF5; --line: #E2E8D6;
     --accent: #A5D32A; --accent-soft: rgba(165,211,42,0.13); --accent-dark: #75A11E;
     --text: #1F2A1A; --text-dim: #6C7863; --danger: #C0563F; --danger-soft: rgba(192,86,63,0.1);
+    --warn: #B8860B; --warn-soft: rgba(184,134,11,0.1); --warn-border: rgba(184,134,11,0.4);
     --radius: 16px; --shadow: 0 2px 10px rgba(22,36,26,0.06), 0 1px 2px rgba(22,36,26,0.05);
   }
   *{box-sizing:border-box;}
@@ -39,6 +40,8 @@
   .btn:hover{background:var(--accent-dark);color:#fff;transform:translateY(-1px);box-shadow:0 5px 14px rgba(117,161,30,0.38);}
   .btn:active{transform:translateY(0);}
   .btn:disabled{opacity:0.55;box-shadow:none;transform:none;cursor:default;}
+  .btn-secondary{background:var(--panel-2);color:var(--ink);border:1.5px solid var(--line);box-shadow:none;}
+  .btn-secondary:hover{background:#fff;color:var(--ink);border-color:var(--accent-dark);transform:none;box-shadow:none;}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:13.5px;opacity:0;transition:all 0.25s ease;pointer-events:none;z-index:100;max-width:88%;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.2);}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .setup-hint{background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--radius);padding:16px 18px;margin-bottom:20px;font-size:13px;color:var(--text-dim);}
@@ -52,6 +55,20 @@
   .est-card textarea{min-height:50px;font-size:13.5px;}
   .est-card input[type="file"]{font-size:11.5px;background:transparent;border:none;padding:2px 0;}
   .est-card.est-llena{border-color:var(--accent-dark);background:#fff;box-shadow:0 0 0 3px var(--accent-soft);}
+  .est-card.est-ya-calificado{border-color:var(--warn-border);}
+  .progress-bar-wrap{width:100%;height:9px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:12px;}
+  .progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg, var(--accent), var(--accent-dark));border-radius:6px;transition:width 0.25s ease;}
+  .aviso-existente{display:flex;align-items:flex-start;gap:8px;background:var(--warn-soft);border:1px solid var(--warn-border);border-radius:9px;padding:9px 11px;margin-bottom:11px;font-size:12.5px;line-height:1.45;color:#5C4404;}
+  .aviso-existente strong{color:var(--warn);}
+  .conf-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .conf-item:last-child{border-bottom:none;}
+  .conf-check{flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;}
+  .conf-check svg{width:12px;height:12px;}
+  .conf-nombre{font-weight:700;font-size:14px;color:var(--ink);}
+  .conf-detalle{font-size:12.5px;color:var(--text-dim);}
+  .conf-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .conf-head-icon{flex:0 0 46px;width:46px;height:46px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(117,161,30,0.35);}
+  .conf-head-icon svg{width:24px;height:24px;}
 </style>
 </head>
 <body>
@@ -87,7 +104,20 @@
     <p style="text-align:left;margin:0 0 16px;color:var(--text-dim);font-size:14px;line-height:1.5;">Llena la nota de cada estudiante que vas a calificar en este módulo — puedes dejar en blanco a quien todavía no evalúes, y guardar todo junto al final.</p>
     <div id="lista_estudiantes"></div>
     <button class="btn" id="btn_guardar_todo" style="margin-top:8px;">Guardar Todas las Calificaciones</button>
+    <div class="progress-bar-wrap" id="progress_bar_wrap" style="display:none;"><div class="progress-bar-fill" id="progress_bar_fill"></div></div>
     <div id="progreso_guardado" style="text-align:center;font-size:13px;color:var(--text-dim);margin-top:10px;"></div>
+  </div>
+
+  <div class="panel" id="confirmacion_box" style="display:none;">
+    <div class="conf-head">
+      <div class="conf-head-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#16240D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div>
+        <div style="font-family:'Quicksand',sans-serif;font-weight:700;font-size:16px;color:var(--ink);" id="conf_titulo">Listo, ya se guardaron las calificaciones</div>
+        <div style="font-size:12.5px;color:var(--text-dim);" id="conf_curso_modulo"></div>
+      </div>
+    </div>
+    <div id="conf_lista"></div>
+    <button class="btn" id="btn_seguir_mismo" style="margin-top:16px;">Seguir Calificando Aquí</button>
   </div>
 
 </div>
@@ -101,6 +131,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzSocYjhrj1F0wvNecAnGee
 let MODULOS = [];
 let NOMINA = [];
 let FACILITADORES = [];
+let CALIFICACIONES = [];
 
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3600); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -125,10 +156,17 @@ function buscarTutoresCoincidentes(tutorEscrito){
 
 async function cargarDatos(){
   try{
-    const [mod, nom, fac] = await Promise.all([apiGet('Modulos'), apiGet('Nomina'), apiGet('Facilitadores')]);
+    // Nota: si tu Apps Script todavía no expone la hoja "Calificaciones" vía GET (?sheet=Calificaciones),
+    // esta llamada fallará silenciosamente y CALIFICACIONES quedará vacío — el resto del formulario
+    // seguirá funcionando, solo no podrá avisar sobre notas ya existentes.
+    const [mod, nom, fac, cal] = await Promise.all([
+      apiGet('Modulos'), apiGet('Nomina'), apiGet('Facilitadores'),
+      apiGet('Calificaciones').catch(()=>[])
+    ]);
     MODULOS = mod;
     NOMINA = nom;
     FACILITADORES = fac;
+    CALIFICACIONES = Array.isArray(cal) ? cal : [];
     const tutores = [...new Set(fac.map(f=>f.tutor).filter(Boolean))].sort();
     document.getElementById('tutores_dl').innerHTML = tutores.map(t=>`<option value="${t}">`).join('');
   }catch(e){
@@ -182,6 +220,7 @@ document.getElementById('btn_identificarme').addEventListener('click', ()=>{
   document.getElementById('sin_asignacion_box').style.display='none';
   document.getElementById('curso_modulo_box').style.display='block';
   document.getElementById('form_box').style.display='block';
+  document.getElementById('confirmacion_box').style.display='none';
 
   document.getElementById('f_curso').innerHTML = '<option value="">Selecciona un curso</option>' + cursosAsignados.map(c=>`<option value="${c}">${c}</option>`).join('');
   document.getElementById('f_modulo').innerHTML = '<option value="">Selecciona un curso primero</option>';
@@ -230,6 +269,15 @@ function inicialesDe(nombre){
   return letras.toUpperCase();
 }
 
+// Busca si un estudiante ya tiene una calificación guardada para este curso+módulo.
+function notaExistente(curso, modulo, estudiante){
+  return CALIFICACIONES.find(c =>
+    c.curso === curso &&
+    c.modulo === modulo &&
+    normalizarNombre(c.estudiante || '') === normalizarNombre(estudiante)
+  ) || null;
+}
+
 function renderListaEstudiantes(){
   const curso = document.getElementById('f_curso').value;
   const modulo = document.getElementById('f_modulo').value;
@@ -240,23 +288,32 @@ function renderListaEstudiantes(){
     .sort((a,b)=>nombreSinTitulo(a).localeCompare(nombreSinTitulo(b), 'es'));
   if(estudiantes.length===0){ box.innerHTML = '<p class="hint" style="text-align:left;">No hay estudiantes en la nómina de este curso.</p>'; return; }
 
-  box.innerHTML = estudiantes.map((est,i)=>`
-    <div class="est-card" data-estudiante="${est.replace(/"/g,'&quot;')}">
+  box.innerHTML = estudiantes.map((est,i)=>{
+    const existente = notaExistente(curso, modulo, est);
+    const avisoHtml = existente ? `
+      <div class="aviso-existente">
+        <span>⚠️</span>
+        <span><strong>Ya tiene nota registrada:</strong> ${existente.nota} (${existente.tipo || 'Regular'}). Si guardas de nuevo aquí, esto va a reemplazar esa nota.</span>
+      </div>` : '';
+    return `
+    <div class="est-card${existente ? ' est-ya-calificado' : ''}" data-estudiante="${est.replace(/"/g,'&quot;')}">
       <div class="est-head">
         <div class="est-avatar">${inicialesDe(est)}</div>
         <div class="est-nombre">${est}</div>
       </div>
+      ${avisoHtml}
       <div class="est-fila">
         <select class="est-tipo">
-          <option>Regular</option>
-          <option>Recuperativa</option>
+          <option${existente && existente.tipo!=='Recuperativa' ? ' selected' : ''}>Regular</option>
+          <option${existente && existente.tipo==='Recuperativa' ? ' selected' : ''}>Recuperativa</option>
         </select>
-        <input class="est-nota" type="number" step="0.1" min="0" max="10" placeholder="Nota">
+        <input class="est-nota" type="number" step="0.1" min="0" max="${existente && existente.tipo==='Recuperativa' ? 9 : 10}" placeholder="Nota">
       </div>
       <textarea class="est-retro" placeholder="Retroalimentación (obligatoria si le pones nota)"></textarea>
       <div style="margin-top:8px;"><input class="est-archivo" type="file" accept="image/*,.pdf,.doc,.docx"></div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 document.getElementById('lista_estudiantes').addEventListener('input', (e)=>{
@@ -319,11 +376,17 @@ document.getElementById('btn_guardar_todo').addEventListener('click', async ()=>
   const tutor = TUTOR_ACTUAL;
   const btn = document.getElementById('btn_guardar_todo');
   const progreso = document.getElementById('progreso_guardado');
+  const barraWrap = document.getElementById('progress_bar_wrap');
+  const barraFill = document.getElementById('progress_bar_fill');
   btn.disabled = true;
+  barraWrap.style.display = 'block';
+  barraFill.style.width = '0%';
+  progreso.textContent = `Guardando 0 de ${aGuardar.length}...`;
 
-  let guardadas = 0;
+  // Se guarda de a una nota por vez (como procesa el Apps Script internamente),
+  // así la barra de progreso refleja el avance real, no uno inventado.
+  const guardadasOk = [];
   for(const item of aGuardar){
-    progreso.textContent = `Guardando ${guardadas+1} de ${aGuardar.length}...`;
     try{
       let archivo = null;
       if(item.archivoFile){
@@ -338,20 +401,58 @@ document.getElementById('btn_guardar_todo').addEventListener('click', async ()=>
       });
       const json = await res.json();
       if(json.error) throw new Error(json.error);
-      guardadas++;
+      guardadasOk.push({estudiante:item.estudiante, nota:item.nota, tipo:item.tipo});
+
+      const idxExistente = CALIFICACIONES.findIndex(c => c.curso===curso && c.modulo===modulo && normalizarNombre(c.estudiante||'')===normalizarNombre(item.estudiante));
+      const registro = {curso, modulo, estudiante:item.estudiante, tipo:item.tipo, nota:item.nota};
+      if(idxExistente >= 0) CALIFICACIONES[idxExistente] = registro; else CALIFICACIONES.push(registro);
       item.card.querySelector('.est-nota').value = '';
       item.card.querySelector('.est-retro').value = '';
       item.card.querySelector('.est-archivo').value = '';
+
+      barraFill.style.width = `${(guardadasOk.length/aGuardar.length)*100}%`;
+      progreso.textContent = `Guardando ${guardadasOk.length} de ${aGuardar.length}...`;
     }catch(e){
-      progreso.textContent = `Error guardando a ${item.estudiante}: ${e.message}. Se detuvo en ${guardadas} de ${aGuardar.length}.`;
+      progreso.textContent = `Error guardando a ${item.estudiante}: ${e.message}. Se detuvo en ${guardadasOk.length} de ${aGuardar.length}.`;
+      barraWrap.style.display = 'none';
       btn.disabled = false;
       return;
     }
   }
 
   progreso.textContent = '';
+  barraWrap.style.display = 'none';
   btn.disabled = false;
-  showToast(`${guardadas} calificación(es) guardada(s) con éxito.`);
+
+  // Avisa a soporte con UN solo correo resumen (no uno por estudiante), en segundo
+  // plano — no bloquea la pantalla de confirmación aunque el correo tarde o falle.
+  fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'notificarCalificacionesGuardadas', data:{ tutor, curso, modulo, calificaciones: guardadasOk } })
+  }).catch(()=>{});
+
+  // Confirmación persistente: reemplaza el formulario por una pantalla de resumen
+  // que no desaparece hasta que el tutor decida seguir.
+  document.getElementById('conf_titulo').textContent = `Listo, ya se guardaron ${guardadasOk.length} calificación${guardadasOk.length===1?'':'es'}`;
+  document.getElementById('conf_curso_modulo').textContent = `${curso} · ${modulo}`;
+  document.getElementById('conf_lista').innerHTML = guardadasOk.map(g => `
+    <div class="conf-item">
+      <div class="conf-check"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#16240D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div>
+        <div class="conf-nombre">${g.estudiante}</div>
+        <div class="conf-detalle">Nota: ${g.nota} · ${g.tipo}</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('form_box').style.display = 'none';
+  document.getElementById('confirmacion_box').style.display = 'block';
+  showToast(`${guardadasOk.length} calificación(es) guardada(s) con éxito.`);
+});
+
+document.getElementById('btn_seguir_mismo').addEventListener('click', ()=>{
+  document.getElementById('confirmacion_box').style.display = 'none';
+  document.getElementById('form_box').style.display = 'block';
+  renderListaEstudiantes();
 });
 </script>
 </body>
