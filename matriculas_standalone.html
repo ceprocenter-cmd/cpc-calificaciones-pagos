@@ -1460,9 +1460,11 @@ function renderCXC(){
     const btnEditar = `<td><button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✏️ Editar</button></td>`;
     const btnCobro = `<td>${(activo && saldoTotal>0) ? `<button class="btn btn-ghost btn-sm" onclick="enviarAvisoCobroFila('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✉️ Cobro</button>` : ''}</td>`;
     const carpetaUrlEst = carpetaUrlDeEstudiante(curso, est);
-    const linkExpediente = carpetaUrlEst ? ` <a href="${carpetaUrlEst}" target="_blank" rel="noopener noreferrer" style="font-size:12px;white-space:nowrap;margin-left:6px;">📁 Expediente</a>` : '';
+    const nombreEst = carpetaUrlEst
+      ? `<a href="${carpetaUrlEst}" target="_blank" rel="noopener noreferrer" title="Abrir carpeta de Drive de ${est.replace(/"/g,'&quot;')}" style="color:inherit;text-decoration:underline;text-decoration-style:dotted;">${est}</a>`
+      : est;
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
-    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}${linkExpediente}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
+    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${nombreEst}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
   }).join('') || '<tr><td colspan="17" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
