@@ -1361,6 +1361,10 @@ function asesorDeEstudiante(curso, estudiante){
   return registros.length>0 ? registros[registros.length-1].asesor : '';
 }
 function nominaActivaCXC(curso, estudiante){ const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante); return reg ? reg.activo : true; }
+function carpetaUrlDeEstudiante(curso, estudiante){
+  const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante && m.carpetaUrl);
+  return registros.length>0 ? registros[registros.length-1].carpetaUrl : '';
+}
 window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor){
   const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
   if(!reg){ showToast('No se encontró el registro de nómina de este estudiante.'); return; }
@@ -1415,7 +1419,11 @@ function renderCXC(){
   const inactivos = estudiantes.length - activos;
   document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})`;
   estudiantes.sort((a,b)=>{ const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b); if(activoA===activoB) return a.localeCompare(b); return activoA ? -1 : 1; });
-  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>`<th style="width:130px;white-space:normal;" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th><th></th>';
+  head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>{
+    const esInscripcion = /inscripci[oó]n/i.test(m.modulo);
+    const estiloInsc = esInscripcion ? 'background:var(--accent);color:#fff;border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
+    return `<th style="width:130px;white-space:normal;${estiloInsc}" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;${esInscripcion?'background:rgba(255,255,255,0.2);color:#fff;':''}" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`;
+  }).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th><th></th>';
   let filasDeuda = [];
   CXC_CURSO_ACTUAL = curso; CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
@@ -1431,13 +1439,15 @@ function renderCXC(){
       let estadoTxt, celda;
       // El botón de "gratis" con un clic solo aplica a Inscripción — los demás módulos/mensualidades se manejan
       // con el checkbox "Exonerado" del formulario de Matricular (donde sí tiene sentido revisar bien el pago).
-      const btnGratis = /inscripci[oó]n/i.test(it.modulo)
+      const esInscripcionCelda = /inscripci[oó]n/i.test(it.modulo);
+      const btnGratis = esInscripcionCelda
         ? `<button class="btn btn-ghost btn-sm" title="Marcar la Inscripción como gratis/exonerada para ${est.replace(/"/g,'&quot;')}" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarItemGratis('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}','${it.modulo.replace(/'/g,"\\'")}')">🎁</button>`
         : '';
-      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td style="width:130px;white-space:normal;"><span class="pill ok">${estadoTxt}</span></td>`; }
-      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
-      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td style="width:130px;white-space:normal;"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
-      else { estadoTxt = 'Pagado'; celda = `<td style="width:130px;white-space:normal;"><span class="pill ok">${estadoTxt}</span></td>`; }
+      const estiloCeldaInsc = esInscripcionCelda ? 'background:var(--accent-soft);border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
+      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
+      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
+      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
+      else { estadoTxt = 'Pagado'; celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
       return celda;
     }).join('');
@@ -1449,9 +1459,11 @@ function renderCXC(){
     const btnTransferir = `<td><button class="btn btn-ghost btn-sm" onclick="abrirTransferirEstudiante(${i})">↔️ Transferir</button></td>`;
     const btnEditar = `<td><button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✏️ Editar</button></td>`;
     const btnCobro = `<td>${(activo && saldoTotal>0) ? `<button class="btn btn-ghost btn-sm" onclick="enviarAvisoCobroFila('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}')">✉️ Cobro</button>` : ''}</td>`;
+    const carpetaUrlEst = carpetaUrlDeEstudiante(curso, est);
+    const linkExpediente = carpetaUrlEst ? ` <a href="${carpetaUrlEst}" target="_blank" rel="noopener noreferrer" style="font-size:12px;white-space:nowrap;margin-left:6px;">📁 Expediente</a>` : '';
     if(saldoTotal>0 && activo) filasDeuda.push([est, asesorEst||'—'].concat(estados).concat([saldoTotal, 'Sí']));
-    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
-  }).join('') || '<tr><td colspan="16" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
+    return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${est}${activo?'':' <span class="pill na">No continuó</span>'}${linkExpediente}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
+  }).join('') || '<tr><td colspan="17" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
 }
 // Marca UN ítem puntual como gratis/exonerado directo desde Cuentas por Cobrar, con un solo clic — sin tener que
