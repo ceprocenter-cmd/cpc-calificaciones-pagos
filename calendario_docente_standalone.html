@@ -223,6 +223,17 @@
         <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_ver_calendario_tutor">Ver / Descargar Calendario</button></div>
       </div>
       <div class="panel">
+        <h2>Gestionar Sesiones del Docente Seleccionado</h2>
+        <p class="hint">Aquí puedes cambiar el tutor de un módulo puntual: dale clic en "✏️ Editar / Cambiar Tutor", quita el docente actual y agrega el nuevo (o agrega uno adicional). También puedes eliminar la sesión por completo.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Fecha</th><th>Capacitación / Módulo</th><th>Tema</th><th></th></tr></thead>
+            <tbody id="tabla_gestion_tutor"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="gestion_tutor_empty" style="display:none;">Selecciona un docente arriba para ver y editar sus sesiones.</div>
+      </div>
+      <div class="panel">
         <h2>Lista de Facilitadores</h2>
         <p class="hint">El link de cada uno, listo para copiar y mandar por WhatsApp — así no hay riesgo de escribir mal el nombre.</p>
         <div class="field" style="max-width:200px;margin-bottom:16px;"><label>Ver Sesiones del Año</label><select id="facil_anio"></select></div>
@@ -594,6 +605,14 @@ window.quitarDocenteEdicion = function(i){
 window.editarFechaSesion = function(indice){
   const entry = FILAS_CALENDARIO_ACTUAL[indice];
   if(!entry){ showToast('No se pudo abrir esta sesión, recarga la página e intenta de nuevo.'); return; }
+  abrirEdicionSesion(entry);
+};
+window.editarSesionPorId = function(id){
+  const entry = CALENDARIO.find(c=>c.id===id);
+  if(!entry){ showToast('No se pudo abrir esta sesión, recarga la página e intenta de nuevo.'); return; }
+  abrirEdicionSesion(entry);
+};
+function abrirEdicionSesion(entry){
   const id = entry.id;
   const esFeriado = entry.esFeriado==='Sí';
   if(esFeriado){
@@ -1049,7 +1068,36 @@ function renderSelectTutor(){
   if(!aniosDisponibles.includes(anioActualStr)) aniosDisponibles.unshift(anioActualStr);
   selAnio.innerHTML = '<option value="">Todos los años</option>' + aniosDisponibles.map(a=>`<option value="${a}" ${a===(prevAnio||anioActualStr)?'selected':''}>${a}</option>`).join('');
   renderTablaFacilitadores(docentes);
+  renderGestionTutor();
 }
+function renderGestionTutor(){
+  const docente = document.getElementById('tutor_sel').value;
+  const body = document.getElementById('tabla_gestion_tutor');
+  const empty = document.getElementById('gestion_tutor_empty');
+  if(!docente){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  const sesiones = CALENDARIO.filter(c=>c.docente===docente && c.esFeriado!=='Sí').sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
+  if(sesiones.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Este docente no tiene sesiones registradas.';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = sesiones.map(c=>`<tr>
+    <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
+    <td>${c.capacitacion||'—'}${c.modulo?' — Módulo '+c.modulo:''}</td>
+    <td style="white-space:normal;max-width:260px;">${c.tema||'—'}</td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick="editarSesionPorId('${c.id}')">✏️ Editar / Cambiar Tutor</button>
+      <button class="btn btn-ghost btn-sm" onclick="eliminarSesion('${c.id}')">Eliminar</button>
+    </td>
+  </tr>`).join('');
+}
+document.getElementById('tutor_sel').addEventListener('change', renderGestionTutor);
 document.getElementById('facil_anio').addEventListener('change', ()=>{
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   renderTablaFacilitadores(docentes);
