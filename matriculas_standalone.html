@@ -147,6 +147,7 @@
       <button class="tab" data-tab="matricular">Matricular</button>
       <button class="tab" data-tab="solicitudes">Solicitudes <span id="badge_solicitudes"></span></button>
       <button class="tab" data-tab="cobrar">Cuentas por Cobrar</button>
+      <button class="tab" data-tab="nomina">Nómina Estudiantes</button>
       <button class="tab" data-tab="reporte">Reporte Mensual</button>
       <button class="tab" data-tab="exalumnos">Historial de Estudiantes</button>
     </div>
@@ -292,6 +293,31 @@
           <table><thead><tr id="cxc_head"></tr></thead><tbody id="cxc_body"></tbody></table>
         </div>
         <div class="empty" id="cxc_empty" style="display:none;">Selecciona un curso con estudiantes matriculados.</div>
+      </div>
+    </div>
+    <!-- NOMINA ESTUDIANTES -->
+    <div id="tab-nomina" style="display:none;">
+      <div class="panel">
+        <h2>Nómina de Estudiantes</h2>
+        <p class="hint">Consulta rápida de la nómina de cualquier curso.</p>
+        <div class="grid cols3" style="max-width:900px;">
+          <div class="field"><label>Curso</label><select id="nomina_curso_sel"><option value="">Selecciona un curso</option></select></div>
+          <div class="field" style="display:flex;align-items:flex-end;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="nomina_mostrar_inactivos" style="width:18px;height:18px;">
+              Mostrar también los que no continuaron
+            </label>
+          </div>
+        </div>
+        <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Nombre y Apellido</th></tr></thead>
+            <tbody id="tabla_nomina_estudiantes"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="nomina_empty" style="display:none;">Selecciona un curso para ver su nómina.</div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_imprimir_nomina">Imprimir / Guardar PDF</button></div>
       </div>
     </div>
     <!-- REPORTE MENSUAL -->
@@ -1131,7 +1157,78 @@ function renderSelectsCurso(){
   const prevC = cxcCurso.value;
   cxcCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
   if(cursos.includes(prevC)) cxcCurso.value = prevC;
+  const nomCurso = document.getElementById('nomina_curso_sel');
+  const prevN = nomCurso.value;
+  nomCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
+  if(cursos.includes(prevN)) nomCurso.value = prevN;
+  renderTablaNominaEstudiantes();
 }
+// ---------- NÓMINA DE ESTUDIANTES ----------
+function nominaDelCurso(curso, incluirInactivos){
+  const registros = NOMINA.filter(n=>n.curso===curso);
+  const nombres = [...new Set(registros.map(n=>n.estudiante))].sort();
+  const estudiantes = nombres.map(est=>{
+    const reg = registros.find(n=>n.estudiante===est) || {};
+    return { nombre: est, activo: reg.activo!==false };
+  });
+  return incluirInactivos ? estudiantes : estudiantes.filter(e=>e.activo);
+}
+function renderTablaNominaEstudiantes(){
+  const sel = document.getElementById('nomina_curso_sel');
+  if(!sel) return;
+  const curso = sel.value;
+  const incluirInactivos = document.getElementById('nomina_mostrar_inactivos').checked;
+  const tbody = document.getElementById('tabla_nomina_estudiantes');
+  const empty = document.getElementById('nomina_empty');
+  const contador = document.getElementById('nomina_contador');
+  if(!curso){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Selecciona un curso para ver su nómina.';
+    contador.textContent = '';
+    return;
+  }
+  const estudiantes = nominaDelCurso(curso, incluirInactivos);
+  if(estudiantes.length===0){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Sin estudiantes registrados en este curso.';
+    contador.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const totalActivos = nominaDelCurso(curso, false).length;
+  const totalTodos = nominaDelCurso(curso, true).length;
+  const noContinuaron = totalTodos - totalActivos;
+  contador.textContent = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`;
+  tbody.innerHTML = estudiantes.map((e,i)=>`
+    <tr${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'} title="${e.activo?'Activo':'No continuó'}">
+      <td>${i+1}</td>
+      <td>${e.nombre}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('nomina_curso_sel').addEventListener('change', renderTablaNominaEstudiantes);
+document.getElementById('nomina_mostrar_inactivos').addEventListener('change', renderTablaNominaEstudiantes);
+document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
+  const curso = document.getElementById('nomina_curso_sel').value;
+  if(!curso){ showToast('Selecciona un curso primero.'); return; }
+  const incluirInactivos = document.getElementById('nomina_mostrar_inactivos').checked;
+  const estudiantes = nominaDelCurso(curso, incluirInactivos);
+  const noContinuaron = estudiantes.filter(e=>!e.activo).length;
+  const filasHtml = estudiantes.map((e,i)=>`
+    <tr${e.activo?'':' style="opacity:0.55;"'}><td>${i+1}</td><td>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td></tr>
+  `).join('');
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Nómina de Estudiantes — ${curso}</div>
+    </div>
+    <div class="hint" style="margin-bottom:14px;">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0?` (${estudiantes.length-noContinuaron} activos, ${noContinuaron} no continuaron)`:''}</div>
+    <table class="doc-table"><thead><tr><th>#</th><th>Nombre y Apellido</th></tr></thead><tbody>${filasHtml || '<tr><td colspan="2">Sin estudiantes registrados en este curso.</td></tr>'}</tbody></table>
+  `;
+  abrirModalDoc(html);
+});
 // ---------- MATRICULAR: LÍNEAS DE PAGO DINÁMICAS ----------
 document.getElementById('m_curso').addEventListener('change', ()=>{
   actualizarDatalistEstudiantes();
@@ -2228,7 +2325,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    ['cursos','matricular','solicitudes','cobrar','reporte','exalumnos'].forEach(t=>{
+    ['cursos','matricular','solicitudes','cobrar','nomina','reporte','exalumnos'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
   });
