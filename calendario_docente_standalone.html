@@ -297,7 +297,7 @@
         <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th><th>Estado</th></tr></thead>
+            <thead><tr><th>#</th><th>Nombre y Apellido</th></tr></thead>
             <tbody id="tabla_nomina_estudiantes"></tbody>
           </table>
         </div>
@@ -990,13 +990,9 @@ function renderTablaNominaEstudiantes(){
   const noContinuaron = totalTodos - totalActivos;
   contador.textContent = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`;
   tbody.innerHTML = estudiantes.map((e,i)=>`
-    <tr${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>
+    <tr${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'} title="${e.activo?'Activo':'No continuó'}">
       <td>${i+1}</td>
       <td>${e.nombre}</td>
-      <td>${e.profesion}</td>
-      <td>${e.activo
-        ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;">Activo</span>'
-        : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No continuó</span>'}</td>
     </tr>
   `).join('');
 }
