@@ -118,9 +118,10 @@
   .buscador-item .bi-meta{color:var(--text-dim);font-size:12px;margin-top:2px;}
   @media print{
     body.printing-doc > .wrap, body.printing-doc .toast{display:none !important;}
-    body.printing-doc .modal-overlay{position:static !important;background:none !important;padding:0 !important;display:block !important;}
-    body.printing-doc .modal-box{max-height:none !important;overflow:visible !important;box-shadow:none !important;max-width:100% !important;}
-    body.printing-doc .modal-actions{display:none !important;}
+    body.printing-doc .modal-overlay:not(#modal_overlay){display:none !important;}
+    body.printing-doc #modal_overlay{position:static !important;background:none !important;padding:0 !important;display:block !important;}
+    body.printing-doc #modal_overlay .modal-box{max-height:none !important;overflow:visible !important;box-shadow:none !important;max-width:100% !important;}
+    body.printing-doc #modal_overlay .modal-actions{display:none !important;}
   }
 </style>
 </head>
@@ -1202,9 +1203,9 @@ function renderTablaNominaEstudiantes(){
   const noContinuaron = totalTodos - totalActivos;
   contador.textContent = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`;
   tbody.innerHTML = estudiantes.map((e,i)=>`
-    <tr${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'} title="${e.activo?'Activo':'No continuó'}">
-      <td>${i+1}</td>
-      <td>${e.nombre}</td>
+    <tr title="${e.activo?'Activo':'No continuó'}">
+      <td style="user-select:none;">${i+1}</td>
+      <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${e.nombre}</td>
     </tr>
   `).join('');
 }
@@ -1217,7 +1218,7 @@ document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
   const estudiantes = nominaDelCurso(curso, incluirInactivos);
   const noContinuaron = estudiantes.filter(e=>!e.activo).length;
   const filasHtml = estudiantes.map((e,i)=>`
-    <tr${e.activo?'':' style="opacity:0.55;"'}><td>${i+1}</td><td>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td></tr>
+    <tr><td style="user-select:none;">${i+1}</td><td${e.activo?'':' style="opacity:0.55;"'}>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td></tr>
   `).join('');
   const html = `
     <div class="doc-header">
