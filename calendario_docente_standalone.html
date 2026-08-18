@@ -105,6 +105,7 @@
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
       <button class="tab" data-tab="tutor">Calendario por Tutor</button>
       <button class="tab" data-tab="tareas">Tareas Equipo</button>
+      <button class="tab" data-tab="nomina">Nómina Estudiantes</button>
     </div>
     <!-- CALENDARIO -->
     <div id="tab-calendario">
@@ -279,6 +280,31 @@
         <div class="empty" id="tareas_empty" style="display:none;">No hay tareas registradas.</div>
       </div>
     </div>
+    <!-- NOMINA ESTUDIANTES -->
+    <div id="tab-nomina" style="display:none;">
+      <div class="panel">
+        <h2>Nómina de Estudiantes</h2>
+        <p class="hint">Consulta directa de la nómina de cualquier curso, sin necesitar entrar al link del docente.</p>
+        <div class="grid cols3" style="max-width:900px;">
+          <div class="field"><label>Curso</label><select id="nomina_curso_sel"><option value="">Selecciona un curso</option></select></div>
+          <div class="field" style="display:flex;align-items:flex-end;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="nomina_mostrar_inactivos" style="width:18px;height:18px;">
+              Mostrar también los que no continuaron
+            </label>
+          </div>
+        </div>
+        <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th><th>Estado</th></tr></thead>
+            <tbody id="tabla_nomina_estudiantes"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="nomina_empty" style="display:none;">Selecciona un curso para ver su nómina.</div>
+        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_imprimir_nomina">Imprimir / Guardar PDF</button></div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="modal_overlay">
@@ -377,19 +403,25 @@ function horarioDosLineas(h){
   if(partes.length!==2) return h;
   return `${partes[0]} a<br>${partes[1]}`;
 }
-function nominaDelCurso(curso){
-  const estudiantes = [...new Set(NOMINA_TUTOR.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
-  return estudiantes.map(est=>{
+function estaActivoNomina(n){
+  return !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE');
+}
+function nominaDelCurso(curso, incluirInactivos){
+  const registros = NOMINA_TUTOR.filter(n=>n.curso===curso);
+  const nombres = [...new Set(registros.map(n=>n.estudiante))].sort();
+  const estudiantes = nombres.map(est=>{
+    const registroNomina = registros.find(n=>n.estudiante===est) || {};
     const registro = MATRICULAS_TUTOR.filter(m=>m.curso===curso && m.estudiante===est).slice(-1)[0] || {};
-    return { nombre: est, profesion: registro.profesion || '—' };
+    return { nombre: est, profesion: registro.profesion || '—', activo: estaActivoNomina(registroNomina) };
   });
+  return incluirInactivos ? estudiantes : estudiantes.filter(e=>e.activo);
 }
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['calendario','registrar','tutor','tareas'].forEach(t=>{
+    ['calendario','registrar','tutor','tareas','nomina'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
   });
@@ -914,6 +946,7 @@ function renderAll(){
   renderSelectTutor();
   renderSelectCursoMatricula();
   renderSelectAvisoCobroManual();
+  renderSelectNominaCurso();
 }
 function renderSelectCursoMatricula(){
   ['r_curso_matricula','add_curso_matricula','edit_curso_matricula'].forEach(id=>{
@@ -923,6 +956,57 @@ function renderSelectCursoMatricula(){
     sel.innerHTML = '<option value="">— No vincular con Matrículas —</option>' + CURSOS_MATRICULA.map(c=>`<option value="${c.replace(/"/g,'&quot;')}" ${c===prev?'selected':''}>${c}</option>`).join('');
   });
 }
+function renderSelectNominaCurso(){
+  const sel = document.getElementById('nomina_curso_sel');
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Selecciona un curso</option>' + CURSOS_MATRICULA.map(c=>`<option value="${c.replace(/"/g,'&quot;')}" ${c===prev?'selected':''}>${c}</option>`).join('');
+  renderTablaNominaEstudiantes();
+}
+function renderTablaNominaEstudiantes(){
+  const curso = document.getElementById('nomina_curso_sel').value;
+  const incluirInactivos = document.getElementById('nomina_mostrar_inactivos').checked;
+  const tbody = document.getElementById('tabla_nomina_estudiantes');
+  const empty = document.getElementById('nomina_empty');
+  const contador = document.getElementById('nomina_contador');
+  if(!curso){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Selecciona un curso para ver su nómina.';
+    contador.textContent = '';
+    return;
+  }
+  const estudiantes = nominaDelCurso(curso, incluirInactivos);
+  if(estudiantes.length===0){
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = 'Sin estudiantes registrados en este curso.';
+    contador.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const totalActivos = nominaDelCurso(curso, false).length;
+  const totalTodos = nominaDelCurso(curso, true).length;
+  const noContinuaron = totalTodos - totalActivos;
+  contador.textContent = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`;
+  tbody.innerHTML = estudiantes.map((e,i)=>`
+    <tr${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>
+      <td>${i+1}</td>
+      <td>${e.nombre}</td>
+      <td>${e.profesion}</td>
+      <td>${e.activo
+        ? '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent-dark);font-weight:700;text-transform:uppercase;">Activo</span>'
+        : '<span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;background:var(--panel-2);color:var(--text-dim);font-weight:700;text-transform:uppercase;border:1px solid var(--line);">No continuó</span>'}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('nomina_curso_sel').addEventListener('change', renderTablaNominaEstudiantes);
+document.getElementById('nomina_mostrar_inactivos').addEventListener('change', renderTablaNominaEstudiantes);
+document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
+  const curso = document.getElementById('nomina_curso_sel').value;
+  if(!curso){ showToast('Selecciona un curso primero.'); return; }
+  verNominaCurso(curso, document.getElementById('nomina_mostrar_inactivos').checked);
+});
 function renderTicker(){
   const total = CALENDARIO.length;
   const pagadas = CALENDARIO.filter(c=>c.honorario==='Pagado').length;
@@ -1193,10 +1277,11 @@ async function initApp(){
   }
   catch(e){ showToast('No se pudo conectar: ' + e.message); }
 }
-window.verNominaCurso = function(curso){
-  const estudiantes = nominaDelCurso(curso);
+window.verNominaCurso = function(curso, incluirInactivos){
+  const estudiantes = nominaDelCurso(curso, incluirInactivos);
+  const noContinuaron = estudiantes.filter(e=>!e.activo).length;
   const filasHtml = estudiantes.map((e,i)=>`
-    <tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.profesion}</td></tr>
+    <tr${e.activo?'':' style="opacity:0.55;"'}><td>${i+1}</td><td>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td><td>${e.profesion}</td></tr>
   `).join('');
   const html = `
     <!DOCTYPE html>
@@ -1218,7 +1303,7 @@ window.verNominaCurso = function(curso){
     <body>
       <div class="brand">Ceprocenter</div>
       <div class="title">Nómina de Estudiantes — ${curso}</div>
-      <div class="meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}</div>
+      <div class="meta">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0?` (${estudiantes.length-noContinuaron} activos, ${noContinuaron} no continuaron)`:''}</div>
       <table>
         <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
         <tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody>
