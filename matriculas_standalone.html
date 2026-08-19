@@ -1803,8 +1803,9 @@ window.abrirEditarEstudiante = function(curso, estudiante){
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
   const html = `
     <h3 style="margin-top:0;">Editar Datos — ${estudiante}</h3>
-    <p class="hint">Curso: <b>${curso}</b>. El nombre y el historial de pagos no se pueden tocar aquí — solo datos de contacto, perfil y el monto acordado.</p>
+    <p class="hint">Curso: <b>${curso}</b>. El historial de pagos no se puede tocar aquí — solo datos de contacto, perfil y el monto acordado. Si corriges el nombre, se actualiza en Matrículas, Pagos, Nómina y el Historial de Estudiantes.</p>
     <div class="grid cols3">
+      <div class="field" style="grid-column: span 3;"><label>Nombre y Apellido</label><input id="edit_nombre_estudiante" value="${estudiante.replace(/"/g,'&quot;')}"></div>
       <div class="field"><label>Cédula</label><input id="edit_cedula" value="${registro.cedula||''}"></div>
       <div class="field"><label>Correo</label><input id="edit_correo" type="email" value="${registro.correo||''}"></div>
       <div class="field"><label>Teléfono</label><input id="edit_telefono" value="${registro.telefono||''}"></div>
@@ -1819,7 +1820,9 @@ window.abrirEditarEstudiante = function(curso, estudiante){
   `;
   abrirModalDoc(html);
 };
-window.guardarEdicionEstudiante = async function(curso, estudiante){
+window.guardarEdicionEstudiante = async function(curso, estudianteOriginal){
+  const nombreNuevo = document.getElementById('edit_nombre_estudiante').value.trim();
+  if(!nombreNuevo){ showToast('El nombre no puede quedar vacío.'); return; }
   const data = {
     cedula: document.getElementById('edit_cedula').value.trim(),
     correo: document.getElementById('edit_correo').value.trim(),
@@ -1832,11 +1835,30 @@ window.guardarEdicionEstudiante = async function(curso, estudiante){
     montoMensual: Number(document.getElementById('edit_monto_mensual').value)||0,
   };
   try{
-    await apiActualizarEstudiante(curso, estudiante, data);
+    let estudianteFinal = estudianteOriginal;
+    if(nombreNuevo !== estudianteOriginal){
+      if(!confirm(`¿Cambiar el nombre de "${estudianteOriginal}" a "${nombreNuevo}"? Esto lo actualiza en Matrículas, Pagos, Nómina y el Historial de Estudiantes.`)) return;
+      let actualizados = 0, fallidos = 0;
+      for(const m of MATRICULAS.filter(x=>x.estudiante===estudianteOriginal)){
+        try{ await apiPost('Matriculas','update',{id:m.id, data:{estudiante:nombreNuevo}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const p of PAGOS.filter(x=>x.estudiante===estudianteOriginal)){
+        try{ await apiPost('Pagos','update',{id:p.id, data:{estudiante:nombreNuevo}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const n of NOMINA.filter(x=>x.estudiante===estudianteOriginal)){
+        try{ await apiPost('Nomina','update',{id:n.id, data:{estudiante:nombreNuevo}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      for(const ex of EXALUMNOS.filter(x=>x.nombre===estudianteOriginal)){
+        try{ await apiPost('ExAlumnos','update',{id:ex.id, data:{nombre:nombreNuevo}}); actualizados++; }catch(err){ fallidos++; }
+      }
+      if(fallidos>0){ showToast(`Nombre actualizado parcialmente: ${actualizados} fila(s) bien, ${fallidos} fallaron. Revísalas a mano.`); }
+      estudianteFinal = nombreNuevo;
+    }
+    await apiActualizarEstudiante(curso, estudianteFinal, data);
     showToast('Datos actualizados correctamente.');
     document.getElementById('modal_overlay').classList.remove('show');
     await loadAll();
-    renderCXC();
+    renderAll();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
 window.pdfEstudianteIndividual = function(curso, estudiante){
