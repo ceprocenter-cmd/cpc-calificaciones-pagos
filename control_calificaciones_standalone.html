@@ -1000,7 +1000,6 @@ function renderDetalleEvaluacion(){
   const wrap = document.getElementById('ev_detalle_modulo');
   wrap.style.display='block';
   document.getElementById('ev_titulo_modulo').textContent = MODULO_SELECCIONADO_EVALUACION;
-
   const reg = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Regular');
   const fechaAperturaReg = normalizarFechaISO(reg ? reg.fechaApertura : '');
   document.getElementById('ev_reg_apertura').value = fechaAperturaReg;
@@ -1009,13 +1008,11 @@ function renderDetalleEvaluacion(){
     <b>Regular (sobre 10):</b> apertura ${formatoCorto(fReg.apertura)} · recordatorio ${formatoCorto(fReg.recordatorio)} · aviso de cierre ${formatoCorto(fReg.avisoCierre)} · cierre ${formatoCorto(fReg.cierre)}<br>
     <b>Prórroga (sobre 9):</b> apertura ${formatoCorto(fReg.aperturaProrroga)} · cierre ${formatoCorto(fReg.cierreProrroga)}
   ` : 'Guarda una fecha de apertura para ver el calendario completo calculado.';
-
   const rec = configEvaluacion(MODULO_SELECCIONADO_EVALUACION, 'Recuperativa');
   const fechaAperturaRec = normalizarFechaISO(rec ? rec.fechaApertura : '');
   document.getElementById('ev_rec_apertura').value = fechaAperturaRec;
   const fRec = calcularFechasRecuperativa(fechaAperturaRec);
   document.getElementById('ev_rec_fechas_calculadas').innerHTML = fRec ? `<b>Recuperativa (sobre 9):</b> apertura ${formatoCorto(fRec.apertura)} · cierre ${formatoCorto(fRec.cierre)}` : 'Guarda una fecha de apertura para ver el cierre calculado.';
-
   const seleccionados = rec && rec.estudiantes ? String(rec.estudiantes).split('|||').filter(Boolean) : [];
   const box = document.getElementById('ev_rec_estudiantes');
   box.innerHTML = ordenarPorBaja(estudiantesDelCurso()).map(est=>{
@@ -2040,19 +2037,20 @@ document.getElementById('btn_export_asistencia').addEventListener('click', ()=>{
   showToast('CSV descargado.');
 });
 // Genera el PDF (vía la vista de impresión ya existente) del resumen de
-// asistencia del módulo seleccionado, con exactamente las mismas columnas que
-// se ven en pantalla: Estudiante, una columna por fecha (en formato DD/MM/AAAA)
-// y % Asistencia al final. Como puede haber muchas fechas, se fuerza la hoja a
-// horizontal (landscape) solo mientras dura esta impresión.
+// asistencia del módulo seleccionado. Solo incluye a los estudiantes ACTIVOS
+// (los marcados "No continuó" quedan fuera, igual que en certificados/diplomas),
+// con exactamente las mismas columnas que se ven en pantalla: Estudiante, una
+// columna por fecha (en formato DD/MM/AAAA) y % Asistencia al final. Como puede
+// haber muchas fechas, se fuerza la hoja a horizontal (landscape) solo mientras
+// dura esta impresión.
 document.getElementById('btn_pdf_asistencia').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_ASISTENCIA){ showToast('Selecciona un módulo primero.'); return; }
   const registros = asistenciaDelCurso().filter(a=>a.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   if(registros.length===0){ showToast('No hay asistencia registrada en este módulo.'); return; }
-  const estudiantes = ordenarPorBaja(estudiantesDelCurso());
+  const estudiantes = estudiantesActivosDelCurso().sort((a,b)=>a.localeCompare(b));
   const fechas = [...new Set(registros.map(r=>r.fecha))].sort();
   const info = facilitadoresDelCurso().find(f=>f.modulo===MODULO_SELECCIONADO_ASISTENCIA);
   const filasHtml = estudiantes.map(est=>{
-    const baja = estaDadoDeBaja(est);
     let presentes=0, total=0;
     const celdas = fechas.map(f=>{
       const r = registros.find(x=>x.estudiante===est && x.fecha===f);
@@ -2062,7 +2060,7 @@ document.getElementById('btn_pdf_asistencia').addEventListener('click', ()=>{
       return `<td>${r.estado}</td>`;
     }).join('');
     const pct = total>0 ? Math.round((presentes/total)*100) : 0;
-    return `<tr${baja?' style="opacity:0.6;"':''}><td>${est}${baja?' (No continuó)':''}</td>${celdas}<td class="num">${pct}%</td></tr>`;
+    return `<tr><td>${est}</td>${celdas}<td class="num">${pct}%</td></tr>`;
   }).join('');
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
