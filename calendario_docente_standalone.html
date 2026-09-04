@@ -1240,7 +1240,7 @@ function renderHonorariosPendientes(){
   if(filtroDoc) rows = rows.filter(c=>c.docente===filtroDoc);
   if(filtroEncargado) rows = rows.filter(c=>c.encargado===filtroEncargado);
   if(filtroMes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(5,7)===filtroMes);
-  rows.sort((a,b)=>fechaValor(b.fechaInicio)-fechaValor(a.fechaInicio));
+  rows.sort((a,b)=>fechaValor(a.fechaInicio)-fechaValor(b.fechaInicio));
   const body = document.getElementById('tabla_honorarios_pendientes');
   const empty = document.getElementById('honorarios_pendientes_empty');
   if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
