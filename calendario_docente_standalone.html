@@ -104,6 +104,7 @@
       <button class="tab active" data-tab="calendario">Calendario</button>
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
       <button class="tab" data-tab="tutor">Calendario por Tutor</button>
+      <button class="tab" data-tab="honorarios">Honorarios Pendientes</button>
       <button class="tab" data-tab="tareas">Tareas Equipo</button>
     </div>
     <!-- CALENDARIO -->
@@ -245,6 +246,26 @@
         </div>
       </div>
     </div>
+    <!-- HONORARIOS PENDIENTES -->
+    <div id="tab-honorarios" style="display:none;">
+      <div class="panel">
+        <h2>Honorarios Pendientes</h2>
+        <p class="hint">Sesiones ya dictadas o en curso (fecha pasada o de hoy) con docente asignado cuyo honorario todavía no está marcado como pagado. Al cambiarlo a "Pagado" aquí, se actualiza automáticamente en el Calendario también.</p>
+        <div class="grid cols4" style="margin-bottom:16px;">
+          <div class="field"><label>Modalidad</label><select id="hon_filt_modalidad"><option value="">Todas</option><option>Virtual</option><option>Presencial</option></select></div>
+          <div class="field"><label>Docente</label><select id="hon_filt_docente"><option value="">Todos</option></select></div>
+          <div class="field"><label>Encargado</label><select id="hon_filt_encargado"><option value="">Todos</option><option>Jose</option><option>Sara</option></select></div>
+          <div class="field"><label>Mes</label><select id="hon_filt_mes"><option value="">Todos</option></select></div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Fecha</th><th>Modalidad</th><th>Docente</th><th>Capacitación / Módulo</th><th>Tema</th><th>Encargado</th><th>Honorario</th></tr></thead>
+            <tbody id="tabla_honorarios_pendientes"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="honorarios_pendientes_empty" style="display:none;">No hay honorarios pendientes con este filtro.</div>
+      </div>
+    </div>
     <!-- TAREAS EQUIPO -->
     <div id="tab-tareas" style="display:none;">
       <div class="panel">
@@ -380,6 +401,18 @@ function horarioDosLineas(h){
 function estaActivoNomina(n){
   return !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE');
 }
+function normalizarHonorario(h){
+  return String(h||'').trim().toLowerCase();
+}
+function esHonorarioPagado(c){
+  return normalizarHonorario(c.honorario)==='pagado';
+}
+function esHonorarioNoAplica(c){
+  return normalizarHonorario(c.honorario)==='no aplica';
+}
+function esHonorarioPendiente(c){
+  return c.esFeriado!=='Sí' && !!c.docente && !esHonorarioPagado(c) && !esHonorarioNoAplica(c);
+}
 function nominaDelCurso(curso, incluirInactivos){
   const registros = NOMINA_TUTOR.filter(n=>n.curso===curso);
   const nombres = [...new Set(registros.map(n=>n.estudiante))].sort();
@@ -395,7 +428,7 @@ document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['calendario','registrar','tutor','tareas'].forEach(t=>{
+    ['calendario','registrar','tutor','honorarios','tareas'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
   });
@@ -581,6 +614,7 @@ window.cambiarHonorario = async function(calId, nuevoEstado){
     await apiPost('CalendarioDocente','update',{id:calId, data:{honorario:nuevoEstado}});
     await loadAll();
     renderAll();
+    showToast(nuevoEstado==='Pagado' ? 'Marcado como pagado — actualizado en el Calendario.' : 'Honorario actualizado.');
   }catch(e){ showToast('Error: '+e.message); }
 };
 function buscarDocentesDeSesion(entry){
@@ -920,6 +954,7 @@ function renderAll(){
   renderSelectTutor();
   renderSelectCursoMatricula();
   renderSelectAvisoCobroManual();
+  renderHonorariosPendientes();
 }
 function renderSelectCursoMatricula(){
   ['r_curso_matricula','add_curso_matricula','edit_curso_matricula'].forEach(id=>{
@@ -933,7 +968,7 @@ function renderTicker(){
   const total = CALENDARIO.length;
   const pagadas = CALENDARIO.filter(c=>c.honorario==='Pagado').length;
   const noAplica = CALENDARIO.filter(c=>c.honorario==='No Aplica').length;
-  const pendientes = CALENDARIO.filter(c=>c.esFeriado!=='Sí' && c.docente && c.honorario!=='Pagado' && c.honorario!=='No Aplica').length;
+  const pendientes = CALENDARIO.filter(esHonorarioPendiente).length;
   const docentesUnicos = new Set(CALENDARIO.map(c=>c.docente).filter(Boolean)).size;
   document.getElementById('ticker').innerHTML = `
     <div class="tick"><div class="n">${total}</div><div class="l">Sesiones Registradas</div></div>
@@ -952,7 +987,6 @@ function renderFiltros(){
   const prevAnio = selAnio.value;
   selAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
   selAnio.value = FILTROS_INICIALIZADOS ? prevAnio : anioActualStr;
-
   const mesActualNum = String(new Date().getMonth()+1).padStart(2,'0');
   const selMes = document.getElementById('filt_mes');
   const prevMes = selMes.value;
@@ -961,9 +995,7 @@ function renderFiltros(){
     return `<option value="${val}">${capitalizar(nombre)}</option>`;
   }).join('');
   selMes.value = FILTROS_INICIALIZADOS ? prevMes : mesActualNum;
-
   FILTROS_INICIALIZADOS = true;
-
   const docentes = [...new Set(CALENDARIO.map(c=>c.docente).filter(Boolean))].sort();
   const selDoc = document.getElementById('filt_docente');
   const prevDoc = selDoc.value;
@@ -990,7 +1022,7 @@ function renderCalendario(){
   if(encargado) rows = rows.filter(c=>c.encargado===encargado);
   if(capacitacion) rows = rows.filter(c=>c.capacitacion===capacitacion);
   if(honorario==='pagado') rows = rows.filter(c=>c.honorario==='Pagado');
-  if(honorario==='pendiente') rows = rows.filter(c=>c.docente && c.honorario!=='Pagado' && c.honorario!=='No Aplica');
+  if(honorario==='pendiente') rows = rows.filter(esHonorarioPendiente);
   if(honorario==='no_aplica') rows = rows.filter(c=>c.honorario==='No Aplica');
   if(document.getElementById('filt_ocultar_pagados').checked){
     rows = rows.filter(c=>c.esFeriado==='Sí' || c.honorario!=='Pagado');
@@ -1183,6 +1215,60 @@ document.getElementById('btn_ver_calendario_tutor').addEventListener('click', ()
   `;
   abrirModalDoc(html);
 });
+// ---------- HONORARIOS PENDIENTES ----------
+function renderHonorariosPendientes(){
+  const selDoc = document.getElementById('hon_filt_docente');
+  if(!selDoc) return;
+  const hoyValorHon = fechaValor(new Date().toISOString().slice(0,10));
+  const yaPasoOEsHoy = c => fechaValor(c.fechaInicio) <= hoyValorHon;
+  const pendientesBase = CALENDARIO.filter(c=>esHonorarioPendiente(c) && yaPasoOEsHoy(c));
+  const docentesConPendiente = [...new Set(pendientesBase.map(c=>c.docente))].sort();
+  const prevDoc = selDoc.value;
+  selDoc.innerHTML = '<option value="">Todos</option>' + docentesConPendiente.map(d=>`<option ${d===prevDoc?'selected':''}>${d}</option>`).join('');
+  const selMes = document.getElementById('hon_filt_mes');
+  const prevMes = selMes.value;
+  selMes.innerHTML = '<option value="">Todos</option>' + MESES_NOMBRES.map((nombre,i)=>{
+    const val = String(i+1).padStart(2,'0');
+    return `<option value="${val}" ${val===prevMes?'selected':''}>${capitalizar(nombre)}</option>`;
+  }).join('');
+  const filtroModalidad = document.getElementById('hon_filt_modalidad').value;
+  const filtroDoc = selDoc.value;
+  const filtroEncargado = document.getElementById('hon_filt_encargado').value;
+  const filtroMes = selMes.value;
+  let rows = pendientesBase.slice();
+  if(filtroModalidad) rows = rows.filter(c=>c.modalidad===filtroModalidad);
+  if(filtroDoc) rows = rows.filter(c=>c.docente===filtroDoc);
+  if(filtroEncargado) rows = rows.filter(c=>c.encargado===filtroEncargado);
+  if(filtroMes) rows = rows.filter(c=>c.fechaInicio && c.fechaInicio.slice(5,7)===filtroMes);
+  rows.sort((a,b)=>fechaValor(b.fechaInicio)-fechaValor(a.fechaInicio));
+  const body = document.getElementById('tabla_honorarios_pendientes');
+  const empty = document.getElementById('honorarios_pendientes_empty');
+  if(rows.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = rows.map(c=>{
+    const esVirtual = c.modalidad==='Virtual';
+    const badgeModalidad = c.modalidad
+      ? `<span style="display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:700;text-transform:uppercase;${esVirtual?'background:#DCEBFF;color:#2B5FA8;':'background:#F3E3FF;color:#7A3FB8;'}">${c.modalidad}</span>`
+      : '—';
+    return `<tr>
+    <td>${rangoFechas(c.fechaInicio, c.fechaFin)}</td>
+    <td>${badgeModalidad}</td>
+    <td>${c.docente||'—'}</td>
+    <td>${c.capacitacion||'—'}${c.modulo?`<br><span style="color:var(--text-dim);font-size:12px;">Módulo ${c.modulo}</span>`:''}</td>
+    <td style="white-space:normal;max-width:220px;">${c.tema||'—'}</td>
+    <td>${c.encargado||'—'}</td>
+    <td><select onchange="cambiarHonorario('${c.id}', this.value)" style="width:auto;padding:5px 8px;font-size:12px;border-radius:20px;font-weight:700;text-transform:uppercase;background:var(--danger-soft);color:var(--danger);border-color:transparent;">
+      <option value="Pendiente" selected>Pendiente</option>
+      <option value="Pagado">Pagado</option>
+      <option value="No Aplica">No Aplica</option>
+    </select></td>
+  </tr>`;
+  }).join('');
+}
+document.getElementById('hon_filt_modalidad').addEventListener('change', renderHonorariosPendientes);
+document.getElementById('hon_filt_docente').addEventListener('change', renderHonorariosPendientes);
+document.getElementById('hon_filt_encargado').addEventListener('change', renderHonorariosPendientes);
+document.getElementById('hon_filt_mes').addEventListener('change', renderHonorariosPendientes);
 // ---------- VISTA PÚBLICA PARA EL TUTOR (?tutor=Nombre) ----------
 const tutorEnLink = paramsIniciales.get('tutor');
 async function initApp(){
