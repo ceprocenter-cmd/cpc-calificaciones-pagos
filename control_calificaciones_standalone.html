@@ -203,7 +203,7 @@
       <button class="tab active" data-tab="registrar">Registrar</button>
       <button class="tab" data-tab="asistencia">Asistencia</button>
       <button class="tab" data-tab="evaluaciones">Evaluaciones</button>
-      <button class="tab" data-tab="reporte">Reporte</button>
+      <button class="tab" data-tab="reporte">Calificaciones</button>
       <button class="tab" data-tab="certificados">Certificados</button>
       <button class="tab" data-tab="facilitadores">Facilitadores</button>
       <button class="tab" data-tab="historial">Historial</button>
@@ -1367,7 +1367,7 @@ document.getElementById('btn_copiar_lista_modulo').addEventListener('click', asy
 });
 document.getElementById('btn_export_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
-  const filas = datosModuloSeleccionado();
+  const filas = datosModuloSeleccionado().filter(f=>!f.baja);
   const headers = ['Estudiante','Nota','Retroalimentación'];
   const rows = [headers.join(',')];
   filas.forEach(f=>rows.push([f.estudiante, f.nota===null?'':f.nota.toFixed(1), f.retro||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
@@ -1380,8 +1380,10 @@ document.getElementById('btn_export_modulo_seleccionado').addEventListener('clic
 });
 document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click', ()=>{
   if(!MODULO_SELECCIONADO_REPORTE){ showToast('Selecciona un módulo primero.'); return; }
-  if(FILAS_MODULO_FILTRADAS_ACTUAL.length===0){ showToast('No hay estudiantes en este filtro para descargar.'); return; }
-  const filas = FILAS_MODULO_FILTRADAS_ACTUAL;
+  // Solo estudiantes activos en el PDF — los marcados "No continuó" quedan
+  // fuera aunque el filtro en pantalla esté en "Todos".
+  const filas = FILAS_MODULO_FILTRADAS_ACTUAL.filter(f=>!f.baja);
+  if(filas.length===0){ showToast('No hay estudiantes activos en este filtro para descargar.'); return; }
   const filasHtml = filas.map(f=>`<tr><td>${f.estudiante}</td><td style="text-align:right;">${f.nota===null?'—':f.nota.toFixed(1)}</td></tr>`).join('');
   const etiquetasFiltro = {todos:'Todos', aprobado:'Aprobados', reprobado:'Reprobados', sinnota:'Sin Nota'};
   const tituloFiltro = etiquetasFiltro[FILTRO_MODULO_ESTADO] || 'Todos';
