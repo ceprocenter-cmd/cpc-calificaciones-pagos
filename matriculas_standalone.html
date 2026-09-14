@@ -1546,8 +1546,8 @@ function renderCXC(){
   }).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th><th></th>';
   let filasDeuda = [];
   let totalIngresoCurso = 0, totalAcordadoCurso = 0, totalPendienteCurso = 0;
-  const ingresoPorModulo = {};
-  items.forEach(it=>{ ingresoPorModulo[it.modulo] = 0; });
+  const ingresoPorModulo = {}, acordadoPorModulo = {}, pendientePorModulo = {};
+  items.forEach(it=>{ ingresoPorModulo[it.modulo] = 0; acordadoPorModulo[it.modulo] = 0; pendientePorModulo[it.modulo] = 0; });
   CXC_CURSO_ACTUAL = curso; CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
     let saldoTotal = 0;
@@ -1565,7 +1565,10 @@ function renderCXC(){
       // solo cuentan a estudiantes activos (a quien "no continuó" ya no se le espera cobrar el resto).
       totalIngresoCurso += pagado;
       ingresoPorModulo[it.modulo] += pagado;
-      if(activoParaTotales){ totalAcordadoCurso += esperado; totalPendienteCurso += saldo; }
+      if(activoParaTotales){
+        totalAcordadoCurso += esperado; totalPendienteCurso += saldo;
+        acordadoPorModulo[it.modulo] += esperado; pendientePorModulo[it.modulo] += saldo;
+      }
       let estadoTxt, celda;
       // El botón de "gratis" con un clic solo aplica a Inscripción — los demás módulos/mensualidades se manejan
       // con el checkbox "Exonerado" del formulario de Matricular (donde sí tiene sentido revisar bien el pago).
@@ -1606,7 +1609,10 @@ function renderCXC(){
     resumenBox.style.display = 'block';
     resumenBox.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="desbloquearFinancieroDesdeCXC()">🔒 Ver resumen financiero del curso (requiere clave)</button>`;
   }else{
-    const filasModulo = items.map(it=>`<tr><td>${acortarConcepto(it.modulo)}</td><td class="num">${fmt(ingresoPorModulo[it.modulo]||0)}</td></tr>`).join('');
+    const filasModulo = items.map(it=>{
+      const m = it.modulo;
+      return `<tr><td>${acortarConcepto(m)}</td><td class="num">${fmt(ingresoPorModulo[m]||0)}</td><td class="num">${fmt(acordadoPorModulo[m]||0)}</td><td class="num">${fmt(pendientePorModulo[m]||0)}</td></tr>`;
+    }).join('');
     resumenBox.style.display = 'block';
     resumenBox.innerHTML = `
       <div class="grid cols3" style="gap:12px;">
@@ -1623,12 +1629,10 @@ function renderCXC(){
           <div style="font-size:22px;font-weight:700;color:var(--danger);">${fmt(totalPendienteCurso)}</div>
         </div>
       </div>
-      <details style="margin-top:10px;">
-        <summary style="cursor:pointer;color:var(--text-dim);font-size:13px;">Ver ingreso por módulo</summary>
-        <div class="table-scroll" style="margin-top:8px;max-width:420px;">
-          <table><thead><tr><th>Módulo</th><th class="num">Ingreso recibido</th></tr></thead><tbody>${filasModulo}</tbody></table>
-        </div>
-      </details>
+      <p class="hint" style="margin:12px 0 6px;">Mismo desglose, pero por módulo:</p>
+      <div class="table-scroll">
+        <table><thead><tr><th>Módulo</th><th class="num">Ingreso recibido</th><th class="num">Valor acordado (activos)</th><th class="num">Saldo pendiente (activos)</th></tr></thead><tbody>${filasModulo}</tbody></table>
+      </div>
     `;
   }
 }
