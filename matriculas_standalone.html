@@ -277,6 +277,7 @@
       <div class="panel">
         <h2>Cuentas por Cobrar <span id="cxc_contador" style="font-weight:400;color:var(--text-dim);font-size:14px;"></span></h2>
         <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
+        <div id="cxc_resumen_curso" style="display:none;margin-bottom:16px;"></div>
         <div class="grid cols3" style="margin-bottom:16px;">
           <div class="field"><label>Curso</label><select id="cxc_curso"></select></div>
           <div class="field"><label>Filtrar por Asesor</label><select id="cxc_filtro_asesor"><option value="">Todos</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
@@ -481,21 +482,38 @@ function actualizarCodigoPais(){
   if(!actual){ telInput.value = codigo + ' '; }else if(/^\+\d+/.test(actual)){ telInput.value = actual.replace(/^\+\d+\s*/, codigo + ' '); }else{ telInput.value = codigo + ' ' + actual; }
 }
 const REPORTE_CLAVE_CORRECTA = '25069546CPC';
-if(sessionStorage.getItem('reporte_desbloqueado') === 'si'){
-  document.getElementById('reporte_lock').style.display = 'none';
-  document.getElementById('reporte_contenido').style.display = 'block';
-  renderTickerReporte();
+// Un solo candado (misma clave, mismo sessionStorage) protege tanto el tab "Reporte Mensual" como el
+// resumen financiero (ingresos/saldo pendiente) que aparece en "Cuentas por Cobrar" — así los asesores,
+// que no conocen la clave, nunca ven esos totales aunque usen esa pantalla todos los días para cobrar.
+function financieroDesbloqueado(){ return sessionStorage.getItem('reporte_desbloqueado') === 'si'; }
+function aplicarEstadoDesbloqueoFinanciero(){
+  const desbloqueado = financieroDesbloqueado();
+  document.getElementById('reporte_lock').style.display = desbloqueado ? 'none' : 'block';
+  document.getElementById('reporte_contenido').style.display = desbloqueado ? 'block' : 'none';
 }
+aplicarEstadoDesbloqueoFinanciero();
+if(financieroDesbloqueado()) renderTickerReporte();
 document.getElementById('btn_desbloquear_reporte').addEventListener('click', ()=>{
   const clave = document.getElementById('reporte_clave').value;
   if(clave === REPORTE_CLAVE_CORRECTA){
     sessionStorage.setItem('reporte_desbloqueado','si');
-    document.getElementById('reporte_lock').style.display = 'none';
-    document.getElementById('reporte_contenido').style.display = 'block';
+    aplicarEstadoDesbloqueoFinanciero();
     renderTickerReporte();
+    if(document.getElementById('cxc_curso').value) renderCXC();
   }else{ showToast('Clave incorrecta.'); }
   document.getElementById('reporte_clave').value = '';
 });
+window.desbloquearFinancieroDesdeCXC = function(){
+  const clave = prompt('Clave de administración para ver el resumen financiero:');
+  if(clave === null) return;
+  if(clave === REPORTE_CLAVE_CORRECTA){
+    sessionStorage.setItem('reporte_desbloqueado','si');
+    aplicarEstadoDesbloqueoFinanciero();
+    renderTickerReporte();
+    renderCXC();
+    showToast('Resumen financiero desbloqueado.');
+  }else{ showToast('Clave incorrecta.'); }
+};
 document.getElementById('reporte_clave').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') document.getElementById('btn_desbloquear_reporte').click(); });
 document.getElementById('m_metodo_pago').addEventListener('change', ()=>{
   const metodo = document.getElementById('m_metodo_pago').value;
@@ -1339,37 +1357,40 @@ function agregarLineaPagoRapida(nombre){
   if(!esItemDelCurso) row.querySelector('.pl-otro').focus();
 }
 document.getElementById('m_curso').addEventListener('change', renderChipsConceptos);
-function precioEsperado(curso, estudiante, concepto){
-  // "exonerado" son los pagos marcados a propósito como gratis (precio esperado = 0, no debe nada de ese ítem).
-  // Los demás pagos con precioAcordado siguen funcionando igual que antes: un precioAcordado en 0 sin la marca
-  // de exonerado se ignora (para no confundir "nunca se llenó ese campo" con "de verdad cuesta 0"), y se usa
-  // el precio de referencia del curso.
+function precioEsperadoDetalle(curso, estudiante, concepto){
+  // Igual que antes, pero además dice DE DÓNDE salió el número — para que quien esté cobrando
+  // sepa si es el precio de lista, un monto acordado por promo, o lo que ya se cobró antes.
   const pagosConcepto = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
   const pagoExonerado = pagosConcepto.filter(p=>p.exonerado).slice(-1)[0];
-  if(pagoExonerado) return 0;
+  if(pagoExonerado) return {precio:0, origen:'exonerado / gratis (ya quedó marcado así antes)'};
   const pagos = pagosConcepto.filter(p=>p.precioAcordado);
-  if(pagos.length>0) return pagos[pagos.length-1].precioAcordado;
+  if(pagos.length>0) return {precio:pagos[pagos.length-1].precioAcordado, origen:'lo que se acordó y quedó registrado en su pago anterior de este mismo ítem'};
   const item = itemsDe(curso).find(i=>i.modulo===concepto);
   const precioRef = item ? item.precio : 0;
   // El "Monto Acordado" (precio especial por promo) es por MÓDULO/mensualidad — la Inscripción no se ve afectada
   // por él (a veces se regala aparte, con su propio precio o gratis), así que nunca se le aplica el monto acordado
   // general: para Inscripción siempre se usa lo que se le cobró realmente o el precio de referencia del curso.
-  if(/inscripci[oó]n/i.test(concepto)) return precioRef;
+  if(/inscripci[oó]n/i.test(concepto)) return {precio:precioRef, origen:'precio de lista del curso (Inscripción no usa el Monto Acordado)'};
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0];
   const montoMensual = registro && registro.montoMensual ? Number(registro.montoMensual) : 0;
-  if(montoMensual>0) return montoMensual;
-  return precioRef;
+  if(montoMensual>0) return {precio:montoMensual, origen:'el Monto Acordado guardado en su matrícula (precio especial/promo)'};
+  return {precio:precioRef, origen:'precio de lista del curso (no tiene monto acordado especial ni pagos previos)'};
+}
+function precioEsperado(curso, estudiante, concepto){
+  return precioEsperadoDetalle(curso, estudiante, concepto).precio;
 }
 function actualizarEstadoLinea(row){
   const curso = document.getElementById('m_curso').value;
   const estudiante = document.getElementById('m_estudiante').value.trim();
   const concepto = row.querySelector('.pl-concepto').value;
   const estadoBox = row.querySelector('.pl-estado');
-  if(concepto === CONCEPTO_LIBRE){ estadoBox.textContent=''; return; }
+  if(!concepto || concepto === CONCEPTO_LIBRE){ estadoBox.textContent=''; return; }
   const precioTotal = Number(row.querySelector('.pl-precio-acordado').value)||0;
   const montoAhora = Number(row.querySelector('.pl-monto').value)||0;
   let mensaje = '';
   if(estudiante){
+    const detalle = precioEsperadoDetalle(curso, estudiante, concepto);
+    mensaje += `<strong style="color:var(--warn);">💲 Valor acordado para "${concepto}": ${fmt(detalle.precio)}</strong> <span style="color:var(--text-dim);">(${detalle.origen})</span>. `;
     const pagosPrevios = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
     if(pagosPrevios.length>0){
       const totalPagadoAntes = pagosPrevios.reduce((s,p)=>s+p.monto,0);
@@ -1381,7 +1402,7 @@ function actualizarEstadoLinea(row){
     if(saldoDespues > 0.009){ mensaje += `Con este pago queda como ABONO — le faltarían ${fmt(saldoDespues)} de ${fmt(precioTotal)}.`; }
     else{ mensaje += `Con este pago queda completo (${fmt(precioTotal)}).`; }
   }
-  estadoBox.textContent = mensaje;
+  estadoBox.innerHTML = mensaje;
 }
 function refrescarEstadosLineas(){ document.querySelectorAll('#pago_lines .pago-line').forEach(actualizarEstadoLinea); }
 function actualizarTotalPago(){
@@ -1508,7 +1529,8 @@ function renderCXC(){
   const head = document.getElementById('cxc_head');
   const body = document.getElementById('cxc_body');
   const empty = document.getElementById('cxc_empty');
-  if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; document.getElementById('cxc_contador').textContent=''; return; }
+  const resumenBox = document.getElementById('cxc_resumen_curso');
+  if(!curso){ head.innerHTML=''; body.innerHTML=''; empty.style.display='block'; document.getElementById('cxc_contador').textContent=''; resumenBox.style.display='none'; resumenBox.innerHTML=''; return; }
   empty.style.display='none';
   const items = itemsDeOrdenado(curso);
   let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].sort();
@@ -1523,17 +1545,27 @@ function renderCXC(){
     return `<th style="width:130px;white-space:normal;${estiloInsc}" title="${m.modulo.replace(/"/g,'&quot;')}">${acortarConcepto(m.modulo)}<br><button class="btn btn-ghost btn-sm" style="margin-top:6px;font-weight:600;${esInscripcion?'background:rgba(255,255,255,0.2);color:#fff;':''}" onclick="pdfDeudoresModulo('${curso.replace(/'/g,"\\'")}','${m.modulo.replace(/'/g,"\\'")}')">Deudores</button></th>`;
   }).join('') + '<th class="num">Saldo Pendiente</th><th></th><th></th><th></th><th></th><th></th>';
   let filasDeuda = [];
+  let totalIngresoCurso = 0, totalAcordadoCurso = 0, totalPendienteCurso = 0;
+  const ingresoPorModulo = {};
+  items.forEach(it=>{ ingresoPorModulo[it.modulo] = 0; });
   CXC_CURSO_ACTUAL = curso; CXC_ESTUDIANTES_ACTUAL = estudiantes;
   body.innerHTML = estudiantes.map((est,i)=>{
     let saldoTotal = 0;
     const estados = [];
     const asesorEst = asesorDeEstudiante(curso, est);
+    const activoParaTotales = nominaActivaCXC(curso, est);
     const cells = items.map(it=>{
       const pagos = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo);
       const pagado = pagos.reduce((s,p)=>s+p.monto,0);
       const esperado = precioEsperado(curso, est, it.modulo);
       const saldo = Math.max(0, esperado - pagado);
       saldoTotal += saldo;
+      // Los totales "desde afuera" del curso se arman aquí mismo: dinero realmente cobrado suma siempre
+      // (ya entró, sin importar si el estudiante sigue activo), mientras que el valor acordado y lo pendiente
+      // solo cuentan a estudiantes activos (a quien "no continuó" ya no se le espera cobrar el resto).
+      totalIngresoCurso += pagado;
+      ingresoPorModulo[it.modulo] += pagado;
+      if(activoParaTotales){ totalAcordadoCurso += esperado; totalPendienteCurso += saldo; }
       let estadoTxt, celda;
       // El botón de "gratis" con un clic solo aplica a Inscripción — los demás módulos/mensualidades se manejan
       // con el checkbox "Exonerado" del formulario de Matricular (donde sí tiene sentido revisar bien el pago).
@@ -1542,10 +1574,11 @@ function renderCXC(){
         ? `<button class="btn btn-ghost btn-sm" title="Marcar la Inscripción como gratis/exonerada para ${est.replace(/"/g,'&quot;')}" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarItemGratis('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}','${it.modulo.replace(/'/g,"\\'")}')">🎁</button>`
         : '';
       const estiloCeldaInsc = esInscripcionCelda ? 'background:var(--accent-soft);border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
-      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
-      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
-      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+', debe '+fmt(saldo); celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
-      else { estadoTxt = 'Pagado'; celda = `<td style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
+      const tituloAcordado = `title="Valor acordado para este ítem: ${fmt(esperado).replace(/"/g,'&quot;')}"`;
+      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
+      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
+      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+' de '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
+      else { estadoTxt = 'Pagado ('+fmt(esperado)+')'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
       return celda;
     }).join('');
@@ -1565,6 +1598,39 @@ function renderCXC(){
     return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${nombreEst}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
   }).join('') || '<tr><td colspan="17" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
+  // Resumen "desde afuera" del curso completo: cuánto ha entrado ya, cuánto se acordó cobrarles en total
+  // a quienes siguen activos, y cuánto falta por cobrar — todo de un vistazo, sin entrar a registrar nada.
+  // Protegido con la MISMA clave que "Reporte Mensual": los asesores usan esta pantalla a diario para cobrar
+  // pero no deben ver los totales de ingresos del negocio, así que el resumen se queda oculto para ellos.
+  if(!financieroDesbloqueado()){
+    resumenBox.style.display = 'block';
+    resumenBox.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="desbloquearFinancieroDesdeCXC()">🔒 Ver resumen financiero del curso (requiere clave)</button>`;
+  }else{
+    const filasModulo = items.map(it=>`<tr><td>${acortarConcepto(it.modulo)}</td><td class="num">${fmt(ingresoPorModulo[it.modulo]||0)}</td></tr>`).join('');
+    resumenBox.style.display = 'block';
+    resumenBox.innerHTML = `
+      <div class="grid cols3" style="gap:12px;">
+        <div class="field" style="margin-bottom:0;background:var(--accent-soft);border-radius:10px;padding:12px 14px;">
+          <label style="color:var(--accent);">💰 Ingreso total del curso (ya cobrado)</label>
+          <div style="font-size:22px;font-weight:700;color:var(--accent);">${fmt(totalIngresoCurso)}</div>
+        </div>
+        <div class="field" style="margin-bottom:0;background:var(--warn-soft);border-radius:10px;padding:12px 14px;">
+          <label style="color:var(--warn);">📋 Valor total acordado (estudiantes activos)</label>
+          <div style="font-size:22px;font-weight:700;color:var(--warn);">${fmt(totalAcordadoCurso)}</div>
+        </div>
+        <div class="field" style="margin-bottom:0;background:var(--danger-soft);border-radius:10px;padding:12px 14px;">
+          <label style="color:var(--danger);">⏳ Saldo pendiente por cobrar (activos)</label>
+          <div style="font-size:22px;font-weight:700;color:var(--danger);">${fmt(totalPendienteCurso)}</div>
+        </div>
+      </div>
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer;color:var(--text-dim);font-size:13px;">Ver ingreso por módulo</summary>
+        <div class="table-scroll" style="margin-top:8px;max-width:420px;">
+          <table><thead><tr><th>Módulo</th><th class="num">Ingreso recibido</th></tr></thead><tbody>${filasModulo}</tbody></table>
+        </div>
+      </details>
+    `;
+  }
 }
 // Marca UN ítem puntual como gratis/exonerado directo desde Cuentas por Cobrar, con un solo clic — sin tener que
 // ir al formulario de Matricular a llenar fecha, método de pago ni comprobante (no aplica porque no hay cobro real).
