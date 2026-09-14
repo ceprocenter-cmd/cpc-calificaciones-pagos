@@ -63,6 +63,7 @@
   .pill.ok{background:var(--accent-soft);color:var(--accent);}
   .pill.fail{background:var(--danger-soft);color:var(--danger);}
   .pill.recup{background:var(--warn-soft);color:var(--warn);}
+  .pill.sinnota{background:var(--warn-soft);color:var(--warn);}
   .pill.na{background:var(--panel-2);color:var(--text-dim);}
   .check-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;}
   .check-row .modname{flex:1;font-weight:600;}
@@ -310,7 +311,7 @@
             <button class="btn btn-primary btn-sm" data-filtro="todos">Todos</button>
             <button class="btn btn-ghost btn-sm" data-filtro="aprobado">Aprobados</button>
             <button class="btn btn-ghost btn-sm" data-filtro="reprobado">Reprobados</button>
-            <button class="btn btn-ghost btn-sm" data-filtro="sinnota">Sin Nota</button>
+            <button class="btn btn-ghost btn-sm" data-filtro="recuperativa">Recuperativa</button>
           </div>
           <div class="table-scroll">
             <table>
@@ -1207,7 +1208,7 @@ function renderReporteCurso(){
     <td>${i+1}</td>
     <td>${f.estudiante}${f.baja?' <span class="pill na">No continuó</span>':''}</td>
     <td class="num">${f.prom===null?'—':f.prom.toFixed(1)}</td>
-    <td>${f.prom===null?'<span class="pill na">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
+    <td>${f.prom===null?'<span class="pill sinnota">Sin notas</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
     <td class="num">${f.count}</td>
     <td>
       ${f.prom===null?'':'<button class="btn btn-ghost btn-sm" onclick="descargarReporteIndividual(\''+f.estudiante.replace(/'/g,"\\'")+'\')">📄 Descargar</button>'}
@@ -1272,7 +1273,7 @@ function datosModuloSeleccionado(){
     };
   });
 }
-// Guarda la última lista filtrada renderizada (Aprobados/Reprobados/Sin Nota)
+// Guarda la última lista filtrada renderizada (Aprobados/Reprobados/Recuperativa)
 // para que el botón "Copiar Lista" pueda copiar exactamente lo que se ve en
 // pantalla, sin tener que recalcular el filtro de nuevo.
 let FILAS_MODULO_FILTRADAS_ACTUAL = [];
@@ -1282,17 +1283,19 @@ function renderDetalleModuloSeleccionado(){
   wrap.style.display='block';
   document.getElementById('titulo_modulo_seleccionado').textContent = `${MODULO_SELECCIONADO_REPORTE} (${datosModuloSeleccionado().length} estudiantes)`;
   const filas = datosModuloSeleccionado();
-  // Filtro por estado dentro de ESTE módulo: aprobado/reprobado/sin nota se
+  // Filtro por estado dentro de ESTE módulo: aprobado/reprobado/recuperativa se
   // calculan con la nota de este módulo específicamente, no con el promedio del curso.
+  // "Recuperativa" agrupa a quien necesita recuperar la nota: reprobados (nota < mínima)
+  // y quienes todavía no tienen nota registrada.
   // Los estudiantes "No continuó" quedan EXCLUIDOS de los filtros de acción
-  // (Aprobados/Reprobados/Sin Nota) para que no aparezcan al copiar la lista —
+  // (Aprobados/Reprobados/Recuperativa) para que no aparezcan al copiar la lista —
   // en "Todos" sí se siguen mostrando, con su pastilla de estado.
   const filasFiltradas = filas.filter(f=>{
     if(FILTRO_MODULO_ESTADO==='todos') return true;
     if(f.baja) return false;
     if(FILTRO_MODULO_ESTADO==='aprobado') return f.aprobado===true;
     if(FILTRO_MODULO_ESTADO==='reprobado') return f.aprobado===false;
-    if(FILTRO_MODULO_ESTADO==='sinnota') return f.aprobado===null;
+    if(FILTRO_MODULO_ESTADO==='recuperativa') return f.aprobado===false || f.aprobado===null;
     return true;
   });
   FILAS_MODULO_FILTRADAS_ACTUAL = filasFiltradas;
@@ -1308,7 +1311,7 @@ function renderDetalleModuloSeleccionado(){
       <td class="num">${f.nota===null?'—':f.nota.toFixed(1)}</td>
       <td>${f.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':(f.tipo?'Regular':'—')}</td>
       <td style="white-space:normal;max-width:280px;">${f.retro||'—'}</td>
-      <td>${f.aprobado===null?'<span class="pill na">Sin nota</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
+      <td>${f.aprobado===null?'<span class="pill sinnota">Sin nota</span>':(f.aprobado?'<span class="pill ok">Aprobado</span>':'<span class="pill fail">Reprobado</span>')}</td>
       <td>${f.id?`<button class="btn btn-ghost btn-sm" onclick="editarNotaModulo('${f.id}','${f.estudiante.replace(/'/g,"\\'")}')">✏️ Editar</button>`:''}</td></tr>
     `).join('');
   }
@@ -1349,8 +1352,8 @@ window.guardarNotaEditada = async function(id){
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
 // Copia SOLO los nombres (uno por línea) de la lista que se ve en pantalla en
-// este momento, respetando el filtro activo (Todos/Aprobados/Reprobados/Sin
-// Nota). Sirve para pegar en WhatsApp, un correo, otro documento, etc. sin
+// este momento, respetando el filtro activo (Todos/Aprobados/Reprobados/
+// Recuperativa). Sirve para pegar en WhatsApp, un correo, otro documento, etc. sin
 // arrastrar las demás columnas de la tabla (nota, tipo, retroalimentación...),
 // que es lo que pasaba al copiar directamente la tabla con el mouse.
 document.getElementById('btn_copiar_lista_modulo').addEventListener('click', async ()=>{
@@ -1385,7 +1388,7 @@ document.getElementById('btn_pdf_modulo_seleccionado').addEventListener('click',
   const filas = FILAS_MODULO_FILTRADAS_ACTUAL.filter(f=>!f.baja);
   if(filas.length===0){ showToast('No hay estudiantes activos en este filtro para descargar.'); return; }
   const filasHtml = filas.map(f=>`<tr><td>${f.estudiante}</td><td style="text-align:right;">${f.nota===null?'—':f.nota.toFixed(1)}</td></tr>`).join('');
-  const etiquetasFiltro = {todos:'Todos', aprobado:'Aprobados', reprobado:'Reprobados', sinnota:'Sin Nota'};
+  const etiquetasFiltro = {todos:'Todos', aprobado:'Aprobados', reprobado:'Reprobados', recuperativa:'Recuperativa'};
   const tituloFiltro = etiquetasFiltro[FILTRO_MODULO_ESTADO] || 'Todos';
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
