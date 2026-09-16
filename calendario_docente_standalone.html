@@ -69,6 +69,22 @@
   .doc-table{width:100%;border-collapse:collapse;margin-top:14px;table-layout:fixed;}
   .doc-table th{background:var(--panel-2);text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--text-dim);}
   .doc-table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13.5px;word-wrap:break-word;overflow-wrap:break-word;}
+  .mensual-header{font-family:'Quicksand',sans-serif;font-weight:700;font-size:20px;margin-bottom:12px;}
+  .mensual-dias-header{display:grid;grid-template-columns:repeat(7,1fr);border-radius:10px 10px 0 0;overflow:hidden;}
+  .mensual-dia-nombre{background:var(--text);color:#fff;text-align:center;padding:8px 4px;font-family:'Quicksand',sans-serif;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;}
+  .mensual-grid{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;overflow:hidden;}
+  .mensual-celda{min-height:118px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 7px 8px;background:#fff;}
+  .mensual-celda.fuera-mes{background:#E7E9EF;}
+  .mensual-celda .num-dia{font-family:'Quicksand',sans-serif;font-weight:700;font-size:13px;color:var(--text);display:inline-block;}
+  .mensual-celda .num-dia.hoy{background:var(--accent);color:#1A2E0A;border-radius:20px;padding:1px 9px;}
+  .mensual-item{display:block;font-size:10.5px;line-height:1.3;padding:2px 5px;border-radius:5px;margin-top:4px;cursor:pointer;font-weight:700;white-space:normal;word-break:break-word;}
+  .mensual-item.feriado{background:#FFF6D6;color:#8a6d00;}
+  .mensual-item.pagado{background:var(--accent-soft);color:var(--accent-dark);}
+  .mensual-item.pendiente{background:var(--danger-soft);color:var(--danger);}
+  .mensual-item.no-aplica{background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);}
+  .mensual-add{display:inline-block;margin-top:4px;font-size:10.5px;color:var(--text-dim);cursor:pointer;}
+  .mensual-add:hover{color:var(--accent-dark);}
+  @media (max-width:700px){ .mensual-celda{min-height:80px;font-size:11px;} }
   @media print{
     body.printing *{visibility:hidden;}
     body.printing .modal-box, body.printing .modal-box *{visibility:visible;}
@@ -102,6 +118,7 @@
     </div>
     <div class="tabs">
       <button class="tab active" data-tab="calendario">Calendario</button>
+      <button class="tab" data-tab="mensual">Vista Mensual</button>
       <button class="tab" data-tab="registrar">Registrar Sesión</button>
       <button class="tab" data-tab="tutor">Calendario por Tutor</button>
       <button class="tab" data-tab="honorarios">Honorarios Pendientes</button>
@@ -147,6 +164,25 @@
           </table>
         </div>
         <div class="empty" id="calendario_empty" style="display:none;">Sin sesiones con este filtro.</div>
+      </div>
+    </div>
+    <!-- VISTA MENSUAL -->
+    <div id="tab-mensual" style="display:none;">
+      <div class="panel">
+        <h2>Vista de Calendario Mensual</h2>
+        <p class="hint">Tus sesiones y feriados en formato de calendario tradicional, día por día. Dale clic a cualquier sesión para editarla, o a "+ Agregar" para registrar una nueva en ese día.</p>
+        <div class="grid cols4" style="max-width:520px;margin-bottom:10px;">
+          <div class="field"><label>Mes</label><select id="mensual_mes"></select></div>
+          <div class="field"><label>Año</label><select id="mensual_anio"></select></div>
+        </div>
+        <div class="actions" style="margin-top:0;margin-bottom:16px;">
+          <button class="btn btn-ghost btn-sm" id="btn_imprimir_mensual">Imprimir / Guardar PDF</button>
+        </div>
+        <div id="grid_mensual_wrap">
+          <div class="mensual-header" id="mensual_titulo"></div>
+          <div class="mensual-dias-header" id="mensual_dias_header"></div>
+          <div class="mensual-grid" id="mensual_grid"></div>
+        </div>
       </div>
     </div>
     <!-- REGISTRAR -->
@@ -424,13 +460,15 @@ function nominaDelCurso(curso, incluirInactivos){
   return incluirInactivos ? estudiantes : estudiantes.filter(e=>e.activo);
 }
 // ---------- TABS ----------
+const NOMBRES_TABS = ['calendario','mensual','registrar','tutor','honorarios','tareas'];
 document.querySelectorAll('.tab').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['calendario','registrar','tutor','honorarios','tareas'].forEach(t=>{
+    NOMBRES_TABS.forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
+    if(btn.dataset.tab==='mensual') renderVistaMensual();
   });
 });
 // ---------- AVISO DE COBRO A ASESORES ----------
@@ -791,6 +829,17 @@ window.guardarSesionEditada = async function(id, esFeriado){
     renderAll();
   }catch(e){ showToast('Error: '+e.message); }
 };
+function limpiarFiltrosParaMostrarSemanaVacia(){
+  // Cuando una sesión se vacía (docente/modalidad/capacitación/honorario quedan en blanco),
+  // cualquiera de estos filtros activos la esconde de la tabla aunque la fecha siga disponible.
+  // Los reseteamos a "Todos" para que la semana recién liberada sea visible de inmediato.
+  ['filt_modalidad','filt_docente','filt_encargado','filt_capacitacion','filt_honorario'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  const chkVacias = document.getElementById('filt_ocultar_vacias');
+  if(chkVacias) chkVacias.checked = false;
+}
 window.eliminarSesion = async function(id){
   const entry = CALENDARIO.find(c=>c.id===id);
   if(!entry){ showToast('No se encontró esta sesión, recarga la página e intenta de nuevo.'); return; }
@@ -824,7 +873,8 @@ window.eliminarSesion = async function(id){
         horario:'', capacitacion:'', modulo:'', docente:'', encargado:'', categoria:'',
         tema:'', subtemas:'', linkContenido:'', honorario:'', observacion:'', cursoMatricula:''
       }});
-      showToast('Información eliminada — la semana quedó disponible para planificar.');
+      limpiarFiltrosParaMostrarSemanaVacia();
+      showToast('Información eliminada — la semana quedó disponible para planificar. Quité los filtros de Modalidad/Docente/Encargado/Capacitación/Honorario para que la veas.');
       await loadAll();
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
@@ -955,7 +1005,108 @@ function renderAll(){
   renderSelectCursoMatricula();
   renderSelectAvisoCobroManual();
   renderHonorariosPendientes();
+  renderVistaMensual();
 }
+// ---------- VISTA MENSUAL (cuadrícula por día) ----------
+let MENSUAL_INICIALIZADO = false;
+const DIAS_SEMANA_CORTOS = ['Dom.','Lun.','Mar.','Mié.','Jue.','Vie.','Sáb.'];
+function inicializarSelectMensual(){
+  const selMes = document.getElementById('mensual_mes');
+  const selAnio = document.getElementById('mensual_anio');
+  if(!selMes || !selAnio) return;
+  if(!selMes.options.length){
+    selMes.innerHTML = MESES_NOMBRES.map((n,i)=>`<option value="${i}">${capitalizar(n)}</option>`).join('');
+  }
+  const prevAnio = selAnio.value;
+  const anioActual = new Date().getFullYear();
+  const anios = new Set([anioActual, anioActual+1]);
+  CALENDARIO.forEach(c=>{ if(c.fechaInicio) anios.add(Number(c.fechaInicio.slice(0,4))); });
+  const listaAnios = [...anios].filter(Boolean).sort((a,b)=>a-b);
+  selAnio.innerHTML = listaAnios.map(a=>`<option value="${a}">${a}</option>`).join('');
+  if(!MENSUAL_INICIALIZADO){
+    selMes.value = String(new Date().getMonth());
+    selAnio.value = String(anioActual);
+    MENSUAL_INICIALIZADO = true;
+  }else if(prevAnio && listaAnios.includes(Number(prevAnio))){
+    selAnio.value = prevAnio;
+  }
+}
+function entradasDelDia(fechaStr){
+  const v = fechaValor(fechaStr);
+  return CALENDARIO.filter(c=>{
+    const inicio = fechaValor(c.fechaInicio);
+    const fin = fechaValor(c.fechaFin || c.fechaInicio);
+    return inicio && v>=inicio && v<=fin;
+  });
+}
+function renderVistaMensual(){
+  if(!document.getElementById('mensual_mes')) return;
+  inicializarSelectMensual();
+  const mes = Number(document.getElementById('mensual_mes').value);
+  const anio = Number(document.getElementById('mensual_anio').value);
+  document.getElementById('mensual_titulo').textContent = `${capitalizar(MESES_NOMBRES[mes])} de ${anio}`;
+  document.getElementById('mensual_dias_header').innerHTML = DIAS_SEMANA_CORTOS.map(d=>`<div class="mensual-dia-nombre">${d}</div>`).join('');
+  const primerDiaSemana = new Date(anio, mes, 1).getDay();
+  const diasEnMes = new Date(anio, mes+1, 0).getDate();
+  const diasMesAnterior = new Date(anio, mes, 0).getDate();
+  const hoyStr = new Date().toISOString().slice(0,10);
+  const celdas = [];
+  for(let i=0;i<primerDiaSemana;i++){
+    celdas.push({dia: diasMesAnterior - primerDiaSemana + i + 1, fueraMes:true});
+  }
+  for(let d=1; d<=diasEnMes; d++){
+    celdas.push({dia:d, fueraMes:false, fechaStr: `${anio}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`});
+  }
+  let diaSiguiente = 1;
+  while(celdas.length % 7 !== 0){
+    celdas.push({dia: diaSiguiente++, fueraMes:true});
+  }
+  document.getElementById('mensual_grid').innerHTML = celdas.map(c=>{
+    if(c.fueraMes){
+      return `<div class="mensual-celda fuera-mes"></div>`;
+    }
+    const entradas = entradasDelDia(c.fechaStr);
+    const esHoy = c.fechaStr===hoyStr;
+    const itemsHtml = entradas.map(en=>{
+      if(en.esFeriado==='Sí'){
+        return `<span class="mensual-item feriado" onclick="editarSesionPorId('${en.id}')" title="Feriado">🟡 ${(en.tema||'Feriado').replace(/</g,'&lt;')}</span>`;
+      }
+      const claseEstado = en.honorario==='Pagado' ? 'pagado' : (en.honorario==='No Aplica' ? 'no-aplica' : 'pendiente');
+      const etiqueta = [en.docente, en.capacitacion].filter(Boolean).join(' — ') || (en.tema || 'Sesión');
+      const tituloCompleto = String(en.tema||'').replace(/"/g,'&quot;');
+      return `<span class="mensual-item ${claseEstado}" onclick="editarSesionPorId('${en.id}')" title="${tituloCompleto}">${etiqueta.replace(/</g,'&lt;')}</span>`;
+    }).join('');
+    return `<div class="mensual-celda">
+      <span class="num-dia${esHoy?' hoy':''}">${c.dia}</span>
+      ${itemsHtml}
+      <span class="mensual-add" onclick="irARegistrarSesionEnFecha('${c.fechaStr}')">+ Agregar</span>
+    </div>`;
+  }).join('');
+}
+window.irARegistrarSesionEnFecha = function(fechaStr){
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab==='registrar');
+  });
+  NOMBRES_TABS.forEach(t=>{
+    document.getElementById('tab-'+t).style.display = (t==='registrar') ? 'block' : 'none';
+  });
+  document.getElementById('r_fecha_inicio').value = fechaStr;
+  document.getElementById('r_fecha_fin').value = fechaStr;
+  document.getElementById('r_fecha_inicio').scrollIntoView({behavior:'smooth', block:'center'});
+  showToast('Fecha precargada — completa los demás datos de la sesión.');
+};
+document.getElementById('mensual_mes').addEventListener('change', renderVistaMensual);
+document.getElementById('mensual_anio').addEventListener('change', renderVistaMensual);
+document.getElementById('btn_imprimir_mensual').addEventListener('click', ()=>{
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Calendario Mensual — ${document.getElementById('mensual_titulo').textContent}</div>
+    </div>
+    ${document.getElementById('grid_mensual_wrap').outerHTML}
+  `;
+  abrirModalDoc(html);
+});
 function renderSelectCursoMatricula(){
   ['r_curso_matricula','add_curso_matricula','edit_curso_matricula'].forEach(id=>{
     const sel = document.getElementById(id);
