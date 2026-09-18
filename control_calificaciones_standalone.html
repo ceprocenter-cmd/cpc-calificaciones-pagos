@@ -536,6 +536,27 @@ async function loadAll(){
   EVALUACIONES = evs || [];
   RECORDATORIOS_LOG = log || [];
 }
+// Recarga SOLO las hojas indicadas en vez de las 10 que trae loadAll(). Casi ninguna acción
+// (guardar una nota, tomar asistencia, etc.) toca todas las hojas a la vez, así que pedirlas
+// todas de nuevo en cada clic solo hace más lenta la app y satura tu Apps Script sin necesidad
+// — más aún acá, que comparte ese mismo backend con el Calendario, Matrículas y las demás
+// herramientas de Ceprocenter.
+async function refrescarHojas(nombres){
+  const resultados = await Promise.all(nombres.map(n=>apiGet(n).catch(()=>[])));
+  nombres.forEach((n, i)=>{
+    const data = resultados[i];
+    if(n==='Nomina') NOMINA = data.map(x=>({...x, activo: !(x.activo===false || String(x.activo).trim().toUpperCase()==='FALSE')}));
+    else if(n==='Modulos') MODULOS = data;
+    else if(n==='Calificaciones') CALIFICACIONES = data.map(x=>({...x, nota:normNum(x.nota)}));
+    else if(n==='Matriculas') MATRICULAS = data;
+    else if(n==='Asistencia') ASISTENCIA = data;
+    else if(n==='CursosInfo') CURSOS_INFO = data;
+    else if(n==='Facilitadores') FACILITADORES = data;
+    else if(n==='Pagos') PAGOS = data;
+    else if(n==='EvaluacionesConfig') EVALUACIONES = data || [];
+    else if(n==='RecordatoriosEvaluacionesLog') RECORDATORIOS_LOG = data || [];
+  });
+}
 function modulosSinPagar(estudiante){
   const modulosCurso = modulosDelCurso();
   return modulosCurso.filter(m => !PAGOS.some(p => p.curso===CURSO_ACTUAL && p.estudiante===estudiante && p.modulo===m)).length;
@@ -575,7 +596,7 @@ window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
   try{
     await apiPost('Nomina','update',{id:reg.id, data:{activo:nuevoValor}});
     showToast(nuevoValor ? 'Estudiante reactivado.' : 'Marcado como "no continuó".');
-    await loadAll();
+    await refrescarHojas(['Nomina']);
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
@@ -668,7 +689,7 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
       await apiPost('Modulos','add',{data:{id:uid(), curso:nombre, modulo}});
     }
     showToast('Curso creado con ' + lineas.length + ' estudiantes y ' + modulos.length + ' módulos.');
-    await loadAll();
+    await refrescarHojas(['Nomina','Modulos']);
     abrirCurso(nombre);
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -715,7 +736,7 @@ document.getElementById('btn_guardar_agregados').addEventListener('click', async
       await apiPost('Nomina','add',{data:{id:uid(), curso:CURSO_ACTUAL, estudiante, identificador:'', correo}});
     }
     showToast(lineas.length + ' estudiante(s) agregados.');
-    await loadAll();
+    await refrescarHojas(['Nomina']);
     poblarSelectEstudiantes();
     renderAllCurso();
     document.getElementById('panel_agregar_estudiantes').style.display='none';
@@ -737,7 +758,7 @@ document.getElementById('btn_guardar_modulos_extra').addEventListener('click', a
       await apiPost('Modulos','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo}});
     }
     showToast(lineas.length + ' módulo(s) agregados.');
-    await loadAll();
+    await refrescarHojas(['Modulos']);
     poblarSelectModulos();
     renderAllCurso();
     document.getElementById('panel_agregar_modulos').style.display='none';
@@ -772,7 +793,7 @@ document.getElementById('btn_guardar_correos').addEventListener('click', async (
       await apiPost('Nomina','update',{id:inp.dataset.id, data:{correo:inp.value.trim()}});
     }
     showToast('Correos guardados.');
-    await loadAll();
+    await refrescarHojas(['Nomina']);
     document.getElementById('panel_editar_correos').style.display='none';
   }catch(e){ showToast('Error al guardar correos: '+e.message); }
 });
@@ -872,7 +893,7 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
     await apiPost('Calificaciones','add',{data:{id:uid(), fecha, curso:CURSO_ACTUAL, modulo, estudiante, identificador:'', tipo, nota, retroalimentacion}});
     document.getElementById('c_nota').value=''; document.getElementById('c_retro').value='';
     showToast('Calificación guardada.');
-    await loadAll();
+    await refrescarHojas(['Calificaciones']);
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -1039,7 +1060,7 @@ document.getElementById('btn_guardar_ev_regular').addEventListener('click', asyn
       await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Regular', fechaApertura, fechaCierre:'', fechaLimite:'', estudiantes:''}});
     }
     showToast('Evaluación regular guardada — calendario recalculado.');
-    await loadAll();
+    await refrescarHojas(['EvaluacionesConfig']);
     renderDetalleEvaluacion();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -1056,7 +1077,7 @@ document.getElementById('btn_guardar_ev_recuperativa').addEventListener('click',
       await apiPost('EvaluacionesConfig','add',{data:{id:uid(), curso:CURSO_ACTUAL, modulo:MODULO_SELECCIONADO_EVALUACION, tipo:'Recuperativa', fechaApertura, fechaCierre:'', fechaLimite:'', estudiantes}});
     }
     showToast('Evaluación recuperativa guardada — calendario recalculado.');
-    await loadAll();
+    await refrescarHojas(['EvaluacionesConfig']);
     renderDetalleEvaluacion();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -1148,7 +1169,7 @@ async function enviarRecordatoriosPara(estudiantes, motivo, forzar){
       showToast('Correos enviados.');
       // Refresca el log para que, si el panel de "🔔 Notificaciones Enviadas" está
       // abierto, se vea de inmediato el envío que se acaba de hacer.
-      await loadAll();
+      await refrescarHojas(['RecordatoriosEvaluacionesLog']);
       if(document.getElementById('panel_notificaciones_evaluacion').style.display!=='none'){
         renderNotificacionesEvaluacion();
       }
@@ -1347,7 +1368,7 @@ window.guardarNotaEditada = async function(id){
     await apiPost('Calificaciones','update',{id, data:{tipo, nota, retroalimentacion}});
     showToast('Calificación actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Calificaciones']);
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
@@ -1437,7 +1458,7 @@ window.eliminarNota = async function(id){
   if(!confirm('¿Eliminar esta calificación?')) return;
   await apiPost('Calificaciones','delete',{id});
   showToast('Calificación eliminada.');
-  await loadAll();
+  await refrescarHojas(['Calificaciones']);
   renderAllCurso();
 };
 // ---------- REPORTE INDIVIDUAL DESCARGABLE ----------
@@ -1542,7 +1563,7 @@ document.getElementById('btn_guardar_curso_info').addEventListener('click', asyn
       await apiPost('CursosInfo','add',{data:{id:uid(), curso:CURSO_ACTUAL, horasAcademicas, modalidad, tipoCertificacion}});
     }
     showToast('Configuración del certificado guardada.');
-    await loadAll();
+    await refrescarHojas(['CursosInfo']);
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 // Un estudiante marcado "No continuó" nunca cumple para certificarse — ni por
@@ -1666,7 +1687,7 @@ document.getElementById('btn_guardar_facilitador').addEventListener('click', asy
     showToast('Tutor asignado.');
     document.getElementById('fac_tutor').value='';
     document.getElementById('fac_fecha_modulo').value='';
-    await loadAll();
+    await refrescarHojas(['Facilitadores']);
     renderFacilitadores();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -1674,7 +1695,7 @@ window.eliminarFacilitador = async function(id){
   if(!confirm('¿Eliminar esta asignación?')) return;
   await apiPost('Facilitadores','delete',{id});
   showToast('Asignación eliminada.');
-  await loadAll();
+  await refrescarHojas(['Facilitadores']);
   renderFacilitadores();
 };
 // ---------- ASISTENCIA ----------
@@ -1932,7 +1953,7 @@ document.getElementById('btn_guardar_asistencia').addEventListener('click', asyn
     }
     showToast('Asistencia guardada.');
     limpiarChatZoomPegado();
-    await loadAll();
+    await refrescarHojas(['Asistencia']);
     renderAllCurso();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -2020,7 +2041,7 @@ window.guardarCeldaAsistencia = async function(id, estudiante, fecha){
     }
     showToast('Asistencia actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Asistencia']);
     renderAllCurso();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
