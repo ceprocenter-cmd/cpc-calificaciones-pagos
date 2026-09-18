@@ -79,10 +79,9 @@
   .mensual-celda .num-dia.hoy{background:var(--accent);color:#1A2E0A;border-radius:20px;padding:1px 9px;}
   .mensual-item{display:block;font-size:10.5px;line-height:1.3;padding:2px 5px;border-radius:5px;margin-top:4px;cursor:pointer;font-weight:700;white-space:normal;word-break:break-word;}
   .mensual-item.feriado{background:#FFF6D6;color:#8a6d00;}
-  .mensual-item.pagado{background:var(--accent-soft);color:var(--accent-dark);}
-  .mensual-item.pendiente{background:var(--danger-soft);color:var(--danger);}
-  .mensual-item.programada{background:#DCEBFF;color:#2B5FA8;}
-  .mensual-item.no-aplica{background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);}
+  .mensual-item.sesion{background:var(--accent-soft);color:var(--accent-dark);}
+  .mensual-celda.dia-lleno{background:rgba(165,211,42,0.07);}
+  .mensual-celda.dia-feriado{background:#FFFCEE;}
   .mensual-add{display:inline-block;margin-top:4px;font-size:10.5px;color:var(--text-dim);cursor:pointer;}
   .mensual-add:hover{color:var(--accent-dark);}
   @media (max-width:700px){ .mensual-celda{min-height:80px;font-size:11px;} }
@@ -1073,24 +1072,21 @@ function renderVistaMensual(){
     }
     const entradas = entradasDelDia(c.fechaStr);
     const esHoy = c.fechaStr===hoyStr;
-    const hoyValorMensual = fechaValor(hoyStr);
+    // Un solo color para toda sesión real (a quien ve este calendario no le interesa si el honorario
+    // está pagado o no — para eso está la pestaña "Honorarios Pendientes"). Aquí solo importa
+    // distinguir, de un vistazo, qué días/semanas están llenos y cuáles vacíos.
+    const hayFeriado = entradas.some(en=>en.esFeriado==='Sí');
+    const haySesion = entradas.some(en=>en.esFeriado!=='Sí');
     const itemsHtml = entradas.map(en=>{
       if(en.esFeriado==='Sí'){
         return `<span class="mensual-item feriado" onclick="editarSesionPorId('${en.id}')" title="Feriado">🟡 ${(en.tema||'Feriado').replace(/</g,'&lt;')}</span>`;
       }
-      // Rojo se reserva solo para honorarios realmente vencidos (fecha ya pasada y sin pagar),
-      // igual que en "Honorarios Pendientes". Una sesión programada a futuro no es una alerta:
-      // un calendario lleno es bueno, así que usa un color neutro/azul en vez de rojo.
-      let claseEstado;
-      if(en.honorario==='Pagado') claseEstado = 'pagado';
-      else if(en.honorario==='No Aplica') claseEstado = 'no-aplica';
-      else if(esHonorarioPendiente(en) && fechaValor(en.fechaInicio) <= hoyValorMensual) claseEstado = 'pendiente';
-      else claseEstado = 'programada';
       const etiqueta = [en.docente, en.capacitacion].filter(Boolean).join(' — ') || (en.tema || 'Sesión');
       const tituloCompleto = String(en.tema||'').replace(/"/g,'&quot;');
-      return `<span class="mensual-item ${claseEstado}" onclick="editarSesionPorId('${en.id}')" title="${tituloCompleto}">${etiqueta.replace(/</g,'&lt;')}</span>`;
+      return `<span class="mensual-item sesion" onclick="editarSesionPorId('${en.id}')" title="${tituloCompleto}">${etiqueta.replace(/</g,'&lt;')}</span>`;
     }).join('');
-    return `<div class="mensual-celda">
+    const claseCelda = haySesion ? ' dia-lleno' : (hayFeriado ? ' dia-feriado' : '');
+    return `<div class="mensual-celda${claseCelda}">
       <span class="num-dia${esHoy?' hoy':''}">${c.dia}</span>
       ${itemsHtml}
       <span class="mensual-add" onclick="irARegistrarSesionEnFecha('${c.fechaStr}')">+ Agregar</span>
