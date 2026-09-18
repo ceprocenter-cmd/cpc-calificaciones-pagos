@@ -403,6 +403,13 @@ async function loadAll(){
   MATRICULAS_TUTOR = mat;
   CURSOS_MATRICULA = [...new Set(mod.map(m=>m.curso).filter(Boolean))].sort();
 }
+// Refresca SOLO la hoja CalendarioDocente. Facilitadores/Nómina/Matrículas/Módulos casi nunca
+// cambian mientras trabajas en el calendario, así que pedirlas de nuevo en Google después de
+// cada clic (marcar honorario, guardar sesión, borrar, etc.) solo hace más lenta la app sin
+// necesidad. Esas 4 hojas se cargan una sola vez al abrir la página (loadAll) y listo.
+async function refrescarCalendario(){
+  CALENDARIO = await apiGet('CalendarioDocente');
+}
 function fechaCorta(f){
   if(!f) return '—';
   const d = new Date(f + (f.length<=10 ? 'T00:00:00' : ''));
@@ -531,7 +538,7 @@ document.getElementById('btn_generar_anio').addEventListener('click', async ()=>
   try{
     for(const f of filas){ await apiPost('CalendarioDocente','add',{data:f}); }
     showToast(`¡Listo! ${filas.length} semanas de ${anio} cargadas — ya puedes llenarlas.`);
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
   }catch(e){ showToast('Error al generar: '+e.message); }
 });
@@ -557,7 +564,7 @@ document.getElementById('btn_generar_semanas').addEventListener('click', async (
   try{
     for(const f of filas){ await apiPost('CalendarioDocente','add',{data:f}); }
     showToast(`${filas.length} semana(s) generadas — ya puedes llenarlas en el Calendario.`);
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
   }catch(e){ showToast('Error al generar: '+e.message); }
 });
@@ -643,14 +650,14 @@ document.getElementById('btn_guardar_sesion').addEventListener('click', async ()
     document.getElementById('r_tema').value=''; document.getElementById('r_subtemas').value=''; document.getElementById('r_link').value='';
     document.getElementById('r_es_feriado').value='no';
     document.getElementById('r_es_feriado').dispatchEvent(new Event('change'));
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
 window.cambiarHonorario = async function(calId, nuevoEstado){
   try{
     await apiPost('CalendarioDocente','update',{id:calId, data:{honorario:nuevoEstado}});
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
     showToast(nuevoEstado==='Pagado' ? 'Marcado como pagado — actualizado en el Calendario.' : 'Honorario actualizado.');
   }catch(e){ showToast('Error: '+e.message); }
@@ -784,7 +791,7 @@ window.guardarSesionEditada = async function(id, esFeriado){
       await apiPost('CalendarioDocente','update',{id, data});
       showToast('Feriado actualizado.');
       document.getElementById('modal_overlay').classList.remove('show');
-      await loadAll();
+      await refrescarCalendario();
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
     return;
@@ -825,7 +832,7 @@ window.guardarSesionEditada = async function(id, esFeriado){
     }
     showToast('Sesión actualizada.');
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
   }catch(e){ showToast('Error: '+e.message); }
 };
@@ -848,7 +855,7 @@ window.eliminarSesion = async function(id){
     try{
       await apiPost('CalendarioDocente','delete',{id});
       showToast('Feriado eliminado.');
-      await loadAll();
+      await refrescarCalendario();
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
     return;
@@ -863,7 +870,7 @@ window.eliminarSesion = async function(id){
     try{
       await apiPost('CalendarioDocente','delete',{id});
       showToast('Sesión eliminada.');
-      await loadAll();
+      await refrescarCalendario();
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
   }else{
@@ -875,7 +882,7 @@ window.eliminarSesion = async function(id){
       }});
       limpiarFiltrosParaMostrarSemanaVacia();
       showToast('Información eliminada — la semana quedó disponible para planificar. Quité los filtros de Modalidad/Docente/Encargado/Capacitación/Honorario para que la veas.');
-      await loadAll();
+      await refrescarCalendario();
       renderAll();
     }catch(e){ showToast('Error: '+e.message); }
   }
@@ -980,7 +987,7 @@ window.guardarSesionAnadida = async function(fechaInicio, fechaFin){
     }
     showToast(DOCENTES_ANADIR_ACTUAL.length>1 ? `Sesión añadida para ${DOCENTES_ANADIR_ACTUAL.length} docentes.` : 'Sesión añadida.');
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarCalendario();
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 };
