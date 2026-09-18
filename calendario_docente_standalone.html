@@ -476,8 +476,17 @@ document.querySelectorAll('.tab').forEach(btn=>{
       document.getElementById('tab-'+t).style.display = (t===btn.dataset.tab) ? 'block' : 'none';
     });
     if(btn.dataset.tab==='mensual') renderVistaMensual();
+    try{ localStorage.setItem('cepro_calendario_ultima_pestana', btn.dataset.tab); }catch(e){}
   });
 });
+// Al recargar el navegador, vuelve a la última pestaña donde estabas en vez de siempre abrir en "Calendario".
+function restaurarUltimaPestana(){
+  let ultima = '';
+  try{ ultima = localStorage.getItem('cepro_calendario_ultima_pestana') || ''; }catch(e){}
+  if(!ultima) return;
+  const btn = document.querySelector(`.tab[data-tab="${ultima}"]`);
+  if(btn) btn.click();
+}
 // ---------- AVISO DE COBRO A ASESORES ----------
 // Envío manual del aviso de cobro para UN curso elegido a mano — no depende de fechaInicio ni de la ventana de 7 días.
 function renderSelectAvisoCobroManual(){
@@ -1449,6 +1458,7 @@ async function initApp(){
       renderAll();
       TAREAS = await apiGet('TareasPendientes').catch(()=>[]);
       renderTareas();
+      restaurarUltimaPestana();
     }
   }
   catch(e){ showToast('No se pudo conectar: ' + e.message); }

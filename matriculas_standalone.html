@@ -820,6 +820,7 @@ async function initApp(){
     document.getElementById('setup_banner').style.display='none';
     document.getElementById('app_content').style.display='block';
     renderAll();
+    restaurarUltimaPestana();
   }catch(e){
     showToast('No se pudo conectar: ' + e.message);
     document.getElementById('setup_banner').style.display='block';
@@ -2436,8 +2437,17 @@ document.querySelectorAll('.tab').forEach(tab=>{
     ['cursos','matricular','solicitudes','cobrar','nomina','reporte','exalumnos'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
+    try{ localStorage.setItem('cepro_matriculas_ultima_pestana', tab.dataset.tab); }catch(e){}
   });
 });
+// Al recargar el navegador, vuelve a la última pestaña donde estabas en vez de siempre abrir en "Cursos".
+function restaurarUltimaPestana(){
+  let ultima = '';
+  try{ ultima = localStorage.getItem('cepro_matriculas_ultima_pestana') || ''; }catch(e){}
+  if(!ultima) return;
+  const tab = document.querySelector(`.tab[data-tab="${ultima}"]`);
+  if(tab) tab.click();
+}
 initApp();
 </script>
 </body>

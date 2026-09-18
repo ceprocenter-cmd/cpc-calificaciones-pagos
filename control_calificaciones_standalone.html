@@ -624,10 +624,27 @@ async function initApp(){
   try{
     await loadAll();
     document.getElementById('setup_banner').style.display='none';
-    mostrarHome();
+    restaurarVistaGuardada();
   }catch(e){
     showToast('No se pudo conectar: ' + e.message);
     document.getElementById('setup_banner').style.display='block';
+  }
+}
+// Al recargar el navegador, vuelve al curso y a la pestaña donde estabas en vez de
+// siempre mandarte a la pantalla de selección de cursos.
+function restaurarVistaGuardada(){
+  let curso = '';
+  try{ curso = localStorage.getItem('cepro_control_ultimo_curso') || ''; }catch(e){}
+  if(curso && cursosUnicos().includes(curso)){
+    abrirCurso(curso);
+    let pestana = '';
+    try{ pestana = localStorage.getItem('cepro_control_ultima_pestana') || ''; }catch(e){}
+    if(pestana){
+      const tab = document.querySelector(`.tab[data-tab="${pestana}"]`);
+      if(tab) tab.click();
+    }
+  }else{
+    mostrarHome();
   }
 }
 // ---------- VISTA HOME (SELECCIONAR CURSO) ----------
@@ -636,6 +653,7 @@ function mostrarHome(){
   document.getElementById('view_curso').style.display='none';
   document.getElementById('view_home').style.display='block';
   document.getElementById('panel_nuevo_curso').style.display='none';
+  try{ localStorage.removeItem('cepro_control_ultimo_curso'); }catch(e){}
   renderCursoGrid();
 }
 function cursosUnicos(){
@@ -696,6 +714,7 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
 // ---------- VISTA CURSO (ABIERTO) ----------
 window.abrirCurso = function(curso){
   CURSO_ACTUAL = curso;
+  try{ localStorage.setItem('cepro_control_ultimo_curso', curso); }catch(e){}
   document.getElementById('view_home').style.display='none';
   document.getElementById('view_curso').style.display='block';
   document.getElementById('curso_actual_nombre').textContent = curso;
@@ -1542,6 +1561,7 @@ document.querySelectorAll('.tab').forEach(tab=>{
     ['registrar','asistencia','evaluaciones','reporte','certificados','facilitadores','historial'].forEach(t=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
+    try{ localStorage.setItem('cepro_control_ultima_pestana', tab.dataset.tab); }catch(e){}
   });
 });
 // ---------- CONFIGURACIÓN DEL CERTIFICADO (por curso) ----------
