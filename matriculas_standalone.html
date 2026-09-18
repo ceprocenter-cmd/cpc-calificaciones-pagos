@@ -794,6 +794,21 @@ async function loadAll(){
   SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
   EXALUMNOS = exal;
 }
+// Recarga SOLO las hojas indicadas, en vez de las 6 que trae loadAll(). Casi ninguna acción
+// (guardar un pago, marcar un curso oculto, etc.) toca todas las hojas a la vez, así que pedirlas
+// todas de nuevo en cada clic solo hace más lenta la app y satura tu Apps Script sin necesidad.
+async function refrescarHojas(nombres){
+  const resultados = await Promise.all(nombres.map(n=>apiGet(n).catch(()=>[])));
+  nombres.forEach((n, i)=>{
+    const data = resultados[i];
+    if(n==='Nomina') NOMINA = data.map(x=>({...x, activo: !(x.activo===false || String(x.activo).trim().toUpperCase()==='FALSE')}));
+    else if(n==='Modulos') MODULOS = data.map(x=>({...x, precio:normNum(x.precio)}));
+    else if(n==='Pagos') PAGOS = data.map(x=>({...x, monto:normNum(x.monto), esAbono:normBool(x.esAbono), precioAcordado:normNum(x.precioAcordado), confirmadoBanco:normBool(x.confirmadoBanco), exonerado:normBool(x.exonerado)}));
+    else if(n==='Matriculas') MATRICULAS = data.map(x=>({...x, montoMensual: normNum(x.montoMensual)}));
+    else if(n==='Solicitudes') SOLICITUDES = data.filter(s=>s.estado==='Pendiente');
+    else if(n==='ExAlumnos') EXALUMNOS = data;
+  });
+}
 async function initApp(){
   if(!API_URL){
     document.getElementById('setup_banner').style.display='block';
@@ -866,7 +881,7 @@ window.toggleVisibilidadCurso = async function(curso, nuevoValor){
   try{
     for(const it of items){ await apiPost('Modulos','update',{id:it.id, data:{visiblePublico:nuevoValor}}); }
     showToast(nuevoValor ? `"${curso}" ahora se muestra en la Vista de Formulario.` : `"${curso}" ahora está oculto en la Vista de Formulario.`);
-    await loadAll();
+    await refrescarHojas(['Modulos']);
     renderAll();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
@@ -924,7 +939,7 @@ document.getElementById('btn_guardar_curso').addEventListener('click', async ()=
     document.getElementById('nc_nombre').value='';
     document.getElementById('items_rows').innerHTML='';
     agregarFilaItem();
-    await loadAll();
+    await refrescarHojas(['Modulos']);
     renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 });
@@ -996,7 +1011,7 @@ document.getElementById('btn_ec_guardar').addEventListener('click', async ()=>{
     for(const id of idsEliminados){ await apiPost('Modulos','delete',{id}); }
     showToast('Curso actualizado.');
     document.getElementById('modal_editar_curso').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Modulos']);
     renderAll();
   }catch(e){ showToast('Error al guardar los cambios: '+e.message); }
   finally{ btn.disabled = false; btn.textContent = 'Guardar Cambios'; }
@@ -1152,7 +1167,7 @@ window.confirmarSolicitud = async function(solId){
       solicitudId: solId, fecha: new Date().toISOString().slice(0,10), curso, estudiante, cedula, correo, telefono, ciudad, pais, profesion, instagram, certificado, montoMensual, asesor, metodoPago, cuentaDestino, referenciaPago, modulosPagados, archivosExistentes
     });
     showToast('Matrícula confirmada — carpeta creada en Drive.');
-    await loadAll();
+    await refrescarHojas(['Nomina','Matriculas','Pagos','Solicitudes']);
     renderAll();
   }catch(e){ showToast('Error al confirmar: '+e.message); }
 };
@@ -1160,7 +1175,7 @@ window.rechazarSolicitud = async function(solId){
   if(!confirm('¿Eliminar esta solicitud? El cliente tendría que volver a llenarla si fue un error.')) return;
   await apiPost('Solicitudes','delete',{id:solId});
   showToast('Solicitud eliminada.');
-  await loadAll();
+  await refrescarHojas(['Solicitudes']);
   renderAll();
 };
 function renderSelectsCurso(){
@@ -1469,7 +1484,7 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     document.getElementById('m_cuenta_destino_wrap').style.display='none'; document.getElementById('m_referencia_pago').value='';
     document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value=''; document.getElementById('m_file_cedula').value='';
     document.getElementById('pago_lines').innerHTML=''; agregarLineaPago();
-    await loadAll(); renderAll(); actualizarDatalistEstudiantes();
+    await refrescarHojas(['Nomina','Matriculas','Pagos']); renderAll(); actualizarDatalistEstudiantes();
   }catch(e){ showToast('Error al matricular: '+e.message); }
 });
 // ---------- CUENTAS POR COBRAR ----------
@@ -1490,7 +1505,7 @@ window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor)
   try{
     await apiPost('Nomina','update',{id:reg.id, data:{activo:nuevoValor}});
     showToast(nuevoValor ? 'Estudiante reactivado.' : 'Marcado como "no continuó".');
-    await loadAll();
+    await refrescarHojas(['Nomina']);
     renderCXC();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
@@ -1655,7 +1670,7 @@ window.marcarItemGratis = async function(curso, estudiante, modulo){
       archivos: {}
     });
     showToast(`"${modulo}" quedó marcado como gratis para ${estudiante}.`);
-    await loadAll();
+    await refrescarHojas(['Nomina','Matriculas','Pagos']);
     renderCXC();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 };
@@ -1819,7 +1834,7 @@ window.confirmarPagoBanco = async function(pagoId, esHistorica){
   try{
     await apiConfirmarPagoBanco(pagoId, !!esHistorica);
     showToast(esHistorica ? 'Pago confirmado — registrado en el Financiero como venta histórica (no suma al saldo).' : 'Pago confirmado en banco — ya se registró como ingreso en el Financiero.');
-    await loadAll();
+    await refrescarHojas(['Pagos']);
     renderAll();
   }catch(e){ showToast('Error al confirmar: '+e.message); }
 };
@@ -1865,7 +1880,7 @@ window.confirmarTransferirEstudiante = async function(){
     if(json.error) throw new Error(json.error);
     showToast(`Transferido a "${cursoDestino}" correctamente.${json.carpetaMovida?' Carpeta de Drive movida también.':''}`);
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Nomina','Matriculas','Pagos']);
     renderCXC();
   }catch(e){ showToast('Error al transferir: '+e.message); }
 };
@@ -1927,7 +1942,7 @@ window.guardarEdicionEstudiante = async function(curso, estudianteOriginal){
     await apiActualizarEstudiante(curso, estudianteFinal, data);
     showToast('Datos actualizados correctamente.');
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Nomina','Matriculas','Pagos','ExAlumnos']);
     renderAll();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
@@ -2255,7 +2270,7 @@ window.confirmarFusionEstudiantes = async function(idxGrupo){
     if(fallidos===0){ showToast(`Fusión completa: ${actualizados} fila(s) actualizada(s).`); }
     else{ showToast(`Fusión parcial: ${actualizados} fila(s) actualizada(s), ${fallidos} fallaron — puede que tu Apps Script no permita editar esas hojas todavía. Revísalas a mano o pide que agreguen esa función.`); }
     document.getElementById('modal_overlay').classList.remove('show');
-    await loadAll();
+    await refrescarHojas(['Nomina','Matriculas','Pagos','ExAlumnos']);
     renderAll();
   }catch(err){ showToast('Error al fusionar: '+err.message); }
 };
@@ -2380,7 +2395,7 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
     }
     resultadoBox.textContent = `Importación completa: ${exitosos} de ${nuevas.length} registros nuevos guardados. Se omitieron ${duplicadas.length} que ya estaban en el sistema.`;
     showToast(`${exitosos} ex-alumno(s) nuevo(s) importado(s) — ${duplicadas.length} omitido(s) por ya existir.`);
-    await loadAll();
+    await refrescarHojas(['ExAlumnos']);
     renderBaseEstudiantes();
   }catch(e){ resultadoBox.textContent = 'Error al leer el archivo: ' + e.message; }
 });
