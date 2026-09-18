@@ -464,6 +464,7 @@
 <script>
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
+let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
 const CODIGOS_PAIS = {
   'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52',
   'argentina':'+54','chile':'+56','bolivia':'+591','paraguay':'+595','uruguay':'+598',
@@ -673,7 +674,6 @@ document.getElementById('btn_limpiar_busqueda_est').addEventListener('click', ()
   document.getElementById('buscador_lista_est').classList.remove('show');
   inputBuscarEst.focus();
 });
-let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
 const CONCEPTO_LIBRE = '__PENALIDAD_OTRO__';
 function fmt(n){ return '$' + (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3600); }
