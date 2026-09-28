@@ -170,7 +170,7 @@
         <div class="empty" id="cursos_categoria_hint" style="display:none;">Selecciona una categoría arriba para ver sus cursos.</div>
         <div class="table-scroll" id="tabla_cursos_wrap" style="display:none;margin-top:14px;">
           <table>
-            <thead><tr><th style="width:300px;">Curso</th><th style="width:300px;">VISTA DE FORMULARIO</th><th style="width:500px;">Ítems de Pago</th><th class="num">Total de Referencia</th><th></th></tr></thead>
+            <thead><tr><th style="width:300px;">Curso</th><th style="width:300px;">VISTA DE FORMULARIO</th><th>ESTADO</th><th style="width:500px;">Ítems de Pago</th><th class="num">Total de Referencia</th><th></th></tr></thead>
             <tbody id="tabla_cursos"></tbody>
           </table>
         </div>
@@ -903,6 +903,39 @@ window.toggleVisibilidadCurso = async function(curso, nuevoValor){
     renderAll();
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
+// ---------- CURSO FINALIZADO ----------
+// Se guarda en la hoja Modulos, columna "finalizado", con la fecha en que se cerró (vacío = en curso).
+function fechaFinalizadoCurso(curso){
+  const it = itemsDe(curso).find(m=>m.finalizado && String(m.finalizado).trim() && String(m.finalizado).trim().toUpperCase()!=='FALSE');
+  return it ? (ymdLocal(it.finalizado) || String(it.finalizado)) : '';
+}
+function cursoFinalizado(curso){ return !!fechaFinalizadoCurso(curso); }
+window.toggleFinalizarCurso = async function(curso, finalizar){
+  if(!API_URL){ showToast('Conecta tu Apps Script real para poder guardar esto.'); return; }
+  const msg = finalizar
+    ? `¿Marcar "${curso}" como FINALIZADO?\n\nSu deuda pendiente sale del cobro normal y pasa a "Cartera de cursos terminados" en el Reporte General. No se borra ningún pago ni estudiante, y puedes seguir registrando pagos atrasados. Puedes reabrirlo cuando quieras.`
+    : `¿Reabrir "${curso}"? Su deuda vuelve al cobro normal.`;
+  if(!confirm(msg)) return;
+  const valor = finalizar ? hoyYMD() : '';
+  showToast('Guardando...');
+  try{
+    for(const it of itemsDe(curso)){ await apiPost('Modulos','update',{id:it.id, data:{finalizado:valor}}); }
+    await refrescarHojas(['Modulos']);
+    if(cursoFinalizado(curso)!==finalizar){
+      showToast('No se guardó: en tu Google Sheets, hoja "Modulos", agrega una columna con el encabezado exacto finalizado y vuelve a intentarlo.');
+    }else{
+      showToast(finalizar ? `"${curso}" quedó finalizado.` : `"${curso}" se reabrió.`);
+    }
+    renderAll();
+  }catch(e){ showToast('Error al actualizar: '+e.message); }
+};
+// Opciones de un <select> de cursos: primero los que están en curso, luego los finalizados agrupados aparte.
+function opcionesCursosAgrupadas(cursos){
+  const activos = cursos.filter(c=>!cursoFinalizado(c));
+  const fin = cursos.filter(c=>cursoFinalizado(c));
+  const op = c=>`<option value="${escHtml(c)}">${escHtml(c)}</option>`;
+  return activos.map(op).join('') + (fin.length ? `<optgroup label="🏁 Cursos finalizados">${fin.map(op).join('')}</optgroup>` : '');
+}
 function renderAll(){
   renderTicker(); renderTickerReporte(); renderCategoriasCursos(); renderTablaCursos(); renderSelectsCurso(); renderChipsConceptos();
   renderSolicitudes(); renderCXC(); renderResumenGeneralDeudores(); renderReporteMensual(); renderBaseEstudiantes();
@@ -974,8 +1007,9 @@ function renderTablaCursos(){
   wrap.style.display='block';
   const cursos = todos.filter(c=>categoriaDe(c)===_categoriaCursoActiva);
   // Los cursos ocultos de la Vista de Formulario quedan al fondo; entre cursos con el mismo estado se mantiene el orden alfabético.
-  cursos.sort((a,b)=>(cursoVisiblePublico(a)?0:1) - (cursoVisiblePublico(b)?0:1));
-  if(cursos.length===0){ body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin cursos en esta categoría.</td></tr>`; return; }
+  // Primero los cursos en marcha, al fondo los finalizados; dentro de cada grupo, los ocultos del formulario van al final.
+  cursos.sort((a,b)=>((cursoFinalizado(a)?2:0)+(cursoVisiblePublico(a)?0:1)) - ((cursoFinalizado(b)?2:0)+(cursoVisiblePublico(b)?0:1)));
+  if(cursos.length===0){ body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin cursos en esta categoría.</td></tr>`; return; }
   body.innerHTML = cursos.map(c=>{
     const items = itemsDe(c);
     const total = items.reduce((s,m)=>s+m.precio,0);
@@ -984,7 +1018,11 @@ function renderTablaCursos(){
     const btnVisibilidad = visible
       ? `<span class="pill ok">Visible</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', false)">Ocultar</button>`
       : `<span class="pill na">Oculto</span> <button class="btn btn-ghost btn-sm" onclick="toggleVisibilidadCurso('${cEsc}', true)">Mostrar</button>`;
-    return `<tr><td style="max-width:300px;white-space:normal;word-break:break-word;">${c}</td><td style="max-width:300px;white-space:normal;">${btnVisibilidad}</td><td style="max-width:500px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td><td><button class="btn btn-ghost btn-sm" onclick="abrirEditarCurso('${cEsc}')">✏️ Editar</button></td></tr>`;
+    const fFin = fechaFinalizadoCurso(c);
+    const celdaEstado = fFin
+      ? `<span class="pill na">🏁 Finalizado ${fechaCorta(fFin)}</span> <button class="btn btn-ghost btn-sm" onclick="toggleFinalizarCurso('${cEsc}', false)">Reabrir</button>`
+      : `<span class="pill ok">En curso</span> <button class="btn btn-ghost btn-sm" onclick="toggleFinalizarCurso('${cEsc}', true)">🏁 Finalizar</button>`;
+    return `<tr${fFin?' style="opacity:0.7;"':''}><td style="max-width:300px;white-space:normal;word-break:break-word;">${c}</td><td style="max-width:300px;white-space:normal;">${btnVisibilidad}</td><td style="white-space:normal;min-width:170px;">${celdaEstado}</td><td style="max-width:500px;white-space:normal;word-break:break-word;">${items.map(m=>m.modulo+' ('+fmt(m.precio)+')').join(', ')}</td><td class="num">${fmt(total)}</td><td><button class="btn btn-ghost btn-sm" onclick="abrirEditarCurso('${cEsc}')">✏️ Editar</button></td></tr>`;
   }).join('');
 }
 // ---------- EDITAR CURSO (corregir nombre/precio de ítems ya guardados) ----------
@@ -1198,7 +1236,7 @@ window.rechazarSolicitud = async function(solId){
 };
 function renderSelectsCurso(){
   const cursos = cursosUnicos();
-  const opts = cursos.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const opts = opcionesCursosAgrupadas(cursos);
   const mCurso = document.getElementById('m_curso');
   const prevM = mCurso.value;
   // Sin placeholder, el navegador selecciona solo el primer <option> — eso hacía que quedara marcado "el primer
@@ -1619,7 +1657,7 @@ function renderCXC(){
   if(asesorFiltro) estudiantes = estudiantes.filter(est=>asesorDeEstudiante(curso, est)===asesorFiltro);
   const activos = estudiantes.filter(est=>nominaActivaCXC(curso, est)).length;
   const inactivos = estudiantes.length - activos;
-  document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})`;
+  document.getElementById('cxc_contador').textContent = `(${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${inactivos>0?` — ${activos} activos, ${inactivos} no continuaron`:''})${cursoFinalizado(curso)?' — 🏁 Curso finalizado el '+fechaCorta(fechaFinalizadoCurso(curso)):''}`;
   estudiantes.sort((a,b)=>{ const activoA = nominaActivaCXC(curso,a), activoB = nominaActivaCXC(curso,b); if(activoA===activoB) return a.localeCompare(b); return activoA ? -1 : 1; });
   head.innerHTML = '<th>#</th><th>Estudiante</th><th></th><th>Asesor</th>' + items.map(m=>{
     const esInscripcion = /inscripci[oó]n/i.test(m.modulo);
@@ -1843,9 +1881,11 @@ function itemsVencidosDelCurso(curso){
   });
   return {items: vencidos, sinFecha, sinCalendario:false, fechas: cal.mapa};
 }
-function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
+// finalizados=false → cursos en marcha (cobro normal). finalizados=true → "cartera" de cursos ya terminados,
+// con la misma regla de fechas del Calendario Docente (así un módulo que nunca se dictó no aparece como deuda).
+function calcularDeudoresGenerales(asesorFiltro, soloVencidos, finalizados){
   const lineas = [], avisosSinFecha = [], cursosSinCalendario = [], saltados = [];
-  cursosUnicos().forEach(curso=>{
+  cursosUnicos().filter(c=>cursoFinalizado(c)===!!finalizados).forEach(curso=>{
     const items = itemsDeOrdenado(curso);
     if(items.length===0) return;
     const venc = itemsVencidosDelCurso(curso);
@@ -1891,13 +1931,16 @@ function renderResumenGeneralDeudores(){
   const box = document.getElementById('rg_resumen');
   if(!box) return;
   const {asesor, soloVencidos} = opcionesReporteGeneral();
-  const r = calcularDeudoresGenerales(asesor, soloVencidos);
-  if(r.totalDeudores===0){ box.innerHTML = `<p class="hint" style="margin:0;color:var(--accent-dark);font-weight:700;">✅ Nadie tiene deudas pendientes con este filtro.</p>`; return; }
+  const r = calcularDeudoresGenerales(asesor, soloVencidos, false);
+  const rc = calcularDeudoresGenerales(asesor, soloVencidos, true);
+  const tickCartera = rc.totalDeudores>0 ? `<div class="tick"><div class="n" style="color:var(--text-dim);">${fmt(rc.totalGeneral)}</div><div class="l">🏁 Cartera cursos terminados (${rc.totalDeudores})</div></div>` : '';
+  if(r.totalDeudores===0){ box.innerHTML = `<p class="hint" style="margin:0;color:var(--accent-dark);font-weight:700;">✅ En los cursos en marcha nadie tiene deudas pendientes con este filtro.</p>${tickCartera?`<div class="ticker" style="margin:10px 0 0;">${tickCartera}</div>`:''}`; return; }
   box.innerHTML = `
     <div class="ticker" style="margin-bottom:0;">
       <div class="tick"><div class="n neg">${r.totalDeudores}</div><div class="l">Estudiantes con deuda</div></div>
       <div class="tick"><div class="n warn">${r.cursos.length}</div><div class="l">Cursos con deudores</div></div>
       <div class="tick"><div class="n neg">${fmt(r.totalGeneral)}</div><div class="l">Total pendiente${soloVencidos?' (hasta la fecha)':''}</div></div>
+      ${tickCartera}
     </div>${(r.avisosSinFecha.length||r.cursosSinCalendario.length)?`<p class="hint" style="margin:8px 0 0;color:var(--warn);font-weight:700;">⚠ Hay ${r.avisosSinFecha.length} curso(s) con módulos sin fecha y ${r.cursosSinCalendario.length} sin vincular en el Calendario Docente — el detalle sale al final del PDF.</p>`:''}`;
 }
 document.getElementById('rg_filtro_asesor').addEventListener('change', renderResumenGeneralDeudores);
@@ -1926,13 +1969,8 @@ function textoEstadoModulo(l){
   const desde = l.fechaInicio ? ` <span style="color:var(--text-dim);font-size:11.5px;">(inició ${fechaCorta(l.fechaInicio)})</span>` : '';
   return (l.pagado>0 ? `${nombre}: abonó ${fmt(l.pagado)}, debe ${fmt(l.saldo)}` : `${nombre}: debe ${fmt(l.saldo)}`) + desde;
 }
-document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
-  const {asesor, soloVencidos} = opcionesReporteGeneral();
-  const r = calcularDeudoresGenerales(asesor, soloVencidos);
-  if(r.totalDeudores===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
-  const hoy = new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
-  const resumenCursos = r.cursos.map(c=>`<tr><td>${c.curso}</td><td style="text-align:right;">${c.estudiantes.length}</td><td style="text-align:right;">${fmt(c.total)}</td></tr>`).join('');
-  const secciones = r.cursos.map(c=>{
+function htmlSeccionesCursos(cursos, colorBorde){
+  return cursos.map(c=>{
     const filas = c.estudiantes.map((e,i)=>`
       <tr style="break-inside:avoid;page-break-inside:avoid;">
         <td>${i+1}</td>
@@ -1941,15 +1979,41 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
         <td style="white-space:normal;">${e.modulos.map(textoEstadoModulo).join('<br>')}</td>
         <td style="text-align:right;color:var(--danger);font-weight:700;">${fmt(e.total)}</td>
       </tr>`).join('');
+    const fFin = fechaFinalizadoCurso(c.curso);
     return `
       <div style="break-inside:avoid-page;margin-bottom:22px;">
-        <div class="deudor-nombre" style="border-bottom:2px solid var(--accent-dark);">
-          <span>${c.curso} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${c.estudiantes.length} deudor${c.estudiantes.length!==1?'es':''})</span></span>
+        <div class="deudor-nombre" style="border-bottom:2px solid ${colorBorde};">
+          <span>${c.curso} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${c.estudiantes.length} deudor${c.estudiantes.length!==1?'es':''}${fFin?' — finalizado el '+fechaCorta(fFin):''})</span></span>
           <span class="saldo">${fmt(c.total)}</span>
         </div>
         <table class="doc-table" style="margin-bottom:0;"><thead><tr><th>#</th><th>Estudiante</th><th>Asesor</th><th>Qué debe</th><th style="text-align:right;">Saldo</th></tr></thead><tbody>${filas}</tbody></table>
       </div>`;
   }).join('');
+}
+function htmlResumenCursos(r){
+  const filas = r.cursos.map(c=>`<tr><td>${c.curso}</td><td style="text-align:right;">${c.estudiantes.length}</td><td style="text-align:right;">${fmt(c.total)}</td></tr>`).join('');
+  return `<table class="doc-table"><thead><tr><th>Curso</th><th style="text-align:right;">Deudores</th><th style="text-align:right;">Total Pendiente</th></tr></thead>
+      <tbody>${filas}<tr><td><b>TOTAL</b></td><td style="text-align:right;"><b>${r.totalDeudores}</b></td><td style="text-align:right;"><b>${fmt(r.totalGeneral)}</b></td></tr></tbody></table>`;
+}
+document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
+  const {asesor, soloVencidos} = opcionesReporteGeneral();
+  const r = calcularDeudoresGenerales(asesor, soloVencidos, false);
+  const rc = calcularDeudoresGenerales(asesor, soloVencidos, true);
+  if(r.totalDeudores===0 && rc.totalDeudores===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
+  const hoy = new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const saltadosTodos = {saltados: r.saltados.concat(rc.saltados)};
+  const bloqueActivos = r.totalDeudores>0 ? `
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 8px;">Resumen por Curso (cursos en marcha)</h3>
+    ${htmlResumenCursos(r)}
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:10px 0 12px;">Detalle por Curso</h3>
+    ${htmlSeccionesCursos(r.cursos, 'var(--accent-dark)')}` : `<p class="hint">✅ En los cursos en marcha nadie tiene deudas pendientes.</p>`;
+  const bloqueCartera = rc.totalDeudores>0 ? `
+    <div style="margin-top:26px;padding-top:14px;border-top:3px double var(--line);">
+      <h2 style="font-family:'Quicksand',sans-serif;font-size:18px;margin:0 0 4px;">🏁 Cartera de Cursos Terminados</h2>
+      <p style="font-size:12.5px;color:var(--text-dim);margin:0 0 10px;">Deuda que quedó pendiente en cursos ya finalizados. No suma al total de arriba. Total cartera: <b style="color:var(--danger);">${fmt(rc.totalGeneral)}</b> (${rc.totalDeudores} estudiante${rc.totalDeudores!==1?'s':''}).</p>
+      ${htmlResumenCursos(rc)}
+      ${htmlSeccionesCursos(rc.cursos, 'var(--text-dim)')}
+    </div>` : '';
   const html = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -1957,27 +2021,27 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
     </div>
     <div class="doc-meta">
       Corte al: <b>${hoy}</b>${asesor?' — Asesor: <b>'+asesor+'</b>':''} — Solo módulos hasta la fecha (sin módulos futuros)<br>
-      Estudiantes con deuda: <b>${r.totalDeudores}</b> — Cursos: <b>${r.cursos.length}</b> — Total pendiente: <b style="color:var(--danger);">${fmt(r.totalGeneral)}</b><br>
+      Cursos en marcha — Estudiantes con deuda: <b>${r.totalDeudores}</b> — Cursos: <b>${r.cursos.length}</b> — Total pendiente: <b style="color:var(--danger);">${fmt(r.totalGeneral)}</b><br>
+      ${rc.totalDeudores>0?`Cartera de cursos terminados: <b>${fmt(rc.totalGeneral)}</b> (${rc.totalDeudores} estudiante${rc.totalDeudores!==1?'s':''}, detalle al final)<br>`:''}
       <span style="font-size:12px;">No incluye a estudiantes marcados como "no continuó".</span>
     </div>
-    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 8px;">Resumen por Curso</h3>
-    <table class="doc-table"><thead><tr><th>Curso</th><th style="text-align:right;">Deudores</th><th style="text-align:right;">Total Pendiente</th></tr></thead>
-      <tbody>${resumenCursos}<tr><td><b>TOTAL</b></td><td style="text-align:right;"><b>${r.totalDeudores}</b></td><td style="text-align:right;"><b>${fmt(r.totalGeneral)}</b></td></tr></tbody></table>
-    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:10px 0 12px;">Detalle por Curso</h3>
-    ${secciones}
-    ${bloqueSaltados(r)}
-    ${bloqueAvisosFechas(r)}
+    ${bloqueActivos}
+    ${bloqueCartera}
+    ${bloqueSaltados(saltadosTodos)}
+    ${bloqueAvisosFechas({avisosSinFecha: r.avisosSinFecha.concat(rc.avisosSinFecha), cursosSinCalendario: r.cursosSinCalendario.concat(rc.cursosSinCalendario)})}
   `;
   abrirModalDoc(html);
 });
 document.getElementById('btn_rg_csv').addEventListener('click', ()=>{
   const {asesor, soloVencidos} = opcionesReporteGeneral();
-  const r = calcularDeudoresGenerales(asesor, soloVencidos);
+  const r0 = calcularDeudoresGenerales(asesor, soloVencidos, false);
+  const r1 = calcularDeudoresGenerales(asesor, soloVencidos, true);
+  const r = {lineas: r0.lineas.map(l=>({...l, estadoCurso:'En curso'})).concat(r1.lineas.map(l=>({...l, estadoCurso:'Finalizado'})))};
   if(r.lineas.length===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
-  const headers = ['Curso','Estudiante','Asesor','Cedula','Correo','Telefono','Modulo','Inicio del Modulo','Valor Acordado','Pagado','Saldo'];
+  const headers = ['Estado del Curso','Curso','Estudiante','Asesor','Cedula','Correo','Telefono','Modulo','Inicio del Modulo','Valor Acordado','Pagado','Saldo'];
   const rows = [headers.join(',')];
-  const ordenadas = r.lineas.slice().sort((a,b)=> a.curso.localeCompare(b.curso) || a.estudiante.localeCompare(b.estudiante));
-  ordenadas.forEach(l=>rows.push([l.curso,l.estudiante,l.asesor,l.cedula,l.correo,l.telefono,l.modulo,l.fechaInicio||'',l.esperado.toFixed(2),l.pagado.toFixed(2),l.saldo.toFixed(2)].map(csvEscape).join(',')));
+  const ordenadas = r.lineas.slice().sort((a,b)=> a.estadoCurso.localeCompare(b.estadoCurso) || a.curso.localeCompare(b.curso) || a.estudiante.localeCompare(b.estudiante));
+  ordenadas.forEach(l=>rows.push([l.estadoCurso,l.curso,l.estudiante,l.asesor,l.cedula,l.correo,l.telefono,l.modulo,l.fechaInicio||'',l.esperado.toFixed(2),l.pagado.toFixed(2),l.saldo.toFixed(2)].map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'deudores_general_ceprocenter');
 });
 // ---------- REPORTE MENSUAL ----------
