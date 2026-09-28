@@ -275,6 +275,25 @@
     <!-- CUENTAS POR COBRAR -->
     <div id="tab-cobrar" style="display:none;">
       <div class="panel">
+        <h2>Reporte General de Deudores <span style="font-weight:400;color:var(--text-dim);font-size:14px;">(todos los cursos)</span></h2>
+        <p class="hint">Recorre TODOS los cursos a la vez y te dice quién debe, en qué curso y qué módulo, con el saldo de cada uno. Solo cuenta estudiantes activos (no incluye a quienes "no continuaron").</p>
+        <div class="grid cols3" style="align-items:end;">
+          <div class="field"><label>Filtrar por Asesor</label><select id="rg_filtro_asesor"><option value="">Todos</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
+          <div class="field" style="grid-column: span 2;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
+              <input type="checkbox" id="rg_solo_vencidos" checked style="width:18px;height:18px;">
+              Solo hasta la fecha (módulos que ya arrancaron)
+            </label>
+          </div>
+        </div>
+        <p class="hint" style="margin:4px 0 0;">"Hasta la fecha": como el sistema no guarda fechas de inicio de cada módulo, se toma como ya arrancado todo módulo que al menos un compañero del mismo curso ya pagó (o abonó). La Inscripción y los pagos únicos siempre cuentan. Desmarca la casilla para ver la deuda total del curso completo, incluidos los módulos futuros.</p>
+        <div id="rg_resumen" style="margin-top:14px;"></div>
+        <div class="actions">
+          <button class="btn btn-primary btn-sm" id="btn_rg_pdf">📋 Ver / Descargar Reporte General (PDF)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_rg_csv">Descargar Reporte General (CSV)</button>
+        </div>
+      </div>
+      <div class="panel">
         <h2>Cuentas por Cobrar <span id="cxc_contador" style="font-weight:400;color:var(--text-dim);font-size:14px;"></span></h2>
         <p class="hint">El estado se calcula comparando lo efectivamente cobrado contra el precio de referencia de cada ítem.</p>
         <div id="cxc_resumen_curso" style="display:none;margin-bottom:16px;"></div>
@@ -888,7 +907,7 @@ window.toggleVisibilidadCurso = async function(curso, nuevoValor){
 };
 function renderAll(){
   renderTicker(); renderTickerReporte(); renderCategoriasCursos(); renderTablaCursos(); renderSelectsCurso(); renderChipsConceptos();
-  renderSolicitudes(); renderCXC(); renderReporteMensual(); renderBaseEstudiantes();
+  renderSolicitudes(); renderCXC(); renderResumenGeneralDeudores(); renderReporteMensual(); renderBaseEstudiantes();
 }
 function renderTickerReporte(){
   const box = document.getElementById('ticker_reporte');
@@ -1708,6 +1727,132 @@ document.getElementById('btn_export_deudores').addEventListener('click', ()=>{
   const rows = [headers.join(',')];
   data.filas.forEach(f=>rows.push(f.map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'deudores_'+data.curso.replace(/[^a-z0-9]+/gi,'_'));
+});
+// ---------- REPORTE GENERAL DE DEUDORES (todos los cursos) ----------
+// Número de módulo ("Módulo 3 - Intervención" → 3). Inscripción y conceptos sin número (Pago Único) → null.
+function numeroDeModulo(nombre){
+  if(/inscripci[oó]n/i.test(nombre||'')) return null;
+  const m = String(nombre||'').match(/m[oó]dulo\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+// "Hasta la fecha": el módulo más avanzado que AL MENOS UN estudiante del curso ya pagó/abonó con dinero real.
+// Todo módulo numerado por encima de ese se considera futuro (aún no arranca) y no se cobra todavía.
+function moduloMaxArrancado(curso){
+  let max = 0;
+  PAGOS.forEach(p=>{
+    if(p.curso!==curso || !(p.monto>0)) return;
+    const n = numeroDeModulo(p.modulo);
+    if(n && n>max) max = n;
+  });
+  return max;
+}
+function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
+  const lineas = [];
+  cursosUnicos().forEach(curso=>{
+    const items = itemsDeOrdenado(curso);
+    if(items.length===0) return;
+    const maxArr = moduloMaxArrancado(curso);
+    const itemsACobrar = soloVencidos ? items.filter(it=>{ const n = numeroDeModulo(it.modulo); return n===null || n<=maxArr; }) : items;
+    let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))];
+    estudiantes = estudiantes.filter(est=>nominaActivaCXC(curso, est));
+    if(asesorFiltro) estudiantes = estudiantes.filter(est=>(asesorDeEstudiante(curso, est)||'')===asesorFiltro);
+    estudiantes.forEach(est=>{
+      const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===est).slice(-1)[0] || {};
+      itemsACobrar.forEach(it=>{
+        const pagado = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo).reduce((s,p)=>s+p.monto,0);
+        const esperado = precioEsperado(curso, est, it.modulo);
+        const saldo = Math.max(0, esperado - pagado);
+        if(saldo>0.009){
+          lineas.push({curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', cedula:registro.cedula||'', correo:registro.correo||'', telefono:registro.telefono||'', modulo:it.modulo, esperado, pagado, saldo});
+        }
+      });
+    });
+  });
+  // Agrupa: curso → estudiante → módulos que debe.
+  const porCurso = {};
+  lineas.forEach(l=>{
+    const c = porCurso[l.curso] = porCurso[l.curso] || {curso:l.curso, total:0, estudiantes:{}};
+    const e = c.estudiantes[l.estudiante] = c.estudiantes[l.estudiante] || {estudiante:l.estudiante, asesor:l.asesor, telefono:l.telefono, total:0, modulos:[]};
+    e.modulos.push(l); e.total += l.saldo; c.total += l.saldo;
+  });
+  const cursos = Object.values(porCurso).map(c=>({...c, estudiantes: Object.values(c.estudiantes).sort((a,b)=>b.total-a.total)})).sort((a,b)=>b.total-a.total);
+  const totalGeneral = cursos.reduce((s,c)=>s+c.total,0);
+  const totalDeudores = cursos.reduce((s,c)=>s+c.estudiantes.length,0);
+  return {lineas, cursos, totalGeneral, totalDeudores};
+}
+function opcionesReporteGeneral(){
+  return { asesor: document.getElementById('rg_filtro_asesor').value, soloVencidos: document.getElementById('rg_solo_vencidos').checked };
+}
+function renderResumenGeneralDeudores(){
+  const box = document.getElementById('rg_resumen');
+  if(!box) return;
+  const {asesor, soloVencidos} = opcionesReporteGeneral();
+  const r = calcularDeudoresGenerales(asesor, soloVencidos);
+  if(r.totalDeudores===0){ box.innerHTML = `<p class="hint" style="margin:0;color:var(--accent-dark);font-weight:700;">✅ Nadie tiene deudas pendientes con este filtro.</p>`; return; }
+  box.innerHTML = `
+    <div class="ticker" style="margin-bottom:0;">
+      <div class="tick"><div class="n neg">${r.totalDeudores}</div><div class="l">Estudiantes con deuda</div></div>
+      <div class="tick"><div class="n warn">${r.cursos.length}</div><div class="l">Cursos con deudores</div></div>
+      <div class="tick"><div class="n neg">${fmt(r.totalGeneral)}</div><div class="l">Total pendiente${soloVencidos?' (hasta la fecha)':''}</div></div>
+    </div>`;
+}
+document.getElementById('rg_filtro_asesor').addEventListener('change', renderResumenGeneralDeudores);
+document.getElementById('rg_solo_vencidos').addEventListener('change', renderResumenGeneralDeudores);
+function textoEstadoModulo(l){
+  const nombre = acortarConcepto(l.modulo);
+  return l.pagado>0 ? `${nombre}: abonó ${fmt(l.pagado)}, debe ${fmt(l.saldo)}` : `${nombre}: debe ${fmt(l.saldo)}`;
+}
+document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
+  const {asesor, soloVencidos} = opcionesReporteGeneral();
+  const r = calcularDeudoresGenerales(asesor, soloVencidos);
+  if(r.totalDeudores===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
+  const hoy = new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'});
+  const resumenCursos = r.cursos.map(c=>`<tr><td>${c.curso}</td><td style="text-align:right;">${c.estudiantes.length}</td><td style="text-align:right;">${fmt(c.total)}</td></tr>`).join('');
+  const secciones = r.cursos.map(c=>{
+    const filas = c.estudiantes.map((e,i)=>`
+      <tr style="break-inside:avoid;page-break-inside:avoid;">
+        <td>${i+1}</td>
+        <td><b>${e.estudiante}</b>${e.telefono?`<br><span style="font-size:11.5px;color:var(--text-dim);">${e.telefono}</span>`:''}</td>
+        <td>${e.asesor}</td>
+        <td style="white-space:normal;">${e.modulos.map(textoEstadoModulo).join('<br>')}</td>
+        <td style="text-align:right;color:var(--danger);font-weight:700;">${fmt(e.total)}</td>
+      </tr>`).join('');
+    return `
+      <div style="break-inside:avoid-page;margin-bottom:22px;">
+        <div class="deudor-nombre" style="border-bottom:2px solid var(--accent-dark);">
+          <span>${c.curso} <span style="font-weight:400;color:var(--text-dim);font-size:12px;">(${c.estudiantes.length} deudor${c.estudiantes.length!==1?'es':''})</span></span>
+          <span class="saldo">${fmt(c.total)}</span>
+        </div>
+        <table class="doc-table" style="margin-bottom:0;"><thead><tr><th>#</th><th>Estudiante</th><th>Asesor</th><th>Qué debe</th><th style="text-align:right;">Saldo</th></tr></thead><tbody>${filas}</tbody></table>
+      </div>`;
+  }).join('');
+  const html = `
+    <div class="doc-header">
+      <div class="brand">Ceprocenter</div>
+      <div class="title">Reporte General de Deudores — Todos los Cursos</div>
+    </div>
+    <div class="doc-meta">
+      Corte al: <b>${hoy}</b>${asesor?' — Asesor: <b>'+asesor+'</b>':''} — ${soloVencidos?'Solo módulos que ya arrancaron':'Incluye módulos futuros (deuda total del curso)'}<br>
+      Estudiantes con deuda: <b>${r.totalDeudores}</b> — Cursos: <b>${r.cursos.length}</b> — Total pendiente: <b style="color:var(--danger);">${fmt(r.totalGeneral)}</b><br>
+      <span style="font-size:12px;">No incluye a estudiantes marcados como "no continuó".</span>
+    </div>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 8px;">Resumen por Curso</h3>
+    <table class="doc-table"><thead><tr><th>Curso</th><th style="text-align:right;">Deudores</th><th style="text-align:right;">Total Pendiente</th></tr></thead>
+      <tbody>${resumenCursos}<tr><td><b>TOTAL</b></td><td style="text-align:right;"><b>${r.totalDeudores}</b></td><td style="text-align:right;"><b>${fmt(r.totalGeneral)}</b></td></tr></tbody></table>
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:10px 0 12px;">Detalle por Curso</h3>
+    ${secciones}
+  `;
+  abrirModalDoc(html);
+});
+document.getElementById('btn_rg_csv').addEventListener('click', ()=>{
+  const {asesor, soloVencidos} = opcionesReporteGeneral();
+  const r = calcularDeudoresGenerales(asesor, soloVencidos);
+  if(r.lineas.length===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
+  const headers = ['Curso','Estudiante','Asesor','Cedula','Correo','Telefono','Modulo','Valor Acordado','Pagado','Saldo'];
+  const rows = [headers.join(',')];
+  const ordenadas = r.lineas.slice().sort((a,b)=> a.curso.localeCompare(b.curso) || a.estudiante.localeCompare(b.estudiante));
+  ordenadas.forEach(l=>rows.push([l.curso,l.estudiante,l.asesor,l.cedula,l.correo,l.telefono,l.modulo,l.esperado.toFixed(2),l.pagado.toFixed(2),l.saldo.toFixed(2)].map(csvEscape).join(',')));
+  downloadCSV(rows.join('\n'), 'deudores_general_ceprocenter');
 });
 // ---------- REPORTE MENSUAL ----------
 document.getElementById('rep_mes').addEventListener('change', renderReporteMensual);
