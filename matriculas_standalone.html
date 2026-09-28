@@ -1381,7 +1381,9 @@ function agregarLineaPago(){
       otroWrap.style.display = 'none';
       const opt = selConcepto.selectedOptions[0];
       const montoAcordadoLive = Number(document.getElementById('m_monto_mensual').value)||0;
-      const sugerido = montoAcordadoLive>0 ? montoAcordadoLive : (estudiante ? precioEsperado(curso, estudiante, selConcepto.value) : Number(opt.dataset.precio)||0);
+      const sugerido = esGraduacion(selConcepto.value)
+        ? (estudiante ? precioEsperadoDetalle(curso, estudiante, selConcepto.value).precioSiAsiste : Number(opt.dataset.precio)||0)
+        : (montoAcordadoLive>0 ? montoAcordadoLive : (estudiante ? precioEsperado(curso, estudiante, selConcepto.value) : Number(opt.dataset.precio)||0));
       inputPrecio.value = sugerido || opt.dataset.precio || '';
       inputMonto.value = inputPrecio.value;
     }
@@ -1475,6 +1477,33 @@ window.quitarModuloSaltado = async function(curso, estudiante, modulo){
     renderAll();
   }catch(e){ showToast('Error: '+e.message); }
 };
+// ---------- GRADUACIÓN (arancel opcional: solo se cobra a quien asiste) ----------
+// Asistencia guardada en la hoja Nomina, columna "graduacion": "Asiste" / "No asiste" / vacío (sin confirmar).
+// Si el estudiante ya pagó o abonó la graduación, cuenta como que asiste aunque no esté marcado.
+function esGraduacion(nombre){ return /graduaci[oó]n/i.test(nombre||''); }
+function estadoGraduacion(curso, estudiante){
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  const v = reg && reg.graduacion ? String(reg.graduacion).trim().toLowerCase() : '';
+  if(v==='asiste') return 'Asiste';
+  if(v==='no asiste') return 'No asiste';
+  return '';
+}
+window.marcarGraduacion = async function(curso, estudiante, valor){
+  if(!API_URL){ showToast('Conecta tu Apps Script real para poder guardar esto.'); return; }
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  if(!reg){ showToast('No se encontró a este estudiante en la nómina del curso.'); return; }
+  showToast('Guardando...');
+  try{
+    await apiPost('Nomina','update',{id:reg.id, data:{graduacion:valor}});
+    await refrescarHojas(['Nomina']);
+    if(estadoGraduacion(curso, estudiante)!==valor){
+      showToast('No se guardó: en tu Google Sheets, hoja "Nomina", agrega una columna con el encabezado exacto graduacion y vuelve a intentarlo.');
+    }else{
+      showToast(valor==='Asiste' ? `${estudiante} asiste a la graduación — se le cobra el arancel.` : valor==='No asiste' ? `${estudiante} no asiste — no se le cobra la graduación.` : 'Asistencia a la graduación sin confirmar.');
+    }
+    renderAll();
+  }catch(e){ showToast('Error: '+e.message); }
+};
 function precioEsperadoDetalle(curso, estudiante, concepto){
   const saltado = moduloSaltado(curso, estudiante, concepto);
   if(saltado) return {precio:0, saltado, origen:'no tomó este módulo (saltado)'+(saltado.motivo?': '+saltado.motivo:'')};
@@ -1483,6 +1512,16 @@ function precioEsperadoDetalle(curso, estudiante, concepto){
   const pagosConcepto = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
   const pagoExonerado = pagosConcepto.filter(p=>p.exonerado).slice(-1)[0];
   if(pagoExonerado) return {precio:0, origen:'exonerado / gratis (ya quedó marcado así antes)'};
+  if(esGraduacion(concepto)){
+    // La graduación tiene su propio arancel: nunca usa el Monto Acordado mensual.
+    const prev = pagosConcepto.filter(p=>p.precioAcordado).slice(-1)[0];
+    const itemG = itemsDe(curso).find(i=>i.modulo===concepto);
+    const precioG = prev ? prev.precioAcordado : (itemG ? itemG.precio : 0);
+    const yaPago = pagosConcepto.reduce((s,p)=>s+p.monto,0) > 0;
+    const est = estadoGraduacion(curso, estudiante);
+    if(yaPago || est==='Asiste') return {precio:precioG, precioSiAsiste:precioG, graduacion:'Asiste', origen:'arancel de graduación'+(yaPago&&est!=='Asiste'?' (ya pagó/abonó, se toma como que asiste)':' (confirmó que asiste)')};
+    return {precio:0, precioSiAsiste:precioG, graduacion: est || 'Sin confirmar', origen: est==='No asiste' ? 'no asiste a la graduación, no se cobra' : 'asistencia a la graduación sin confirmar, todavía no se cobra'};
+  }
   const pagos = pagosConcepto.filter(p=>p.precioAcordado);
   if(pagos.length>0) return {precio:pagos[pagos.length-1].precioAcordado, origen:'lo que se acordó y quedó registrado en su pago anterior de este mismo ítem'};
   const item = itemsDe(curso).find(i=>i.modulo===concepto);
@@ -1701,10 +1740,19 @@ function renderCXC(){
       const saltadoRec = moduloSaltado(curso, est, it.modulo);
       const cEsc = curso.replace(/'/g,"\\'"), eEsc = est.replace(/'/g,"\\'"), mEsc = it.modulo.replace(/'/g,"\\'");
       const btnSaltar = `<button class="btn btn-ghost btn-sm" title="Marcar que ${escHtml(est)} no tomó este módulo (se lo saltó)" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarModuloSaltado('${cEsc}','${eEsc}','${mEsc}')">⏭</button>`;
-      if(saltadoRec){ estadoTxt = 'Saltó'+(saltadoRec.motivo?' ('+saltadoRec.motivo+')':''); celda = `<td title="No tomó este módulo${saltadoRec.fecha?' — marcado el '+fechaCorta(saltadoRec.fecha):''}" style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill na">⏭ Saltó</span><button class="btn btn-ghost btn-sm" title="Quitar la marca: vuelve a cobrarse" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="quitarModuloSaltado('${cEsc}','${eEsc}','${mEsc}')">↩</button>${saltadoRec.motivo?`<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">${escHtml(saltadoRec.motivo)}</div>`:''}</td>`; }
+      const esGradCelda = esGraduacion(it.modulo);
+      const gradDet = esGradCelda ? precioEsperadoDetalle(curso, est, it.modulo) : null;
+      const btnG = (valor, txt, tit)=>`<button class="btn btn-ghost btn-sm" title="${tit}" style="padding:2px 6px;font-size:12px;margin:3px 3px 0 0;" onclick="marcarGraduacion('${cEsc}','${eEsc}','${valor}')">${txt}</button>`;
+      if(esGradCelda && gradDet.graduacion!=='Asiste' && pagado===0){
+        estadoTxt = gradDet.graduacion==='No asiste' ? 'No asiste a la graduación' : 'Graduación sin confirmar';
+        celda = gradDet.graduacion==='No asiste'
+          ? `<td style="width:130px;white-space:normal;"><span class="pill na">🎓 No asiste</span>${btnG('','↩','Quitar: vuelve a "sin confirmar"')}</td>`
+          : `<td title="Arancel: ${fmt(gradDet.precioSiAsiste)}" style="width:130px;white-space:normal;"><span class="pill na">🎓 Sin confirmar</span><div>${btnG('Asiste','✅ Asiste','Confirmar que asiste: se le cobra el arancel')}${btnG('No asiste','✗ No','No asiste: no se le cobra')}</div></td>`;
+      }
+      else if(saltadoRec){ estadoTxt = 'Saltó'+(saltadoRec.motivo?' ('+saltadoRec.motivo+')':''); celda = `<td title="No tomó este módulo${saltadoRec.fecha?' — marcado el '+fechaCorta(saltadoRec.fecha):''}" style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill na">⏭ Saltó</span><button class="btn btn-ghost btn-sm" title="Quitar la marca: vuelve a cobrarse" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="quitarModuloSaltado('${cEsc}','${eEsc}','${mEsc}')">↩</button>${saltadoRec.motivo?`<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">${escHtml(saltadoRec.motivo)}</div>`:''}</td>`; }
       else if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
-      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}${esInscripcionCelda?'':btnSaltar}</td>`; }
-      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+' de '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}${esInscripcionCelda?'':btnSaltar}</td>`; }
+      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}${esInscripcionCelda?'':(esGradCelda?btnG('No asiste','✗','Cambiar a: no asiste (no se cobra)'):btnSaltar)}</td>`; }
+      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+' de '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}${esInscripcionCelda||esGradCelda?'':btnSaltar}</td>`; }
       else { estadoTxt = 'Pagado ('+fmt(esperado)+')'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
       return celda;
@@ -1867,12 +1915,22 @@ function itemsVencidosDelCurso(curso){
   const hoy = hoyYMD();
   const cal = fechasInicioModulos(curso);
   const sinFecha = [];
+  const ultimoModulo = Math.max(0, ...items.map(it=>numeroDeModulo(it.modulo)||0));
   if(!cal.tieneSesiones){
     const maxArr = moduloMaxArrancado(curso);
-    return {items: items.filter(it=>{ const n = numeroDeModulo(it.modulo); return n===null || n<=maxArr; }), sinFecha, sinCalendario:true, fechas:{}};
+    return {items: items.filter(it=>{
+      if(esGraduacion(it.modulo)) return ultimoModulo>0 && maxArr>=ultimoModulo;
+      const n = numeroDeModulo(it.modulo); return n===null || n<=maxArr;
+    }), sinFecha, sinCalendario:true, fechas:{}};
   }
   const vencidos = items.filter(it=>{
     if(/inscripci[oó]n/i.test(it.modulo)) return true;
+    // Graduación: se cobra desde que arranca el ÚLTIMO módulo del curso.
+    if(esGraduacion(it.modulo)){
+      if(ultimoModulo===0) return cal.primeraFecha && cal.primeraFecha<=hoy;
+      const fU = cal.mapa[ultimoModulo];
+      return !!fU && fU<=hoy;
+    }
     const n = numeroDeModulo(it.modulo);
     if(n===null) return cal.primeraFecha && cal.primeraFecha<=hoy; // Pago Único: se cobra desde que arranca el curso
     const f = cal.mapa[n];
@@ -1884,7 +1942,7 @@ function itemsVencidosDelCurso(curso){
 // finalizados=false → cursos en marcha (cobro normal). finalizados=true → "cartera" de cursos ya terminados,
 // con la misma regla de fechas del Calendario Docente (así un módulo que nunca se dictó no aparece como deuda).
 function calcularDeudoresGenerales(asesorFiltro, soloVencidos, finalizados){
-  const lineas = [], avisosSinFecha = [], cursosSinCalendario = [], saltados = [];
+  const lineas = [], avisosSinFecha = [], cursosSinCalendario = [], saltados = [], gradSinConfirmar = [];
   cursosUnicos().filter(c=>cursoFinalizado(c)===!!finalizados).forEach(curso=>{
     const items = itemsDeOrdenado(curso);
     if(items.length===0) return;
@@ -1899,6 +1957,10 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos, finalizados){
     estudiantes = estudiantes.filter(est=>nominaActivaCXC(curso, est));
     if(asesorFiltro) estudiantes = estudiantes.filter(est=>(asesorDeEstudiante(curso, est)||'')===asesorFiltro);
     estudiantes.forEach(est=>{
+      itemsACobrar.filter(it=>esGraduacion(it.modulo)).forEach(it=>{
+        const g = precioEsperadoDetalle(curso, est, it.modulo);
+        if(g.graduacion==='Sin confirmar') gradSinConfirmar.push({curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', arancel:g.precioSiAsiste});
+      });
       items.forEach(it=>{ const sr = moduloSaltado(curso, est, it.modulo); if(sr) saltados.push({curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', modulo:it.modulo, motivo:sr.motivo||'', fecha:sr.fecha||''}); });
       const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===est).slice(-1)[0] || {};
       itemsACobrar.forEach(it=>{
@@ -1922,7 +1984,7 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos, finalizados){
   const cursos = Object.values(porCurso).map(c=>({...c, estudiantes: Object.values(c.estudiantes).sort((a,b)=>b.total-a.total)})).sort((a,b)=>b.total-a.total);
   const totalGeneral = cursos.reduce((s,c)=>s+c.total,0);
   const totalDeudores = cursos.reduce((s,c)=>s+c.estudiantes.length,0);
-  return {lineas, cursos, totalGeneral, totalDeudores, avisosSinFecha, cursosSinCalendario, saltados};
+  return {lineas, cursos, totalGeneral, totalDeudores, avisosSinFecha, cursosSinCalendario, saltados, gradSinConfirmar};
 }
 function opcionesReporteGeneral(){
   return { asesor: document.getElementById('rg_filtro_asesor').value, soloVencidos: true };
@@ -1941,9 +2003,19 @@ function renderResumenGeneralDeudores(){
       <div class="tick"><div class="n warn">${r.cursos.length}</div><div class="l">Cursos con deudores</div></div>
       <div class="tick"><div class="n neg">${fmt(r.totalGeneral)}</div><div class="l">Total pendiente${soloVencidos?' (hasta la fecha)':''}</div></div>
       ${tickCartera}
-    </div>${(r.avisosSinFecha.length||r.cursosSinCalendario.length)?`<p class="hint" style="margin:8px 0 0;color:var(--warn);font-weight:700;">⚠ Hay ${r.avisosSinFecha.length} curso(s) con módulos sin fecha y ${r.cursosSinCalendario.length} sin vincular en el Calendario Docente — el detalle sale al final del PDF.</p>`:''}`;
+    </div>${r.gradSinConfirmar.length?`<p class="hint" style="margin:8px 0 0;">🎓 ${r.gradSinConfirmar.length} estudiante(s) con la graduación sin confirmar — la lista sale en el PDF.</p>`:''}${(r.avisosSinFecha.length||r.cursosSinCalendario.length)?`<p class="hint" style="margin:8px 0 0;color:var(--warn);font-weight:700;">⚠ Hay ${r.avisosSinFecha.length} curso(s) con módulos sin fecha y ${r.cursosSinCalendario.length} sin vincular en el Calendario Docente — el detalle sale al final del PDF.</p>`:''}`;
 }
 document.getElementById('rg_filtro_asesor').addEventListener('change', renderResumenGeneralDeudores);
+function bloqueGraduacionSinConfirmar(lista){
+  if(!lista.length) return '';
+  const filas = lista.slice().sort((a,b)=>a.curso.localeCompare(b.curso)||a.estudiante.localeCompare(b.estudiante))
+    .map(x=>`<tr><td>${x.curso}</td><td>${x.estudiante}</td><td>${x.asesor}</td><td style="text-align:right;">${fmt(x.arancel)}</td></tr>`).join('');
+  return `<div style="break-inside:avoid-page;margin-top:10px;">
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 6px;">🎓 Graduación: asistencia sin confirmar</h3>
+    <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">Su curso ya está en el último módulo, pero no se sabe si van a la graduación. No se suman al total hasta que confirmen que asisten (o paguen).</p>
+    <table class="doc-table"><thead><tr><th>Curso</th><th>Estudiante</th><th>Asesor</th><th style="text-align:right;">Arancel si asiste</th></tr></thead><tbody>${filas}</tbody></table>
+  </div>`;
+}
 function bloqueSaltados(r){
   if(r.saltados.length===0) return '';
   const filas = r.saltados.slice().sort((a,b)=>a.curso.localeCompare(b.curso)||a.estudiante.localeCompare(b.estudiante))
@@ -2027,6 +2099,7 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
     </div>
     ${bloqueActivos}
     ${bloqueCartera}
+    ${bloqueGraduacionSinConfirmar(r.gradSinConfirmar)}
     ${bloqueSaltados(saltadosTodos)}
     ${bloqueAvisosFechas({avisosSinFecha: r.avisosSinFecha.concat(rc.avisosSinFecha), cursosSinCalendario: r.cursosSinCalendario.concat(rc.cursosSinCalendario)})}
   `;
@@ -2293,7 +2366,9 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
     saldoTotal += saldo;
     let estado;
     const saltadoInd = moduloSaltado(curso, estudiante, it.modulo);
-    if(saltadoInd) estado = `<span class="pill na">No tomó este módulo</span>${saltadoInd.motivo?' — '+escHtml(saltadoInd.motivo):''}`;
+    const gradInd = esGraduacion(it.modulo) && pagado===0 ? precioEsperadoDetalle(curso, estudiante, it.modulo) : null;
+    if(gradInd && gradInd.graduacion!=='Asiste') estado = `<span class="pill na">${gradInd.graduacion==='No asiste'?'No asiste a la graduación':'Graduación sin confirmar'}</span>`;
+    else if(saltadoInd) estado = `<span class="pill na">No tomó este módulo</span>${saltadoInd.motivo?' — '+escHtml(saltadoInd.motivo):''}`;
     else if(esperado<=0) estado = `<span class="pill ok">Gratis</span>`;
     else if(pagado===0) estado = `<span class="pill fail">Debe ${fmt(esperado)}</span>`;
     else if(saldo>0) estado = `<span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span>`;
