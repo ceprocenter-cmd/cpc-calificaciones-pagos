@@ -279,14 +279,8 @@
         <p class="hint">Recorre TODOS los cursos a la vez y te dice quién debe, en qué curso y qué módulo, con el saldo de cada uno. Solo cuenta estudiantes activos (no incluye a quienes "no continuaron").</p>
         <div class="grid cols3" style="align-items:end;">
           <div class="field"><label>Filtrar por Asesor</label><select id="rg_filtro_asesor"><option value="">Todos</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
-          <div class="field" style="grid-column: span 2;">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer;">
-              <input type="checkbox" id="rg_solo_vencidos" checked style="width:18px;height:18px;">
-              Solo hasta la fecha (módulos que ya arrancaron)
-            </label>
-          </div>
         </div>
-        <p class="hint" style="margin:4px 0 0;">"Hasta la fecha": como el sistema no guarda fechas de inicio de cada módulo, se toma como ya arrancado todo módulo que al menos un compañero del mismo curso ya pagó (o abonó). La Inscripción y los pagos únicos siempre cuentan. Desmarca la casilla para ver la deuda total del curso completo, incluidos los módulos futuros.</p>
+        <p class="hint" style="margin:4px 0 0;">Solo cuenta módulos <b>hasta la fecha</b> — nunca los futuros. Un módulo se cobra solo si su fecha de inicio en el <b>Calendario Docente</b> es hoy o antes. La Inscripción siempre cuenta. Si a un módulo le falta fecha en el calendario, no se incluye y sale avisado al final del PDF.</p>
         <div id="rg_resumen" style="margin-top:14px;"></div>
         <div class="actions">
           <button class="btn btn-primary btn-sm" id="btn_rg_pdf">📋 Ver / Descargar Reporte General (PDF)</button>
@@ -802,10 +796,13 @@ function fileToBase64(file){
   });
 }
 let EXALUMNOS = [];
+// Sesiones del Calendario Docente (misma URL de Apps Script). Se usan para saber la fecha de inicio real de cada módulo.
+let CALENDARIO = [];
 async function loadAll(){
-  const [nom, mod, pag, mat, sol, exal] = await Promise.all([
-    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes'), apiGet('ExAlumnos').catch(()=>[])
+  const [nom, mod, pag, mat, sol, exal, cal] = await Promise.all([
+    apiGet('Nomina'), apiGet('Modulos'), apiGet('Pagos'), apiGet('Matriculas'), apiGet('Solicitudes'), apiGet('ExAlumnos').catch(()=>[]), apiGet('CalendarioDocente').catch(()=>[])
   ]);
+  CALENDARIO = Array.isArray(cal) ? cal : [];
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod.map(m=>({...m, precio:normNum(m.precio)}));
   PAGOS = pag.map(p=>({...p, monto:normNum(p.monto), esAbono:normBool(p.esAbono), precioAcordado:normNum(p.precioAcordado), confirmadoBanco:normBool(p.confirmadoBanco), exonerado:normBool(p.exonerado)}));
@@ -826,6 +823,7 @@ async function refrescarHojas(nombres){
     else if(n==='Matriculas') MATRICULAS = data.map(x=>({...x, montoMensual: normNum(x.montoMensual)}));
     else if(n==='Solicitudes') SOLICITUDES = data.filter(s=>s.estado==='Pendiente');
     else if(n==='ExAlumnos') EXALUMNOS = data;
+    else if(n==='CalendarioDocente') CALENDARIO = Array.isArray(data) ? data : [];
   });
 }
 async function initApp(){
@@ -1735,8 +1733,34 @@ function numeroDeModulo(nombre){
   const m = String(nombre||'').match(/m[oó]dulo\s*(\d+)/i);
   return m ? Number(m[1]) : null;
 }
-// "Hasta la fecha": el módulo más avanzado que AL MENOS UN estudiante del curso ya pagó/abonó con dinero real.
-// Todo módulo numerado por encima de ese se considera futuro (aún no arranca) y no se cobra todavía.
+// Fecha "YYYY-MM-DD" en hora local, venga como texto o como fecha completa desde el Sheets.
+function ymdLocal(v){
+  if(!v) return '';
+  const t = String(v);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const d = new Date(t);
+  if(isNaN(d.getTime())) return /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0,10) : '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function hoyYMD(){ return ymdLocal(new Date().toISOString()); }
+// Del Calendario Docente: para un curso de Matrículas, la PRIMERA fecha de inicio de cada módulo (n° → "YYYY-MM-DD").
+function fechasInicioModulos(curso){
+  const mapa = {}; let tieneSesiones = false, primeraFecha = '';
+  CALENDARIO.forEach(c=>{
+    if(c.esFeriado==='Sí' || (c.cursoMatricula||'')!==curso) return;
+    const f = ymdLocal(c.fechaInicio);
+    if(!f) return;
+    tieneSesiones = true;
+    if(!primeraFecha || f<primeraFecha) primeraFecha = f;
+    const m = String(c.modulo||'').match(/(\d+)/);
+    if(!m) return;
+    const n = Number(m[1]);
+    if(!mapa[n] || f<mapa[n]) mapa[n] = f;
+  });
+  return {mapa, tieneSesiones, primeraFecha};
+}
+// Respaldo solo para cursos que NO tienen ninguna sesión vinculada en el Calendario Docente:
+// el módulo más avanzado que al menos un compañero del curso ya pagó/abonó.
 function moduloMaxArrancado(curso){
   let max = 0;
   PAGOS.forEach(p=>{
@@ -1746,13 +1770,38 @@ function moduloMaxArrancado(curso){
   });
   return max;
 }
+// Decide qué ítems de un curso ya se deben cobrar HOY. Devuelve también los módulos sin fecha y si el curso usó el respaldo.
+function itemsVencidosDelCurso(curso){
+  const items = itemsDeOrdenado(curso);
+  const hoy = hoyYMD();
+  const cal = fechasInicioModulos(curso);
+  const sinFecha = [];
+  if(!cal.tieneSesiones){
+    const maxArr = moduloMaxArrancado(curso);
+    return {items: items.filter(it=>{ const n = numeroDeModulo(it.modulo); return n===null || n<=maxArr; }), sinFecha, sinCalendario:true, fechas:{}};
+  }
+  const vencidos = items.filter(it=>{
+    if(/inscripci[oó]n/i.test(it.modulo)) return true;
+    const n = numeroDeModulo(it.modulo);
+    if(n===null) return cal.primeraFecha && cal.primeraFecha<=hoy; // Pago Único: se cobra desde que arranca el curso
+    const f = cal.mapa[n];
+    if(!f){ sinFecha.push(it.modulo); return false; }
+    return f<=hoy;
+  });
+  return {items: vencidos, sinFecha, sinCalendario:false, fechas: cal.mapa};
+}
 function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
-  const lineas = [];
+  const lineas = [], avisosSinFecha = [], cursosSinCalendario = [];
   cursosUnicos().forEach(curso=>{
     const items = itemsDeOrdenado(curso);
     if(items.length===0) return;
-    const maxArr = moduloMaxArrancado(curso);
-    const itemsACobrar = soloVencidos ? items.filter(it=>{ const n = numeroDeModulo(it.modulo); return n===null || n<=maxArr; }) : items;
+    const venc = itemsVencidosDelCurso(curso);
+    const itemsACobrar = soloVencidos ? venc.items : items;
+    let estudiantesDelCurso = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].filter(est=>nominaActivaCXC(curso, est));
+    if(estudiantesDelCurso.length>0){
+      if(venc.sinFecha.length>0) avisosSinFecha.push({curso, modulos: venc.sinFecha});
+      if(venc.sinCalendario) cursosSinCalendario.push(curso);
+    }
     let estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))];
     estudiantes = estudiantes.filter(est=>nominaActivaCXC(curso, est));
     if(asesorFiltro) estudiantes = estudiantes.filter(est=>(asesorDeEstudiante(curso, est)||'')===asesorFiltro);
@@ -1763,7 +1812,8 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
         const esperado = precioEsperado(curso, est, it.modulo);
         const saldo = Math.max(0, esperado - pagado);
         if(saldo>0.009){
-          lineas.push({curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', cedula:registro.cedula||'', correo:registro.correo||'', telefono:registro.telefono||'', modulo:it.modulo, esperado, pagado, saldo});
+          const nMod = numeroDeModulo(it.modulo);
+          lineas.push({fechaInicio: nMod!==null ? (venc.fechas[nMod]||'') : '', curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', cedula:registro.cedula||'', correo:registro.correo||'', telefono:registro.telefono||'', modulo:it.modulo, esperado, pagado, saldo});
         }
       });
     });
@@ -1778,10 +1828,10 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
   const cursos = Object.values(porCurso).map(c=>({...c, estudiantes: Object.values(c.estudiantes).sort((a,b)=>b.total-a.total)})).sort((a,b)=>b.total-a.total);
   const totalGeneral = cursos.reduce((s,c)=>s+c.total,0);
   const totalDeudores = cursos.reduce((s,c)=>s+c.estudiantes.length,0);
-  return {lineas, cursos, totalGeneral, totalDeudores};
+  return {lineas, cursos, totalGeneral, totalDeudores, avisosSinFecha, cursosSinCalendario};
 }
 function opcionesReporteGeneral(){
-  return { asesor: document.getElementById('rg_filtro_asesor').value, soloVencidos: document.getElementById('rg_solo_vencidos').checked };
+  return { asesor: document.getElementById('rg_filtro_asesor').value, soloVencidos: true };
 }
 function renderResumenGeneralDeudores(){
   const box = document.getElementById('rg_resumen');
@@ -1794,13 +1844,23 @@ function renderResumenGeneralDeudores(){
       <div class="tick"><div class="n neg">${r.totalDeudores}</div><div class="l">Estudiantes con deuda</div></div>
       <div class="tick"><div class="n warn">${r.cursos.length}</div><div class="l">Cursos con deudores</div></div>
       <div class="tick"><div class="n neg">${fmt(r.totalGeneral)}</div><div class="l">Total pendiente${soloVencidos?' (hasta la fecha)':''}</div></div>
-    </div>`;
+    </div>${(r.avisosSinFecha.length||r.cursosSinCalendario.length)?`<p class="hint" style="margin:8px 0 0;color:var(--warn);font-weight:700;">⚠ Hay ${r.avisosSinFecha.length} curso(s) con módulos sin fecha y ${r.cursosSinCalendario.length} sin vincular en el Calendario Docente — el detalle sale al final del PDF.</p>`:''}`;
 }
 document.getElementById('rg_filtro_asesor').addEventListener('change', renderResumenGeneralDeudores);
-document.getElementById('rg_solo_vencidos').addEventListener('change', renderResumenGeneralDeudores);
+function bloqueAvisosFechas(r){
+  if(r.avisosSinFecha.length===0 && r.cursosSinCalendario.length===0) return '';
+  const a = r.avisosSinFecha.map(x=>`<li><b>${x.curso}</b>: ${x.modulos.map(acortarConcepto).join(', ')}</li>`).join('');
+  const b = r.cursosSinCalendario.map(c=>`<li>${c}</li>`).join('');
+  return `<div style="border:1px solid var(--warn);background:var(--warn-soft);border-radius:10px;padding:12px 16px;margin-top:10px;font-size:12.5px;break-inside:avoid;">
+    ${a?`<b style="color:var(--warn);">⚠ Módulos sin fecha en el Calendario Docente (NO se incluyeron en este reporte):</b><ul style="margin:6px 0 10px;">${a}</ul>`:''}
+    ${b?`<b style="color:var(--warn);">⚠ Cursos sin ninguna sesión vinculada en el Calendario Docente</b> (se estimó "hasta la fecha" por los módulos que ya pagaron sus compañeros):<ul style="margin:6px 0 0;">${b}</ul>`:''}
+    <div style="margin-top:6px;color:var(--text-dim);">Para corregirlo: en el Calendario Docente, a cada sesión asígnale su "Curso en Matrículas" y su número de Módulo.</div>
+  </div>`;
+}
 function textoEstadoModulo(l){
   const nombre = acortarConcepto(l.modulo);
-  return l.pagado>0 ? `${nombre}: abonó ${fmt(l.pagado)}, debe ${fmt(l.saldo)}` : `${nombre}: debe ${fmt(l.saldo)}`;
+  const desde = l.fechaInicio ? ` <span style="color:var(--text-dim);font-size:11.5px;">(inició ${fechaCorta(l.fechaInicio)})</span>` : '';
+  return (l.pagado>0 ? `${nombre}: abonó ${fmt(l.pagado)}, debe ${fmt(l.saldo)}` : `${nombre}: debe ${fmt(l.saldo)}`) + desde;
 }
 document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
   const {asesor, soloVencidos} = opcionesReporteGeneral();
@@ -1832,7 +1892,7 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
       <div class="title">Reporte General de Deudores — Todos los Cursos</div>
     </div>
     <div class="doc-meta">
-      Corte al: <b>${hoy}</b>${asesor?' — Asesor: <b>'+asesor+'</b>':''} — ${soloVencidos?'Solo módulos que ya arrancaron':'Incluye módulos futuros (deuda total del curso)'}<br>
+      Corte al: <b>${hoy}</b>${asesor?' — Asesor: <b>'+asesor+'</b>':''} — Solo módulos hasta la fecha (sin módulos futuros)<br>
       Estudiantes con deuda: <b>${r.totalDeudores}</b> — Cursos: <b>${r.cursos.length}</b> — Total pendiente: <b style="color:var(--danger);">${fmt(r.totalGeneral)}</b><br>
       <span style="font-size:12px;">No incluye a estudiantes marcados como "no continuó".</span>
     </div>
@@ -1841,6 +1901,7 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
       <tbody>${resumenCursos}<tr><td><b>TOTAL</b></td><td style="text-align:right;"><b>${r.totalDeudores}</b></td><td style="text-align:right;"><b>${fmt(r.totalGeneral)}</b></td></tr></tbody></table>
     <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:10px 0 12px;">Detalle por Curso</h3>
     ${secciones}
+    ${bloqueAvisosFechas(r)}
   `;
   abrirModalDoc(html);
 });
@@ -1848,10 +1909,10 @@ document.getElementById('btn_rg_csv').addEventListener('click', ()=>{
   const {asesor, soloVencidos} = opcionesReporteGeneral();
   const r = calcularDeudoresGenerales(asesor, soloVencidos);
   if(r.lineas.length===0){ showToast('Nadie debe nada con este filtro — todos están al día.'); return; }
-  const headers = ['Curso','Estudiante','Asesor','Cedula','Correo','Telefono','Modulo','Valor Acordado','Pagado','Saldo'];
+  const headers = ['Curso','Estudiante','Asesor','Cedula','Correo','Telefono','Modulo','Inicio del Modulo','Valor Acordado','Pagado','Saldo'];
   const rows = [headers.join(',')];
   const ordenadas = r.lineas.slice().sort((a,b)=> a.curso.localeCompare(b.curso) || a.estudiante.localeCompare(b.estudiante));
-  ordenadas.forEach(l=>rows.push([l.curso,l.estudiante,l.asesor,l.cedula,l.correo,l.telefono,l.modulo,l.esperado.toFixed(2),l.pagado.toFixed(2),l.saldo.toFixed(2)].map(csvEscape).join(',')));
+  ordenadas.forEach(l=>rows.push([l.curso,l.estudiante,l.asesor,l.cedula,l.correo,l.telefono,l.modulo,l.fechaInicio||'',l.esperado.toFixed(2),l.pagado.toFixed(2),l.saldo.toFixed(2)].map(csvEscape).join(',')));
   downloadCSV(rows.join('\n'), 'deudores_general_ceprocenter');
 });
 // ---------- REPORTE MENSUAL ----------
@@ -2277,6 +2338,11 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
     {id:'p2', fecha:'2026-05-10', curso:'Diplomado de TDAH', estudiante:'María Fernanda López', modulo:'Módulo 1 - Fundamentos', monto:150, comprobanteUrl:'', esAbono:false, precioAcordado:0},
     {id:'p3', fecha:'2026-05-15', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', modulo:'Inscripción', monto:30, comprobanteUrl:'', esAbono:false, precioAcordado:30},
     {id:'p4', fecha:'2026-06-02', curso:'Diplomado de TDAH', estudiante:'Carlos Andrade', modulo:'Módulo 1 - Fundamentos', monto:80, comprobanteUrl:'', esAbono:true, precioAcordado:120},
+  ];
+  CALENDARIO = [
+    {id:'c1', cursoMatricula:'Diplomado de TDAH', modulo:'1', fechaInicio:'2026-06-06', esFeriado:''},
+    {id:'c2', cursoMatricula:'Diplomado de TDAH', modulo:'2', fechaInicio:'2026-08-01', esFeriado:''},
+    {id:'c3', cursoMatricula:'Diplomado de TDAH', modulo:'3', fechaInicio:'2026-12-05', esFeriado:''},
   ];
   MATRICULAS = [
     {id:'mt1', fecha:'2026-05-10', curso:'Diplomado de TDAH', estudiante:'María Fernanda López'},
