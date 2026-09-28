@@ -1390,7 +1390,56 @@ function agregarLineaPagoRapida(nombre){
   if(!esItemDelCurso) row.querySelector('.pl-otro').focus();
 }
 document.getElementById('m_curso').addEventListener('change', renderChipsConceptos);
+// ---------- MÓDULOS SALTADOS (el estudiante no tomó ese módulo) ----------
+// Se guardan en la hoja Nomina, columna "modulosSaltados", como lista JSON: [{modulo, motivo, fecha}].
+// Un módulo saltado NO se cobra mientras no tenga pagos; si el estudiante luego lo retoma y paga, vuelve a contar normal.
+function escHtml(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function listaSaltados(curso, estudiante){
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  if(!reg || !reg.modulosSaltados) return [];
+  try{ const l = JSON.parse(reg.modulosSaltados); return Array.isArray(l) ? l : []; }catch(e){ return []; }
+}
+function moduloSaltado(curso, estudiante, modulo){
+  const rec = listaSaltados(curso, estudiante).find(x=>x.modulo===modulo);
+  if(!rec) return null;
+  const pagado = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===modulo).reduce((s,p)=>s+p.monto,0);
+  return pagado>0 ? null : rec;
+}
+async function guardarSaltados(curso, estudiante, lista){
+  const reg = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  if(!reg) throw new Error('No se encontró a este estudiante en la nómina del curso.');
+  const valor = lista.length ? JSON.stringify(lista) : '';
+  await apiPost('Nomina','update',{id:reg.id, data:{modulosSaltados: valor}});
+  await refrescarHojas(['Nomina']);
+  const nuevo = NOMINA.find(n=>n.curso===curso && n.estudiante===estudiante);
+  if(String((nuevo && nuevo.modulosSaltados)||'') !== valor){
+    throw new Error('no se guardó. En tu Google Sheets, hoja "Nomina", agrega una columna con el encabezado exacto modulosSaltados y vuelve a intentarlo.');
+  }
+}
+window.marcarModuloSaltado = async function(curso, estudiante, modulo){
+  if(!API_URL){ showToast('Conecta tu Apps Script real para poder guardar esto.'); return; }
+  let motivo = prompt(`${estudiante} no tomó "${modulo}" (${curso}).\n\n¿Motivo? (ej. viajó, lo retoma con la próxima cohorte)\nMientras esté marcado, este módulo NO se le cobra.`, '');
+  if(motivo===null) return;
+  const lista = listaSaltados(curso, estudiante).filter(x=>x.modulo!==modulo);
+  lista.push({modulo, motivo: motivo.trim(), fecha: hoyYMD()});
+  showToast('Guardando...');
+  try{
+    await guardarSaltados(curso, estudiante, lista);
+    showToast(`Listo: "${acortarConcepto(modulo)}" quedó como saltado para ${estudiante} — ya no aparece como deuda.`);
+    renderAll();
+  }catch(e){ showToast('Error: '+e.message); }
+};
+window.quitarModuloSaltado = async function(curso, estudiante, modulo){
+  if(!confirm(`¿Quitar la marca de "saltó" a "${modulo}" de ${estudiante}? Volverá a aparecer como deuda.`)) return;
+  try{
+    await guardarSaltados(curso, estudiante, listaSaltados(curso, estudiante).filter(x=>x.modulo!==modulo));
+    showToast('Marca quitada — el módulo vuelve a cobrarse.');
+    renderAll();
+  }catch(e){ showToast('Error: '+e.message); }
+};
 function precioEsperadoDetalle(curso, estudiante, concepto){
+  const saltado = moduloSaltado(curso, estudiante, concepto);
+  if(saltado) return {precio:0, saltado, origen:'no tomó este módulo (saltado)'+(saltado.motivo?': '+saltado.motivo:'')};
   // Igual que antes, pero además dice DE DÓNDE salió el número — para que quien esté cobrando
   // sepa si es el precio de lista, un monto acordado por promo, o lo que ya se cobró antes.
   const pagosConcepto = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
@@ -1611,9 +1660,13 @@ function renderCXC(){
         : '';
       const estiloCeldaInsc = esInscripcionCelda ? 'background:var(--accent-soft);border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
       const tituloAcordado = `title="Valor acordado para este ítem: ${fmt(esperado).replace(/"/g,'&quot;')}"`;
-      if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
-      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}</td>`; }
-      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+' de '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}</td>`; }
+      const saltadoRec = moduloSaltado(curso, est, it.modulo);
+      const cEsc = curso.replace(/'/g,"\\'"), eEsc = est.replace(/'/g,"\\'"), mEsc = it.modulo.replace(/'/g,"\\'");
+      const btnSaltar = `<button class="btn btn-ghost btn-sm" title="Marcar que ${escHtml(est)} no tomó este módulo (se lo saltó)" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarModuloSaltado('${cEsc}','${eEsc}','${mEsc}')">⏭</button>`;
+      if(saltadoRec){ estadoTxt = 'Saltó'+(saltadoRec.motivo?' ('+saltadoRec.motivo+')':''); celda = `<td title="No tomó este módulo${saltadoRec.fecha?' — marcado el '+fechaCorta(saltadoRec.fecha):''}" style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill na">⏭ Saltó</span><button class="btn btn-ghost btn-sm" title="Quitar la marca: vuelve a cobrarse" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="quitarModuloSaltado('${cEsc}','${eEsc}','${mEsc}')">↩</button>${saltadoRec.motivo?`<div style="font-size:11px;color:var(--text-dim);margin-top:3px;">${escHtml(saltadoRec.motivo)}</div>`:''}</td>`; }
+      else if(esperado<=0){ estadoTxt = 'Gratis'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
+      else if(pagado===0){ estadoTxt = 'Debe '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill fail">${estadoTxt}</span>${btnGratis}${esInscripcionCelda?'':btnSaltar}</td>`; }
+      else if(saldo>0){ estadoTxt = 'Abonó '+fmt(pagado)+' de '+fmt(esperado); celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill abono">${estadoTxt}</span>${btnGratis}${esInscripcionCelda?'':btnSaltar}</td>`; }
       else { estadoTxt = 'Pagado ('+fmt(esperado)+')'; celda = `<td ${tituloAcordado} style="width:130px;white-space:normal;${estiloCeldaInsc}"><span class="pill ok">${estadoTxt}</span></td>`; }
       estados.push(estadoTxt);
       return celda;
@@ -1791,7 +1844,7 @@ function itemsVencidosDelCurso(curso){
   return {items: vencidos, sinFecha, sinCalendario:false, fechas: cal.mapa};
 }
 function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
-  const lineas = [], avisosSinFecha = [], cursosSinCalendario = [];
+  const lineas = [], avisosSinFecha = [], cursosSinCalendario = [], saltados = [];
   cursosUnicos().forEach(curso=>{
     const items = itemsDeOrdenado(curso);
     if(items.length===0) return;
@@ -1806,6 +1859,7 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
     estudiantes = estudiantes.filter(est=>nominaActivaCXC(curso, est));
     if(asesorFiltro) estudiantes = estudiantes.filter(est=>(asesorDeEstudiante(curso, est)||'')===asesorFiltro);
     estudiantes.forEach(est=>{
+      items.forEach(it=>{ const sr = moduloSaltado(curso, est, it.modulo); if(sr) saltados.push({curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', modulo:it.modulo, motivo:sr.motivo||'', fecha:sr.fecha||''}); });
       const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===est).slice(-1)[0] || {};
       itemsACobrar.forEach(it=>{
         const pagado = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo).reduce((s,p)=>s+p.monto,0);
@@ -1828,7 +1882,7 @@ function calcularDeudoresGenerales(asesorFiltro, soloVencidos){
   const cursos = Object.values(porCurso).map(c=>({...c, estudiantes: Object.values(c.estudiantes).sort((a,b)=>b.total-a.total)})).sort((a,b)=>b.total-a.total);
   const totalGeneral = cursos.reduce((s,c)=>s+c.total,0);
   const totalDeudores = cursos.reduce((s,c)=>s+c.estudiantes.length,0);
-  return {lineas, cursos, totalGeneral, totalDeudores, avisosSinFecha, cursosSinCalendario};
+  return {lineas, cursos, totalGeneral, totalDeudores, avisosSinFecha, cursosSinCalendario, saltados};
 }
 function opcionesReporteGeneral(){
   return { asesor: document.getElementById('rg_filtro_asesor').value, soloVencidos: true };
@@ -1847,6 +1901,16 @@ function renderResumenGeneralDeudores(){
     </div>${(r.avisosSinFecha.length||r.cursosSinCalendario.length)?`<p class="hint" style="margin:8px 0 0;color:var(--warn);font-weight:700;">⚠ Hay ${r.avisosSinFecha.length} curso(s) con módulos sin fecha y ${r.cursosSinCalendario.length} sin vincular en el Calendario Docente — el detalle sale al final del PDF.</p>`:''}`;
 }
 document.getElementById('rg_filtro_asesor').addEventListener('change', renderResumenGeneralDeudores);
+function bloqueSaltados(r){
+  if(r.saltados.length===0) return '';
+  const filas = r.saltados.slice().sort((a,b)=>a.curso.localeCompare(b.curso)||a.estudiante.localeCompare(b.estudiante))
+    .map(x=>`<tr><td>${x.curso}</td><td>${x.estudiante}</td><td>${x.asesor}</td><td>${acortarConcepto(x.modulo)}</td><td style="white-space:normal;">${x.motivo?escHtml(x.motivo):'—'}</td><td>${x.fecha?fechaCorta(x.fecha):'—'}</td></tr>`).join('');
+  return `<div style="break-inside:avoid-page;margin-top:10px;">
+    <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:0 0 6px;">⏭ Módulos que no tomaron (NO se cobran en este reporte)</h3>
+    <p style="font-size:12px;color:var(--text-dim);margin:0 0 8px;">Quedan pendientes para cuando los retomen. Si luego pagan ese módulo, vuelve a contarse normal.</p>
+    <table class="doc-table"><thead><tr><th>Curso</th><th>Estudiante</th><th>Asesor</th><th>Módulo</th><th>Motivo</th><th>Marcado</th></tr></thead><tbody>${filas}</tbody></table>
+  </div>`;
+}
 function bloqueAvisosFechas(r){
   if(r.avisosSinFecha.length===0 && r.cursosSinCalendario.length===0) return '';
   const a = r.avisosSinFecha.map(x=>`<li><b>${x.curso}</b>: ${x.modulos.map(acortarConcepto).join(', ')}</li>`).join('');
@@ -1901,6 +1965,7 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
       <tbody>${resumenCursos}<tr><td><b>TOTAL</b></td><td style="text-align:right;"><b>${r.totalDeudores}</b></td><td style="text-align:right;"><b>${fmt(r.totalGeneral)}</b></td></tr></tbody></table>
     <h3 style="font-family:'Quicksand',sans-serif;font-size:15px;margin:10px 0 12px;">Detalle por Curso</h3>
     ${secciones}
+    ${bloqueSaltados(r)}
     ${bloqueAvisosFechas(r)}
   `;
   abrirModalDoc(html);
@@ -2163,7 +2228,9 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
     const saldo = Math.max(0, esperado - pagado);
     saldoTotal += saldo;
     let estado;
-    if(esperado<=0) estado = `<span class="pill ok">Gratis</span>`;
+    const saltadoInd = moduloSaltado(curso, estudiante, it.modulo);
+    if(saltadoInd) estado = `<span class="pill na">No tomó este módulo</span>${saltadoInd.motivo?' — '+escHtml(saltadoInd.motivo):''}`;
+    else if(esperado<=0) estado = `<span class="pill ok">Gratis</span>`;
     else if(pagado===0) estado = `<span class="pill fail">Debe ${fmt(esperado)}</span>`;
     else if(saldo>0) estado = `<span class="pill abono">Abonó ${fmt(pagado)}, debe ${fmt(saldo)}</span>`;
     else estado = `<span class="pill ok">Pagado</span>`;
