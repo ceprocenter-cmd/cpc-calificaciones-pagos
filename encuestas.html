@@ -34,6 +34,11 @@
   .q.falta .escala .opt{border-color:#f1b0a8}
   .qt{font-weight:600;margin-bottom:8px}
   .escala{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .lista{display:grid;gap:8px}
+  .opt.txt{display:flex;align-items:center;gap:10px;text-align:left;padding:11px 14px;font-weight:600}
+  .opt.txt .punto{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:none;background:#fff}
+  .opt.txt.sel .punto{border-color:#fff;box-shadow:inset 0 0 0 4px var(--brand)}
+  .q.falta .lista .opt{border-color:#f1b0a8}
   .escala.nps{grid-template-columns:repeat(11,1fr);gap:4px}
   .opt{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 0;font:inherit;font-weight:700;cursor:pointer;color:var(--ink);transition:.12s}
   .opt:hover{border-color:var(--brand2)}
@@ -82,12 +87,61 @@
   .grande{font-size:28px;font-weight:800;color:var(--brand)}
   .resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:8px}
   .resumen .card{margin:0;padding:14px;text-align:center}
-  .yo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .link{background:none;border:none;color:var(--brand2);font:inherit;font-weight:600;cursor:pointer;padding:0;text-decoration:underline}
   #gbtn{display:flex;justify-content:center;min-height:44px;margin:18px 0 6px}
   table.tabla{width:100%;border-collapse:collapse;font-size:13px}
   table.tabla th{text-align:left;color:var(--muted);padding:6px 4px;font-weight:600}
   table.tabla td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
+  table.tabla td:first-child{white-space:nowrap}
+  .progreso{height:6px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:14px}
+  .progreso i{display:block;height:100%;width:0;background:var(--brand2);border-radius:999px;transition:width .35s}
+  .pregunta{padding:24px 20px}
+  .ptexto{font-size:21px;line-height:1.3;margin:6px 0 4px}
+  .estrellas{display:flex;justify-content:center;gap:6px;margin:18px 0 4px}
+  .estrella{background:none;border:none;font-size:46px;line-height:1;color:#d7dbe6;cursor:pointer;padding:2px;transition:transform .12s,color .12s}
+  .estrella.on{color:#f5b301}
+  .estrella:active{transform:scale(1.15)}
+  .etq{text-align:center;font-weight:700;color:var(--brand);min-height:22px}
+  .mejorar{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+  .chips-sel{display:flex;flex-wrap:wrap;gap:8px}
+  .chipsel{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+  .chipsel.sel{background:#fdecea;border-color:#e8a29b;color:var(--warn)}
+  .nav{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+  .nav .btn:disabled{opacity:.45;cursor:not-allowed}
+  .contador{margin-top:6px;text-align:right}
+  .yo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding:0 4px}
+  .anim{animation:entra .28s ease}
+  @keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .doc-fila{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .doc-nota{text-align:right;flex:none}
+  .stars{position:relative;display:inline-block;line-height:1;letter-spacing:1px}
+  .stars-bg{color:#d7dbe6}
+  .stars-fg{position:absolute;left:0;top:0;overflow:hidden;white-space:nowrap;color:#f5b301}
+  .dist{display:grid;grid-template-columns:40px 1fr 34px;gap:10px;align-items:center;font-size:14px;padding:3px 0}
+  .dist .barra{margin:0}
+  .dist b{text-align:right}
+  .grafico{display:flex;gap:8px;margin-top:8px;height:200px}
+  .ejes{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--muted);padding:18px 0 22px;text-align:right}
+  .barras{flex:1;display:flex;gap:6px;align-items:stretch;border-left:1px solid var(--line);padding-left:6px;overflow:visible}
+  .ejes span{line-height:0}
+  .col{position:relative;flex:1;min-width:18px;max-width:64px;display:flex;flex-direction:column;align-items:center;outline:none;cursor:default}
+  .col .val{font-size:12px;font-weight:700;height:18px}
+  .col .pista{flex:1;width:60%;display:flex;align-items:flex-end;border-bottom:1px solid var(--line)}
+  .col .pista i{display:block;width:100%;background:var(--brand2);border-radius:4px 4px 0 0;min-height:2px}
+  .col .et{font-size:11px;color:var(--muted);height:22px;padding-top:4px}
+  .col .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:12px;
+    padding:8px 10px;border-radius:8px;width:max-content;max-width:240px;z-index:5;pointer-events:none}
+  .col:hover .tip,.col:focus .tip{display:block}
+  .col:hover .pista i,.col:focus .pista i{background:var(--brand)}
+  .doc-botones{display:flex;flex-wrap:wrap;gap:8px}
+  .doc-btn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1.5px solid var(--line);background:#fff;border-radius:12px;
+    padding:10px 14px;font:inherit;cursor:pointer;color:var(--ink);text-align:left}
+  .doc-btn span{font-size:12px;color:var(--muted)}
+  .doc-btn:hover{border-color:var(--brand2)}
+  .doc-btn.sel{background:var(--brand);border-color:var(--brand);color:#fff}
+  .doc-btn.sel span{color:#dfe4ff}
+  .parte-et{font-size:13px;font-weight:700;color:var(--brand)}
+  .parte-n{display:inline-block;background:var(--soft);border-radius:999px;padding:2px 8px;margin-right:4px;font-size:12px}
   @media (max-width:560px){
     .fila{grid-template-columns:1fr}
     .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
@@ -123,11 +177,15 @@ function fmt(n) { return n == null ? '—' : Number(n).toFixed(1); }
 
 /* =========================================================================
    MODO ESTUDIANTE  (encuestas.html?id=XXXX)
+   Encuesta interactiva: una pregunta por pantalla, avanza sola al tocar.
    ========================================================================= */
 let ENC = null;
 let IDENT = null;            // { correo, nombre, firma }
-const resp = {};
+let PASO = 0;
+const RESP = {};             // key -> valor
+const MEJ = {};              // key de "mejorar" -> [opciones elegidas]
 const CLAVE_IDENT = 'cpc_cuenta_google';
+let avanceTimer = null;
 
 function leerIdent() { try { return JSON.parse(localStorage.getItem(CLAVE_IDENT) || 'null'); } catch (e) { return null; } }
 function guardarIdent(o) { try { localStorage.setItem(CLAVE_IDENT, JSON.stringify(o)); } catch (e) {} }
@@ -136,15 +194,12 @@ function borrarIdent() { try { localStorage.removeItem(CLAVE_IDENT); } catch (e)
 // Navegadores dentro de apps (Instagram, Facebook, etc.) no permiten entrar con Google.
 function esNavegadorDeApp() { return /FBAN|FBAV|Instagram|Line\/|TikTok|Snapchat/i.test(navigator.userAgent || ''); }
 
-function heroHTML() {
+function cabeceraHTML() {
   const e = ENC.encuesta;
-  return '<div class="card hero"><div class="marca">Ceprocenter</div>' +
-    '<h1>Encuesta de satisfacción</h1>' +
-    '<div class="meta">' +
-      '<div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
-      '<div><span>Módulo:</span> <b>' + esc(e.modulo) + '</b></div>' +
-      '<div><span>Tutor:</span> <b>' + esc(e.tutor) + '</b></div>' +
-    '</div></div>';
+  return '<div class="card hero"><div class="marca">Ceprocenter · Encuesta de satisfacción</div>' +
+    '<h1>' + esc(e.modulo) + '</h1>' +
+    '<div class="meta"><div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
+    '<div><span>Docente:</span> <b>' + esc(e.tutor) + '</b></div></div></div>';
 }
 
 async function iniciarEncuesta() {
@@ -161,7 +216,7 @@ async function iniciarEncuesta() {
     if (res.identidad) {
       IDENT = { correo: res.identidad.correo, firma: res.identidad.firma, nombre: (guardada && guardada.nombre) || res.identidad.correo };
       if (res.identidad.yaRespondio) return pantallaGracias(true);
-      return renderEncuesta();
+      return empezarEncuesta();
     }
     if (guardada) borrarIdent();
     renderIdentificacion();
@@ -170,12 +225,14 @@ async function iniciarEncuesta() {
   }
 }
 
+/* ---------- Entrar con Google ---------- */
+
 function renderIdentificacion(mensaje) {
   IDENT = null;
-  $app.innerHTML = heroHTML() +
+  $app.innerHTML = cabeceraHTML() +
     '<div class="card" style="text-align:center">' +
       '<h2>Para comenzar, entra con tu cuenta de Google</h2>' +
-      '<p class="muted small" style="margin:4px 0 0">Toca el botón y elige la cuenta de Gmail de tu dispositivo. Cada cuenta puede responder una sola vez.</p>' +
+      '<p class="muted small" style="margin:4px 0 0">Toca el botón y elige la cuenta de Gmail de tu dispositivo. Te tomará un par de minutos.</p>' +
       (esNavegadorDeApp() ? '<div class="msg aviso">Estás abriendo el enlace dentro de una app. Para entrar con Google, ábrelo en <b>Chrome</b> o <b>Safari</b> (menú ⋮ o ··· → "Abrir en el navegador").</div>' : '') +
       '<div id="gbtn"></div>' +
       '<div id="errIdent">' + (mensaje ? '<div class="msg err">' + esc(mensaje) + '</div>' : '') + '</div>' +
@@ -218,7 +275,7 @@ async function alEntrarConGoogle(respuestaGoogle) {
     IDENT = { correo: res.correo, nombre: res.nombre, firma: res.firma };
     guardarIdent(IDENT);
     if (res.yaRespondio) return pantallaGracias(true);
-    renderEncuesta();
+    empezarEncuesta();
   } catch (e) {
     if ($err) $err.innerHTML = '<div class="msg err">No pudimos verificar tu cuenta. Revisa tu conexión e inténtalo de nuevo.</div>';
   }
@@ -230,72 +287,140 @@ function usarOtraCuenta() {
   renderIdentificacion();
 }
 
-function renderEncuesta() {
-  let h = heroHTML();
-  h += '<div class="card yo"><div><div class="muted small">Respondiendo como</div><b>' + esc(IDENT.nombre) + '</b>' +
-       (IDENT.nombre !== IDENT.correo ? ' <span class="muted small">' + esc(IDENT.correo) + '</span>' : '') + '</div>' +
-       '<button class="link small" id="btnOtra">Usar otra cuenta</button></div>';
-  h += '<div class="card small muted">Te tomará menos de 3 minutos. Califica del <b>1</b> (muy malo) al <b>5</b> (excelente). Tus respuestas las revisa el equipo de Ceprocenter y nos ayudan a mejorar.</div>';
+/* ---------- Encuesta paso a paso ---------- */
 
-  ENC.secciones.forEach(s => {
-    h += '<div class="card"><h2>' + esc(s.titulo) + '</h2><p class="muted small" style="margin:0 0 6px">' + esc(s.descripcion) + '</p>';
-    s.preguntas.forEach(p => {
-      h += '<div class="q" data-key="' + p.key + '"><div class="qt">' + esc(p.texto) + '</div><div class="escala">';
-      for (let v = 1; v <= 5; v++) h += '<button type="button" class="opt" data-key="' + p.key + '" data-v="' + v + '">' + v + '</button>';
-      h += '</div></div>';
-    });
-    h += '<div class="leyenda"><span>1 · Muy malo</span><span>5 · Excelente</span></div></div>';
-  });
-
-  h += '<div class="card"><div class="q" data-key="nps" style="padding-top:0"><div class="qt">' + esc(ENC.nps.texto) + '</div><div class="escala nps">';
-  for (let v = 0; v <= 10; v++) h += '<button type="button" class="opt" data-key="nps" data-v="' + v + '">' + v + '</button>';
-  h += '</div><div class="leyenda"><span>0 · Nada probable</span><span>10 · Muy probable</span></div></div></div>';
-
-  h += '<div class="card"><h2>Cuéntanos más <span class="muted small">(opcional)</span></h2>';
-  ENC.abiertas.forEach(a => {
-    h += '<label class="lbl" for="' + a.key + '">' + esc(a.texto) + '</label><textarea id="' + a.key + '" maxlength="2000"></textarea>';
-  });
-  h += '</div>';
-
-  h += '<div id="errEnc"></div><div style="margin-top:16px"><button class="btn full" id="btnEnviar">Enviar mis respuestas</button></div>';
-  $app.innerHTML = h;
-  window.scrollTo(0, 0);
-
-  // Si había respuestas marcadas (por ejemplo, tras volver a identificarse), se restauran.
-  Object.keys(resp).forEach(k => {
-    const b = $app.querySelector('.opt[data-key="' + k + '"][data-v="' + resp[k] + '"]');
-    if (b) b.classList.add('sel');
-  });
-
-  $app.querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => {
-    const k = b.dataset.key;
-    resp[k] = Number(b.dataset.v);
-    $app.querySelectorAll('.opt[data-key="' + k + '"]').forEach(x => x.classList.toggle('sel', x === b));
-    const q = b.closest('.q'); if (q) q.classList.remove('falta');
-  }));
+function empezarEncuesta() {
+  $app.innerHTML = cabeceraHTML() +
+    '<div class="yo small"><span>Respondiendo como <b>' + esc(IDENT.nombre) + '</b>' +
+      (IDENT.nombre !== IDENT.correo ? ' <span class="muted">(' + esc(IDENT.correo) + ')</span>' : '') + '</span>' +
+      '<button class="link small" id="btnOtra">Usar otra cuenta</button></div>' +
+    '<div class="progreso"><i id="barra"></i></div>' +
+    '<div id="paso"></div>';
   document.getElementById('btnOtra').addEventListener('click', usarOtraCuenta);
-  document.getElementById('btnEnviar').addEventListener('click', enviarEncuesta);
+  mostrarPaso(PASO);
+}
+
+function pasoCompleto(p) {
+  if (p.tipo === 'texto') return String(RESP[p.key] || '').trim().length >= (p.minimo || 1);
+  if (RESP[p.key] === undefined) return false;
+  if (p.tipo === 'estrellas' && p.mejorar && RESP[p.key] <= 3) return (MEJ[p.mejorar.key] || []).length > 0;
+  return true;
+}
+
+let PARTES = [];
+
+function mostrarPaso(i) {
+  clearTimeout(avanceTimer);
+  PARTES = ENC.preguntas.map(x => x.parte).filter((x, k, a) => a.indexOf(x) === k);
+  PASO = i;
+  const P = ENC.preguntas, p = P[i], total = P.length, ultimo = i === total - 1;
+  document.getElementById('barra').style.width = Math.round(i / total * 100) + '%';
+
+  let h = '<div class="card pregunta anim">' +
+    '<div class="parte-et"><span class="parte-n">Parte ' + (PARTES.indexOf(p.parte) + 1) + ' de ' + PARTES.length + '</span> ' + esc(p.parte) +
+      ' <span class="muted">· Pregunta ' + (i + 1) + ' de ' + total + '</span></div>' +
+    '<h2 class="ptexto">' + esc(p.texto) + '</h2>' +
+    (p.ayuda ? '<p class="muted small" style="margin:0 0 6px">' + esc(p.ayuda) + '</p>' : '');
+
+  if (p.tipo === 'estrellas') {
+    h += '<div class="estrellas">';
+    for (let v = 1; v <= 5; v++) h += '<button type="button" class="estrella" data-v="' + v + '" aria-label="' + v + ' de 5">★</button>';
+    h += '</div><div class="etq" id="etq">' + (RESP[p.key] ? esc(ENC.etiquetasEstrellas[RESP[p.key] - 1]) : 'Toca las estrellas') + '</div>';
+    if (p.mejorar) {
+      h += '<div id="mejorar" class="mejorar" style="display:none"><div class="qt">' + esc(p.mejorar.texto) + '</div>' +
+        '<p class="muted small" style="margin:-4px 0 8px">Puedes elegir varias.</p><div class="chips-sel">' +
+        p.mejorar.opciones.map(o => '<button type="button" class="chipsel" data-o="' + esc(o) + '">' + esc(o) + '</button>').join('') +
+        '</div></div>';
+    }
+  } else if (p.tipo === 'opciones') {
+    h += '<div class="lista">' + p.opciones.map(o =>
+      '<button type="button" class="opt txt" data-v="' + o.v + '"><span class="punto"></span>' + esc(o.t) + '</button>').join('') + '</div>';
+  } else if (p.tipo === 'nps') {
+    h += '<div class="escala nps">';
+    for (let v = 0; v <= 10; v++) h += '<button type="button" class="opt" data-v="' + v + '">' + v + '</button>';
+    h += '</div><div class="leyenda"><span>0 · Nada probable</span><span>10 · Muy probable</span></div>';
+  } else if (p.tipo === 'texto') {
+    h += '<textarea id="txt" maxlength="3000" placeholder="Escribe aquí tu comentario…">' + esc(RESP[p.key] || '') + '</textarea>' +
+      '<div class="contador muted small" id="contador"></div>';
+  }
+
+  h += '<div id="errEnc"></div><div class="nav">' +
+    (i > 0 ? '<button class="btn ghost" id="btnAtras">← Atrás</button>' : '<span></span>') +
+    '<button class="btn" id="btnSig">' + (ultimo ? 'Enviar mis respuestas' : 'Siguiente →') + '</button></div></div>';
+
+  const cont = document.getElementById('paso');
+  cont.innerHTML = h;
+  const $sig = document.getElementById('btnSig');
+  const refrescar = () => { $sig.disabled = !pasoCompleto(p); };
+
+  if (i > 0) document.getElementById('btnAtras').onclick = () => mostrarPaso(i - 1);
+  $sig.onclick = () => { if (!pasoCompleto(p)) return; ultimo ? enviarEncuesta() : mostrarPaso(i + 1); };
+
+  if (p.tipo === 'estrellas') {
+    const pintar = v => cont.querySelectorAll('.estrella').forEach(b => b.classList.toggle('on', Number(b.dataset.v) <= v));
+    const mostrarMejorar = () => {
+      const m = document.getElementById('mejorar');
+      if (m) m.style.display = RESP[p.key] && RESP[p.key] <= 3 ? 'block' : 'none';
+    };
+    pintar(RESP[p.key] || 0); mostrarMejorar();
+    cont.querySelectorAll('.estrella').forEach(b => {
+      b.onmouseenter = () => pintar(Number(b.dataset.v));
+      b.onmouseleave = () => pintar(RESP[p.key] || 0);
+      b.onclick = () => {
+        const v = Number(b.dataset.v);
+        RESP[p.key] = v; pintar(v);
+        document.getElementById('etq').textContent = ENC.etiquetasEstrellas[v - 1];
+        if (p.mejorar && v > 3) MEJ[p.mejorar.key] = [];
+        mostrarMejorar(); refrescar();
+        if (!p.mejorar || v > 3) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 450);
+      };
+    });
+    if (p.mejorar) {
+      const elegidas = MEJ[p.mejorar.key] || [];
+      cont.querySelectorAll('.chipsel').forEach(c => {
+        c.classList.toggle('sel', elegidas.indexOf(c.dataset.o) !== -1);
+        c.onclick = () => {
+          const lista = MEJ[p.mejorar.key] = MEJ[p.mejorar.key] || [];
+          const k = lista.indexOf(c.dataset.o);
+          if (k === -1) lista.push(c.dataset.o); else lista.splice(k, 1);
+          c.classList.toggle('sel', k === -1);
+          refrescar();
+        };
+      });
+    }
+  } else if (p.tipo === 'opciones' || p.tipo === 'nps') {
+    cont.querySelectorAll('.opt').forEach(b => {
+      b.classList.toggle('sel', RESP[p.key] !== undefined && Number(b.dataset.v) === RESP[p.key]);
+      b.onclick = () => {
+        RESP[p.key] = Number(b.dataset.v);
+        cont.querySelectorAll('.opt').forEach(x => x.classList.toggle('sel', x === b));
+        refrescar();
+        avanceTimer = setTimeout(() => mostrarPaso(i + 1), 350);
+      };
+    });
+  } else if (p.tipo === 'texto') {
+    const $t = document.getElementById('txt'), $c = document.getElementById('contador');
+    const actualizar = () => {
+      RESP[p.key] = $t.value;
+      const n = $t.value.trim().length, min = p.minimo || 1;
+      $c.textContent = n < min ? 'Escribe al menos ' + min + ' caracteres (' + n + '/' + min + ')' : '¡Gracias! ✓';
+      refrescar();
+    };
+    $t.oninput = actualizar; actualizar();
+    setTimeout(() => $t.focus(), 200);
+  }
+  refrescar();
+  if (i > 0) document.querySelector('.progreso').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function enviarEncuesta() {
-  const requeridas = [];
-  ENC.secciones.forEach(s => s.preguntas.forEach(p => requeridas.push(p.key)));
-  requeridas.push('nps');
-  const faltan = requeridas.filter(k => resp[k] === undefined);
-  const $err = document.getElementById('errEnc');
-  if (faltan.length) {
-    faltan.forEach(k => { const q = $app.querySelector('.q[data-key="' + k + '"]'); if (q) q.classList.add('falta'); });
-    $err.innerHTML = '<div class="msg err">Te ' + (faltan.length === 1 ? 'falta 1 pregunta' : 'faltan ' + faltan.length + ' preguntas') + ' por calificar (marcadas en rojo).</div>';
-    $app.querySelector('.q.falta').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-  const data = Object.assign({}, resp);
-  ENC.abiertas.forEach(a => data[a.key] = document.getElementById(a.key).value);
+  const data = Object.assign({}, RESP);
+  ENC.preguntas.forEach(p => { if (p.mejorar) data[p.mejorar.key] = MEJ[p.mejorar.key] || []; });
   data.correo = IDENT.correo;
   data.firma = IDENT.firma;
   data.nombreGoogle = IDENT.nombre !== IDENT.correo ? IDENT.nombre : '';
 
-  const btn = document.getElementById('btnEnviar');
+  const btn = document.getElementById('btnSig'), $err = document.getElementById('errEnc');
   btn.disabled = true; btn.textContent = 'Enviando…'; $err.innerHTML = '';
   try {
     const res = await api({ action: 'responderEncuesta', id: ENC_ID, data: data });
@@ -311,9 +436,9 @@ async function enviarEncuesta() {
 
 function pantallaGracias(yaRespondida) {
   window.scrollTo(0, 0);
-  $app.innerHTML = '<div class="card centro"><div class="emoji">💙</div>' +
+  $app.innerHTML = '<div class="card centro anim"><div class="emoji">💙</div>' +
     '<h1>' + (yaRespondida ? 'Ya respondiste esta encuesta' : '¡Gracias por tu opinión!') + '</h1>' +
-    '<p class="muted">Tus respuestas nos ayudan a seguir mejorando cada módulo en Ceprocenter.</p>' +
+    '<p class="muted">Leemos cada respuesta para seguir mejorando cada módulo en CEPROCENTER.</p>' +
     (IDENT ? '<p class="muted small">Cuenta: ' + esc(IDENT.correo) + (yaRespondida ? ' · <button class="link" onclick="usarOtraCuenta()">Responder con otra cuenta</button>' : '') + '</p>' : '') +
     '</div>';
 }
@@ -356,7 +481,7 @@ function renderAdmin() {
   $app.innerHTML =
     '<div class="marca">Ceprocenter</div><h1>Encuestas de módulo</h1>' +
     '<p class="muted small" style="margin:0">Crea la encuesta al terminar cada módulo, compártela y revisa los resultados.</p>' +
-    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button></div>' +
+    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button></div>' +
     '<div id="panel"></div>';
   $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
   pintarTab();
@@ -364,7 +489,7 @@ function renderAdmin() {
 
 function pintarTab() {
   $app.querySelectorAll('.tab').forEach(t => t.classList.toggle('act', t.dataset.tab === TAB));
-  if (TAB === 'crear') renderCrear(); else renderLista();
+  if (TAB === 'crear') renderCrear(); else if (TAB === 'docentes') renderDocentes(); else renderLista();
 }
 
 function renderCrear() {
@@ -374,7 +499,7 @@ function renderCrear() {
     '<label class="lbl" for="fCurso">Curso</label><select id="fCurso"><option value="">Selecciona el curso…</option>' +
       cursos.map(c => '<option>' + esc(c) + '</option>').join('') + '</select>' +
     '<label class="lbl" for="fModulo">Módulo que terminó</label><select id="fModulo" disabled><option value="">Primero elige el curso</option></select>' +
-    '<label class="lbl" for="fTutor">Tutor del módulo</label><input id="fTutor" list="dlTutores" placeholder="Escribe o elige el tutor">' +
+    '<label class="lbl" for="fTutor">Docente del módulo</label><input id="fTutor" list="dlTutores" placeholder="Escribe o elige el docente">' +
       '<datalist id="dlTutores">' + (LISTAS.tutores || []).map(t => '<option value="' + esc(t) + '">').join('') + '</datalist>' +
     '<label class="lbl">¿Dónde se dictó?</label><div class="seg" id="fModalidad">' +
       ['Virtual', 'Presencial', 'Híbrido'].map((m, i) => '<button type="button" class="opt' + (i === 0 ? ' sel' : '') + '" data-v="' + m + '">' + m + '</button>').join('') +
@@ -402,7 +527,7 @@ function renderCrear() {
       modalidad: modalidad, fechaCierre: document.getElementById('fCierre').value, creadoPor: document.getElementById('fCreado').value
     };
     const $err = document.getElementById('errCrear');
-    if (!data.curso || !data.modulo || !data.tutor) { $err.innerHTML = '<div class="msg err">Completa curso, módulo y tutor.</div>'; return; }
+    if (!data.curso || !data.modulo || !data.tutor) { $err.innerHTML = '<div class="msg err">Completa curso, módulo y docente.</div>'; return; }
     const btn = document.getElementById('btnCrear');
     btn.disabled = true; btn.textContent = 'Creando…'; $err.innerHTML = '';
     const res = await api({ action: 'crearEncuesta', clave: CLAVE, data: data }).catch(() => ({ error: 'Sin conexión.' }));
@@ -465,7 +590,7 @@ async function renderLista() {
   if (TAB !== 'lista') return;
   if (res.error) { panel.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
   LISTA_CACHE = res.encuestas || [];
-  panel.innerHTML = '<div class="card" style="padding:12px 14px"><input id="buscar" placeholder="Buscar por curso, módulo o tutor…"></div><div id="listaEnc"></div>';
+  panel.innerHTML = '<div class="card" style="padding:12px 14px"><input id="buscar" placeholder="Buscar por curso, módulo o docente…"></div><div id="listaEnc"></div>';
   document.getElementById('buscar').oninput = ev => pintarLista(ev.target.value);
   pintarLista('');
 }
@@ -479,15 +604,16 @@ function pintarLista(filtro) {
   cont.innerHTML = items.map(e => {
     const s = e.stats, ps = s.porSeccion;
     const estado = e.abierta ? '<span class="chip ok">Abierta</span>' : '<span class="chip off">Cerrada</span>';
-    const npsChip = s.nps == null ? '' : '<span class="chip ' + (s.nps >= 50 ? 'ok' : s.nps < 0 ? 'warn' : '') + '">NPS ' + s.nps + '</span>';
+    const npsChip = s.recomendacion == null ? '' : '<span class="chip">Recomendación ' + fmt(s.recomendacion) + '/10</span>';
     return '<div class="card" data-id="' + esc(e.id) + '">' +
       '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2>' + esc(e.modulo) + '</h2>' +
-      '<div class="muted small">' + esc(e.curso) + '</div><div class="small">Tutor: <b>' + esc(e.tutor) + '</b> · ' + esc(e.modalidad) + ' · creada ' + esc(e.fechaCreacion) +
+      '<div class="muted small">' + esc(e.curso) + '</div><div class="small">Docente: <b>' + esc(e.tutor) + '</b> · ' + esc(e.modalidad) + ' · creada ' + esc(e.fechaCreacion) +
       (e.fechaCierre ? ' · cierra ' + esc(e.fechaCierre) : '') + '</div></div>' +
       '<div style="text-align:right"><div class="grande">' + s.total + (e.totalEstudiantes ? '<span class="muted" style="font-size:16px"> / ' + e.totalEstudiantes + '</span>' : '') + '</div><div class="muted small">respuestas</div></div></div>' +
       '<div class="chips">' + estado +
-        '<span class="chip">Tutor ' + fmt(ps.tutor) + '</span>' +
-        '<span class="chip">Servicio ' + fmt(ps.servicio) + '</span>' +
+        '<span class="chip">Docente ' + fmt(ps.tutor) + '</span>' +
+        (ps.modulo !== undefined ? '<span class="chip">Módulo ' + fmt(ps.modulo) + '</span>' : '') +
+        '<span class="chip">Atención ' + fmt(ps.servicio) + '</span>' +
         (ps.instalaciones !== undefined ? '<span class="chip">Instalaciones ' + fmt(ps.instalaciones) + '</span>' : '') +
         npsChip + (e.correosEnviados ? '<span class="chip off">✉️ ' + e.correosEnviados + ' enviados</span>' : '') +
       '</div>' +
@@ -520,34 +646,167 @@ async function verResultados(card, e, btn) {
   const s = r.stats;
   if (!s.total) { box.innerHTML = '<div class="detalle muted">Todavía nadie ha respondido esta encuesta.</div>'; return; }
 
+  // Promedios por sección + NPS
   let h = '<div class="detalle"><div class="resumen">';
   r.secciones.forEach(sec => h += '<div class="card"><div class="grande">' + fmt(s.porSeccion[sec.id]) + '</div><div class="muted small">' + esc(sec.titulo) + ' (de 5)</div></div>');
-  h += '<div class="card"><div class="grande">' + (s.nps == null ? '—' : s.nps) + '</div><div class="muted small">NPS (−100 a 100)</div></div></div>';
+  h += '<div class="card"><div class="grande">' + (s.recomendacion == null ? '—' : fmt(s.recomendacion)) + '</div><div class="muted small">Recomendación (de 10)</div></div>' +
+    '<div class="card"><div class="grande">' + (s.nps == null ? '—' : s.nps) + '</div><div class="muted small">NPS (−100 a 100)</div></div></div>' +
+    '<p class="muted small" style="margin:8px 0 0">NPS = % que nos recomendaría con 9 o 10, menos % que puso de 0 a 6. Más de 50 es excelente; menos de 0, alerta.</p>';
 
-  r.secciones.forEach(sec => {
-    h += '<h2 style="margin-top:18px">' + esc(sec.titulo) + '</h2>';
-    sec.preguntas.forEach(p => {
-      const v = s.porPregunta[p.key];
-      h += '<div class="pr"><div>' + esc(p.texto) + '<div class="barra"><i style="width:' + (v ? v / 5 * 100 : 0) + '%"></i></div></div><b>' + fmt(v) + '</b></div>';
-    });
+  // Promedio de cada pregunta calificable
+  h += '<h2 style="margin-top:18px">Por pregunta</h2>';
+  r.preguntas.filter(p => p.tipo === 'estrellas' || p.tipo === 'opciones').forEach(p => {
+    const v = s.porPregunta[p.key];
+    h += '<div class="pr"><div>' + esc(p.texto) + '<div class="barra"><i style="width:' + (v ? v / 5 * 100 : 0) + '%"></i></div></div><b>' + fmt(v) + '</b></div>';
   });
 
-  const corto = t => t.replace('Servicio de Ceprocenter', 'Servicio').replace('Nuestras instalaciones', 'Instalaciones');
+  // Qué marcaron para mejorar (solo quienes calificaron 3 estrellas o menos)
+  const conMejoras = r.preguntas.filter(p => p.mejorar && s.mejoras[p.mejorar.key] && Object.values(s.mejoras[p.mejorar.key]).some(n => n > 0));
+  if (conMejoras.length) {
+    h += '<h2 style="margin-top:18px">Lo que marcaron para mejorar</h2>';
+    conMejoras.forEach(p => {
+      const cuenta = s.mejoras[p.mejorar.key];
+      const max = Math.max.apply(null, Object.values(cuenta).concat([1]));
+      h += '<p class="small" style="margin:10px 0 2px"><b>' + esc(p.mejorar.texto) + '</b></p>';
+      Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a]).filter(o => cuenta[o] > 0).forEach(o => {
+        h += '<div class="pr"><div>' + esc(o) + '<div class="barra"><i style="width:' + (cuenta[o] / max * 100) + '%;background:#d9534f"></i></div></div><b>' + cuenta[o] + '</b></div>';
+      });
+    });
+  }
+
+  // Comentarios (todos, son obligatorios)
+  const etiquetas = x => r.preguntas.filter(p => p.mejorar && x[p.mejorar.key])
+    .map(p => String(x[p.mejorar.key]).split(' · ').map(o => '<span class="chip warn">' + esc(o) + '</span>').join(' ')).join(' ');
+  h += '<h2 style="margin-top:18px">Comentarios (' + r.respondieron.length + ')</h2>';
+  r.respondieron.forEach(x => {
+    h += '<div class="coment"><div class="small"><b>' + esc(x.nombre || x.correo) + '</b> <span class="muted">· ' + esc(x.correo) + ' · ' + esc(x.fecha) + '</span></div>' +
+      '<p>' + esc(x.comentario || '—') + '</p>' +
+      (etiquetas(x) ? '<div class="chips" style="margin-top:4px">' + etiquetas(x) + '</div>' : '') + '</div>';
+  });
+
+  // Tabla de quién respondió
   h += '<h2 style="margin-top:18px">Quién respondió (' + r.respondieron.length + ')</h2>' +
     '<div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Nombre</th><th>Correo de Google</th><th>Fecha</th>' +
-    r.secciones.map(sec => '<th>' + esc(corto(sec.titulo)) + '</th>').join('') + '<th>Recomienda</th></tr></thead><tbody>' +
+    r.secciones.map(sec => '<th>' + esc(sec.titulo) + '</th>').join('') + '<th>Recomienda</th></tr></thead><tbody>' +
     r.respondieron.map(x => '<tr><td><b>' + esc(x.nombre) + '</b></td><td class="muted">' + esc(x.correo) + '</td><td>' + esc(x.fecha) + '</td>' +
       r.secciones.map(sec => '<td>' + fmt(x[sec.id]) + '</td>').join('') + '<td>' + esc(x.nps) + '/10</td></tr>').join('') +
     '</tbody></table></div>';
 
-  h += '<h2 style="margin-top:18px">Comentarios (' + r.comentarios.length + ')</h2>';
-  if (!r.comentarios.length) h += '<p class="muted small">Sin comentarios escritos.</p>';
-  r.comentarios.forEach(c => {
-    h += '<div class="coment"><div class="small"><b>' + esc(c.nombre || c.correo) + '</b> <span class="muted">· ' + esc(c.correo) + ' · ' + esc(c.fecha) + '</span></div>';
-    r.abiertas.forEach(a => { if (String(c[a.key] || '').trim()) h += '<p><b>' + esc(a.texto) + '</b><br>' + esc(c[a.key]) + '</p>'; });
-    h += '</div>';
-  });
   box.innerHTML = h + '</div>';
+}
+
+/* ---------- Pestaña "Docentes": resumen de cada docente en todos sus cursos ---------- */
+
+let DOC_CACHE = [];
+
+// Estrellas visuales para un promedio (ej. 4.3 → ★★★★☆ con la quinta parcialmente llena).
+function estrellasHTML(prom, tam) {
+  const pct = prom == null ? 0 : Math.max(0, Math.min(100, prom / 5 * 100));
+  return '<span class="stars" style="font-size:' + (tam || 18) + 'px" aria-label="' + (prom == null ? 'Sin calificación' : fmt(prom) + ' de 5') + '">' +
+    '<span class="stars-bg">★★★★★</span><span class="stars-fg" style="width:' + pct + '%">★★★★★</span></span>';
+}
+
+// "Módulo 3: Lenguaje y …" → "M3"
+function moduloCorto(m) {
+  const x = String(m || '').match(/m[oó]dulo\s*(\d+)/i);
+  return x ? 'M' + x[1] : String(m || '').slice(0, 6);
+}
+
+let DOC_SEL = -1;
+
+async function renderDocentes() {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = cargando('Calculando el resumen de docentes…');
+  const res = await api({ action: 'resumenDocentes', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
+  if (TAB !== 'docentes') return;
+  if (res.error) { panel.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+  DOC_CACHE = (res.docentes || []).slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+  if (!DOC_CACHE.length) { panel.innerHTML = '<div class="card centro muted">Todavía no hay encuestas creadas.</div>'; return; }
+
+  panel.innerHTML = '<div class="card"><h2>Elige un docente</h2>' +
+    '<p class="muted small" style="margin:0 0 10px">Verás su resumen con lo que respondieron los estudiantes en todos sus cursos y módulos.</p>' +
+    '<div class="doc-botones">' + DOC_CACHE.map((d, i) =>
+      '<button type="button" class="doc-btn" data-i="' + i + '"><b>' + esc(d.nombre) + '</b>' +
+      '<span>' + (d.promedio == null ? 'Sin respuestas' : '★ ' + fmt(d.promedio) + ' · ' + d.respuestas + ' resp.') + '</span></button>').join('') +
+    '</div></div><div id="docDetalle"></div>';
+
+  const elegir = i => {
+    DOC_SEL = i;
+    panel.querySelectorAll('.doc-btn').forEach(b => b.classList.toggle('sel', Number(b.dataset.i) === i));
+    const d = DOC_CACHE[i];
+    const top = Object.keys(d.mejoras).sort((a, b) => d.mejoras[b] - d.mejoras[a])[0];
+    document.getElementById('docDetalle').innerHTML = '<div class="card anim">' +
+      '<div class="doc-fila"><div><h2 style="margin:0">' + esc(d.nombre) + '</h2>' +
+      '<div class="small muted">' + d.respuestas + ' respuesta(s) · ' + d.totalEncuestas + ' módulo(s) evaluado(s)</div>' +
+      (top ? '<div class="chips"><span class="chip warn">Más marcado para mejorar: ' + esc(top) + ' (' + d.mejoras[top] + ')</span></div>' : '') +
+      '</div><div class="doc-nota">' + (d.promedio == null ? '<span class="muted small">Sin respuestas aún</span>' :
+        '<div class="grande">' + fmt(d.promedio) + '</div>' + estrellasHTML(d.promedio, 20)) + '</div></div>' +
+      detalleDocenteHTML(d) + '</div>';
+  };
+  panel.querySelectorAll('.doc-btn').forEach(b => b.onclick = () => elegir(Number(b.dataset.i)));
+  if (DOC_SEL >= 0 && DOC_SEL < DOC_CACHE.length) elegir(DOC_SEL);
+}
+
+function detalleDocenteHTML(d) {
+  if (!d.respuestas) return '<div class="detalle muted">Este docente todavía no tiene respuestas.</div>';
+  let h = '<div class="detalle">';
+
+  // Tarjetas resumen
+  h += '<div class="resumen">' +
+    '<div class="card"><div class="grande">' + fmt(d.promedio) + '</div>' + estrellasHTML(d.promedio, 16) + '<div class="muted small">Calificación (de 5)</div></div>' +
+    '<div class="card"><div class="grande">' + fmt(d.promedioModulo) + '</div><div class="muted small">Cuánto aprendieron (de 5)</div></div>' +
+    '<div class="card"><div class="grande">' + (d.recomendacion == null ? '—' : fmt(d.recomendacion)) + '</div><div class="muted small">Recomendación (de 10)</div></div>' +
+    '<div class="card"><div class="grande">' + d.respuestas + '</div><div class="muted small">Respuestas</div></div></div>';
+
+  // Distribución de estrellas
+  const maxE = Math.max.apply(null, d.estrellas.concat([1]));
+  h += '<h2 style="margin-top:18px">Cómo lo califican</h2>';
+  for (let v = 5; v >= 1; v--) {
+    const n = d.estrellas[v - 1];
+    h += '<div class="dist"><span class="dist-et">' + v + ' ★</span><div class="barra"><i style="width:' + (n / maxE * 100) + '%"></i></div><b>' + n + '</b></div>';
+  }
+
+  // Evolución por módulo (cronológico)
+  const conDatos = d.encuestas.filter(e => e.docente != null);
+  if (conDatos.length) {
+    h += '<h2 style="margin-top:18px">Calificación por módulo</h2><p class="muted small" style="margin:0 0 6px">De más antiguo a más reciente. Pasa el dedo o el mouse sobre una barra para ver el detalle.</p>' +
+      '<div class="grafico" role="img" aria-label="Calificación del docente en cada módulo, de 0 a 5">' +
+      '<div class="ejes"><span>5</span><span>2.5</span><span>0</span></div><div class="barras">' +
+      conDatos.map(e => {
+        const info = e.modulo + ' — ' + e.curso + ' · ' + e.fecha + ' · ' + e.respuestas + ' respuesta(s) · ' + fmt(e.docente) + ' de 5';
+        return '<div class="col" tabindex="0" title="' + esc(info) + '"><div class="val">' + fmt(e.docente) + '</div>' +
+          '<div class="pista"><i style="height:' + (e.docente / 5 * 100) + '%"></i></div><div class="et">' + esc(moduloCorto(e.modulo)) + '</div>' +
+          '<div class="tip">' + esc(info) + '</div></div>';
+      }).join('') + '</div></div>';
+  }
+
+  // Lo que más marcan para mejorar
+  const claves = Object.keys(d.mejoras).sort((a, b) => d.mejoras[b] - d.mejoras[a]);
+  h += '<h2 style="margin-top:18px">Lo que más marcan para mejorar</h2>';
+  if (!claves.length) h += '<p class="muted small">Nadie ha marcado aspectos a mejorar. 🎉</p>';
+  else {
+    const maxM = d.mejoras[claves[0]];
+    claves.forEach(o => {
+      h += '<div class="pr"><div>' + esc(o) + '<div class="barra"><i style="width:' + (d.mejoras[o] / maxM * 100) + '%;background:#d9534f"></i></div></div><b>' + d.mejoras[o] + '</b></div>';
+    });
+  }
+
+  // Tabla de módulos
+  h += '<h2 style="margin-top:18px">Módulos evaluados</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr>' +
+    '<th>Fecha</th><th>Curso</th><th>Módulo</th><th>Modalidad</th><th>Resp.</th><th>Docente</th><th>Aprendizaje</th><th>Recom.</th></tr></thead><tbody>' +
+    d.encuestas.slice().reverse().map(e => '<tr><td>' + esc(e.fecha) + '</td><td>' + esc(e.curso) + '</td><td>' + esc(e.modulo) + '</td><td>' + esc(e.modalidad) +
+      '</td><td>' + e.respuestas + '</td><td><b>' + fmt(e.docente) + '</b></td><td>' + fmt(e.moduloProm) + '</td><td>' +
+      (e.recomendacion == null ? '—' : fmt(e.recomendacion) + '/10') + '</td></tr>').join('') +
+    '</tbody></table></div>';
+
+  // Comentarios recientes
+  h += '<h2 style="margin-top:18px">Comentarios recientes (' + d.comentarios.length + ')</h2>';
+  d.comentarios.forEach(c => {
+    h += '<div class="coment"><div class="small">' + (c.estrellas ? estrellasHTML(c.estrellas, 13) + ' ' : '') + '<b>' + esc(c.nombre) + '</b> ' +
+      '<span class="muted">· ' + esc(moduloCorto(c.modulo)) + ' · ' + esc(c.curso) + ' · ' + esc(c.fecha) + '</span></div><p>' + esc(c.texto) + '</p></div>';
+  });
+
+  return h + '</div>';
 }
 
 /* ========================================================================= */
