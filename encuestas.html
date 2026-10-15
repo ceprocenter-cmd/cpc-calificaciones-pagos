@@ -436,7 +436,7 @@ async function enviarEncuesta() {
 
 function pantallaGracias(yaRespondida) {
   window.scrollTo(0, 0);
-  $app.innerHTML = '<div class="card centro anim"><div class="emoji">💙</div>' +
+  $app.innerHTML = '<div class="card centro anim"><div class="emoji">💚</div>' +
     '<h1>' + (yaRespondida ? 'Ya respondiste esta encuesta' : '¡Gracias por tu opinión!') + '</h1>' +
     '<p class="muted">Leemos cada respuesta para seguir mejorando cada módulo en CEPROCENTER.</p>' +
     (IDENT ? '<p class="muted small">Cuenta: ' + esc(IDENT.correo) + (yaRespondida ? ' · <button class="link" onclick="usarOtraCuenta()">Responder con otra cuenta</button>' : '') + '</p>' : '') +
