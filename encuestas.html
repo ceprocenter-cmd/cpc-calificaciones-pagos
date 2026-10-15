@@ -47,6 +47,7 @@
   .leyenda{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
   textarea,input,select{width:100%;font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;color:var(--ink)}
   textarea{min-height:84px;resize:vertical}
+  textarea.corto{min-height:56px}
   textarea:focus,input:focus,select:focus{outline:none;border-color:var(--brand2)}
   label.lbl{display:block;font-weight:600;margin:14px 0 6px}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--brand);color:#fff}
@@ -199,7 +200,8 @@ function cabeceraHTML() {
   return '<div class="card hero"><div class="marca">Ceprocenter · Encuesta de satisfacción</div>' +
     '<h1>' + esc(e.modulo) + '</h1>' +
     '<div class="meta"><div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
-    '<div><span>Docente:</span> <b>' + esc(e.tutor) + '</b></div></div></div>';
+    '<div><span>Docente:</span> <b>' + esc(e.tutor) + '</b></div>' +
+    '<div><span>Modalidad:</span> <b>' + esc(e.modalidad) + '</b></div></div></div>';
 }
 
 async function iniciarEncuesta() {
@@ -303,7 +305,7 @@ function empezarEncuesta() {
 function pasoCompleto(p) {
   if (p.tipo === 'texto') return String(RESP[p.key] || '').trim().length >= (p.minimo || 1);
   if (RESP[p.key] === undefined) return false;
-  if (p.tipo === 'estrellas' && p.mejorar && RESP[p.key] <= 3) return (MEJ[p.mejorar.key] || []).length > 0;
+  if (p.mejorar && RESP[p.key] <= 3) return (MEJ[p.mejorar.key] || []).length > 0;
   return true;
 }
 
@@ -326,12 +328,6 @@ function mostrarPaso(i) {
     h += '<div class="estrellas">';
     for (let v = 1; v <= 5; v++) h += '<button type="button" class="estrella" data-v="' + v + '" aria-label="' + v + ' de 5">★</button>';
     h += '</div><div class="etq" id="etq">' + (RESP[p.key] ? esc(ENC.etiquetasEstrellas[RESP[p.key] - 1]) : 'Toca las estrellas') + '</div>';
-    if (p.mejorar) {
-      h += '<div id="mejorar" class="mejorar" style="display:none"><div class="qt">' + esc(p.mejorar.texto) + '</div>' +
-        '<p class="muted small" style="margin:-4px 0 8px">Puedes elegir varias.</p><div class="chips-sel">' +
-        p.mejorar.opciones.map(o => '<button type="button" class="chipsel" data-o="' + esc(o) + '">' + esc(o) + '</button>').join('') +
-        '</div></div>';
-    }
   } else if (p.tipo === 'opciones') {
     h += '<div class="lista">' + p.opciones.map(o =>
       '<button type="button" class="opt txt" data-v="' + o.v + '"><span class="punto"></span>' + esc(o.t) + '</button>').join('') + '</div>';
@@ -340,8 +336,15 @@ function mostrarPaso(i) {
     for (let v = 0; v <= 10; v++) h += '<button type="button" class="opt" data-v="' + v + '">' + v + '</button>';
     h += '</div><div class="leyenda"><span>0 · Nada probable</span><span>10 · Muy probable</span></div>';
   } else if (p.tipo === 'texto') {
-    h += '<textarea id="txt" maxlength="3000" placeholder="Escribe aquí tu comentario…">' + esc(RESP[p.key] || '') + '</textarea>' +
+    h += '<textarea id="txt" maxlength="3000"' + (p.corto ? ' class="corto"' : '') + ' placeholder="' + esc(p.placeholder || 'Escribe aquí…') + '">' + esc(RESP[p.key] || '') + '</textarea>' +
       '<div class="contador muted small" id="contador"></div>';
+  }
+
+  if (p.mejorar) {
+    h += '<div id="mejorar" class="mejorar" style="display:none"><div class="qt">' + esc(p.mejorar.texto) + '</div>' +
+      '<p class="muted small" style="margin:-4px 0 8px">Puedes elegir varias.</p><div class="chips-sel">' +
+      p.mejorar.opciones.map(o => '<button type="button" class="chipsel" data-o="' + esc(o) + '">' + esc(o) + '</button>').join('') +
+      '</div></div>';
   }
 
   h += '<div id="errEnc"></div><div class="nav">' +
@@ -356,13 +359,32 @@ function mostrarPaso(i) {
   if (i > 0) document.getElementById('btnAtras').onclick = () => mostrarPaso(i - 1);
   $sig.onclick = () => { if (!pasoCompleto(p)) return; ultimo ? enviarEncuesta() : mostrarPaso(i + 1); };
 
+  // Si la respuesta vale 3 o menos, aparece "¿qué falló?" y hay que marcar al menos una opción.
+  const mostrarMejorar = () => {
+    const m = document.getElementById('mejorar');
+    if (!m) return;
+    const bajo = RESP[p.key] !== undefined && RESP[p.key] <= 3;
+    const antes = m.style.display;
+    m.style.display = bajo ? 'block' : 'none';
+    if (bajo && antes === 'none') setTimeout(() => m.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  };
+  if (p.mejorar) {
+    cont.querySelectorAll('.chipsel').forEach(c => {
+      c.classList.toggle('sel', (MEJ[p.mejorar.key] || []).indexOf(c.dataset.o) !== -1);
+      c.onclick = () => {
+        const lista = MEJ[p.mejorar.key] = MEJ[p.mejorar.key] || [];
+        const k = lista.indexOf(c.dataset.o);
+        if (k === -1) lista.push(c.dataset.o); else lista.splice(k, 1);
+        c.classList.toggle('sel', k === -1);
+        refrescar();
+      };
+    });
+  }
+  mostrarMejorar();
+
   if (p.tipo === 'estrellas') {
     const pintar = v => cont.querySelectorAll('.estrella').forEach(b => b.classList.toggle('on', Number(b.dataset.v) <= v));
-    const mostrarMejorar = () => {
-      const m = document.getElementById('mejorar');
-      if (m) m.style.display = RESP[p.key] && RESP[p.key] <= 3 ? 'block' : 'none';
-    };
-    pintar(RESP[p.key] || 0); mostrarMejorar();
+    pintar(RESP[p.key] || 0);
     cont.querySelectorAll('.estrella').forEach(b => {
       b.onmouseenter = () => pintar(Number(b.dataset.v));
       b.onmouseleave = () => pintar(RESP[p.key] || 0);
@@ -375,27 +397,18 @@ function mostrarPaso(i) {
         if (!p.mejorar || v > 3) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 450);
       };
     });
-    if (p.mejorar) {
-      const elegidas = MEJ[p.mejorar.key] || [];
-      cont.querySelectorAll('.chipsel').forEach(c => {
-        c.classList.toggle('sel', elegidas.indexOf(c.dataset.o) !== -1);
-        c.onclick = () => {
-          const lista = MEJ[p.mejorar.key] = MEJ[p.mejorar.key] || [];
-          const k = lista.indexOf(c.dataset.o);
-          if (k === -1) lista.push(c.dataset.o); else lista.splice(k, 1);
-          c.classList.toggle('sel', k === -1);
-          refrescar();
-        };
-      });
-    }
   } else if (p.tipo === 'opciones' || p.tipo === 'nps') {
     cont.querySelectorAll('.opt').forEach(b => {
       b.classList.toggle('sel', RESP[p.key] !== undefined && Number(b.dataset.v) === RESP[p.key]);
       b.onclick = () => {
-        RESP[p.key] = Number(b.dataset.v);
+        clearTimeout(avanceTimer);
+        const v = Number(b.dataset.v);
+        RESP[p.key] = v;
         cont.querySelectorAll('.opt').forEach(x => x.classList.toggle('sel', x === b));
-        refrescar();
-        avanceTimer = setTimeout(() => mostrarPaso(i + 1), 350);
+        if (p.mejorar && v > 3) MEJ[p.mejorar.key] = [];
+        if (p.mejorar) cont.querySelectorAll('.chipsel').forEach(c => c.classList.toggle('sel', (MEJ[p.mejorar.key] || []).indexOf(c.dataset.o) !== -1));
+        mostrarMejorar(); refrescar();
+        if (!p.mejorar || v > 3) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 350);
       };
     });
   } else if (p.tipo === 'texto') {
@@ -615,6 +628,7 @@ function pintarLista(filtro) {
         (ps.modulo !== undefined ? '<span class="chip">Módulo ' + fmt(ps.modulo) + '</span>' : '') +
         '<span class="chip">Atención ' + fmt(ps.servicio) + '</span>' +
         (ps.instalaciones !== undefined ? '<span class="chip">Instalaciones ' + fmt(ps.instalaciones) + '</span>' : '') +
+        (ps.plataforma !== undefined ? '<span class="chip">En línea ' + fmt(ps.plataforma) + '</span>' : '') +
         npsChip + (e.correosEnviados ? '<span class="chip off">✉️ ' + e.correosEnviados + ' enviados</span>' : '') +
       '</div>' +
       botonesCompartir(
@@ -672,6 +686,13 @@ async function verResultados(card, e, btn) {
         h += '<div class="pr"><div>' + esc(o) + '<div class="barra"><i style="width:' + (cuenta[o] / max * 100) + '%;background:#d9534f"></i></div></div><b>' + cuenta[o] + '</b></div>';
       });
     });
+  }
+
+  // Temáticas que piden para próximas capacitaciones
+  const tematicas = r.respondieron.filter(x => String(x.tematica || '').trim());
+  if (tematicas.length) {
+    h += '<h2 style="margin-top:18px">Temáticas que les gustaría (' + tematicas.length + ')</h2><div class="chips">' +
+      tematicas.map(x => '<span class="chip" title="' + esc(x.nombre) + '">' + esc(x.tematica) + '</span>').join('') + '</div>';
   }
 
   // Comentarios (todos, son obligatorios)
@@ -754,8 +775,8 @@ function detalleDocenteHTML(d) {
   // Tarjetas resumen
   h += '<div class="resumen">' +
     '<div class="card"><div class="grande">' + fmt(d.promedio) + '</div>' + estrellasHTML(d.promedio, 16) + '<div class="muted small">Calificación (de 5)</div></div>' +
-    '<div class="card"><div class="grande">' + fmt(d.promedioModulo) + '</div><div class="muted small">Cuánto aprendieron (de 5)</div></div>' +
-    '<div class="card"><div class="grande">' + (d.recomendacion == null ? '—' : fmt(d.recomendacion)) + '</div><div class="muted small">Recomendación (de 10)</div></div>' +
+    '<div class="card"><div class="grande">' + fmt(d.promedioModulo) + '</div><div class="muted small">Utilidad profesional (de 5)</div></div>' +
+    '<div class="card"><div class="grande">' + (d.volverPct == null ? '—' : d.volverPct + '%') + '</div><div class="muted small">Volverían a tener clases con él/ella</div></div>' +
     '<div class="card"><div class="grande">' + d.respuestas + '</div><div class="muted small">Respuestas</div></div></div>';
 
   // Distribución de estrellas
@@ -793,10 +814,10 @@ function detalleDocenteHTML(d) {
 
   // Tabla de módulos
   h += '<h2 style="margin-top:18px">Módulos evaluados</h2><div style="overflow-x:auto"><table class="tabla"><thead><tr>' +
-    '<th>Fecha</th><th>Curso</th><th>Módulo</th><th>Modalidad</th><th>Resp.</th><th>Docente</th><th>Aprendizaje</th><th>Recom.</th></tr></thead><tbody>' +
+    '<th>Fecha</th><th>Curso</th><th>Módulo</th><th>Modalidad</th><th>Resp.</th><th>Docente</th><th>Utilidad</th><th>Volverían</th></tr></thead><tbody>' +
     d.encuestas.slice().reverse().map(e => '<tr><td>' + esc(e.fecha) + '</td><td>' + esc(e.curso) + '</td><td>' + esc(e.modulo) + '</td><td>' + esc(e.modalidad) +
       '</td><td>' + e.respuestas + '</td><td><b>' + fmt(e.docente) + '</b></td><td>' + fmt(e.moduloProm) + '</td><td>' +
-      (e.recomendacion == null ? '—' : fmt(e.recomendacion) + '/10') + '</td></tr>').join('') +
+      (e.volverPct == null ? '—' : e.volverPct + '%') + '</td></tr>').join('') +
     '</tbody></table></div>';
 
   // Comentarios recientes
