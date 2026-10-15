@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Encuesta de Satisfacción — Ceprocenter</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#f4f6fb; --card:#fff; --ink:#1b2033; --muted:#6b7288; --line:#e3e7f0;
     --brand:#2b3a8f; --brand2:#4a5fd1; --soft:#eef1ff; --ok:#1f9d62; --okbg:#e7f7ef;
-    --warn:#c0392b; --warnbg:#fdecea; --amber:#d68910;
+    --warn:#c0392b; --warnbg:#fdecea; --amberbg:#fff6e5; --amber:#9a6200;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.5}
@@ -30,7 +31,7 @@
   .q{padding:14px 0;border-top:1px solid var(--line)}
   .q:first-of-type{border-top:none}
   .q.falta .qt{color:var(--warn)}
-  .q.falta .escala .opt,.q.falta select{border-color:#f1b0a8}
+  .q.falta .escala .opt{border-color:#f1b0a8}
   .qt{font-weight:600;margin-bottom:8px}
   .escala{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
   .escala.nps{grid-template-columns:repeat(11,1fr);gap:4px}
@@ -53,6 +54,8 @@
   .msg{border-radius:10px;padding:12px 14px;margin-top:12px;font-size:14px}
   .msg.err{background:var(--warnbg);color:var(--warn)}
   .msg.ok{background:var(--okbg);color:var(--ok)}
+  .msg.info{background:var(--soft);color:var(--brand)}
+  .msg.aviso{background:var(--amberbg);color:var(--amber)}
   .centro{text-align:center;padding:48px 20px}
   .emoji{font-size:48px}
   .spinner{width:34px;height:34px;border:4px solid var(--soft);border-top-color:var(--brand);border-radius:50%;animation:g 1s linear infinite;margin:0 auto}
@@ -79,6 +82,12 @@
   .grande{font-size:28px;font-weight:800;color:var(--brand)}
   .resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:8px}
   .resumen .card{margin:0;padding:14px;text-align:center}
+  .yo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .link{background:none;border:none;color:var(--brand2);font:inherit;font-weight:600;cursor:pointer;padding:0;text-decoration:underline}
+  #gbtn{display:flex;justify-content:center;min-height:44px;margin:18px 0 6px}
+  table.tabla{width:100%;border-collapse:collapse;font-size:13px}
+  table.tabla th{text-align:left;color:var(--muted);padding:6px 4px;font-weight:600}
+  table.tabla td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
   @media (max-width:560px){
     .fila{grid-template-columns:1fr}
     .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
@@ -91,6 +100,7 @@
 
 <script>
 // ⚠️ Pega aquí la MISMA URL de Apps Script que usan Matrículas y Calificaciones (termina en /exec).
+// (El ID de cliente de Google NO va aquí: la página lo toma del Apps Script.)
 const SCRIPT_URL = 'PEGA_AQUI_LA_URL_DE_TU_APPS_SCRIPT';
 
 const EQUIPO = ['Kin', 'Jose', 'Sara'];
@@ -108,8 +118,6 @@ function esc(s) {
 function cargando(texto) {
   return '<div class="card centro"><div class="spinner"></div><p class="muted">' + esc(texto || 'Cargando…') + '</p></div>';
 }
-function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-function leerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function linkEncuesta(id) { return location.origin + location.pathname + '?id=' + encodeURIComponent(id); }
 function fmt(n) { return n == null ? '—' : Number(n).toFixed(1); }
 
@@ -117,43 +125,117 @@ function fmt(n) { return n == null ? '—' : Number(n).toFixed(1); }
    MODO ESTUDIANTE  (encuestas.html?id=XXXX)
    ========================================================================= */
 let ENC = null;
+let IDENT = null;            // { correo, nombre, firma }
 const resp = {};
+const CLAVE_IDENT = 'cpc_cuenta_google';
+
+function leerIdent() { try { return JSON.parse(localStorage.getItem(CLAVE_IDENT) || 'null'); } catch (e) { return null; } }
+function guardarIdent(o) { try { localStorage.setItem(CLAVE_IDENT, JSON.stringify(o)); } catch (e) {} }
+function borrarIdent() { try { localStorage.removeItem(CLAVE_IDENT); } catch (e) {} }
+
+// Navegadores dentro de apps (Instagram, Facebook, etc.) no permiten entrar con Google.
+function esNavegadorDeApp() { return /FBAN|FBAV|Instagram|Line\/|TikTok|Snapchat/i.test(navigator.userAgent || ''); }
+
+function heroHTML() {
+  const e = ENC.encuesta;
+  return '<div class="card hero"><div class="marca">Ceprocenter</div>' +
+    '<h1>Encuesta de satisfacción</h1>' +
+    '<div class="meta">' +
+      '<div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
+      '<div><span>Módulo:</span> <b>' + esc(e.modulo) + '</b></div>' +
+      '<div><span>Tutor:</span> <b>' + esc(e.tutor) + '</b></div>' +
+    '</div></div>';
+}
 
 async function iniciarEncuesta() {
   document.title = 'Encuesta — Ceprocenter';
-  // Ya no se bloquea por dispositivo: el control de "una respuesta por estudiante" lo hace el servidor,
-  // así varios estudiantes pueden responder desde la misma computadora o tablet de la oficina.
   $app.innerHTML = cargando('Cargando encuesta…');
+  const guardada = leerIdent();
   try {
-    const res = await api({ action: 'obtenerEncuesta', id: ENC_ID });
+    const res = await api({ action: 'obtenerEncuesta', id: ENC_ID, correo: guardada && guardada.correo, firma: guardada && guardada.firma });
     if (res.error) {
       $app.innerHTML = '<div class="card centro"><div class="emoji">' + (res.cerrada ? '🔒' : '🔎') + '</div><h2>' + esc(res.error) + '</h2></div>';
       return;
     }
     ENC = res;
-    renderEncuesta();
+    if (res.identidad) {
+      IDENT = { correo: res.identidad.correo, firma: res.identidad.firma, nombre: (guardada && guardada.nombre) || res.identidad.correo };
+      if (res.identidad.yaRespondio) return pantallaGracias(true);
+      return renderEncuesta();
+    }
+    if (guardada) borrarIdent();
+    renderIdentificacion();
   } catch (e) {
     $app.innerHTML = '<div class="card centro"><div class="emoji">📶</div><h2>No pudimos cargar la encuesta</h2><p class="muted">Revisa tu conexión e inténtalo de nuevo.</p><button class="btn" onclick="iniciarEncuesta()">Reintentar</button></div>';
   }
 }
 
-function renderEncuesta() {
-  const e = ENC.encuesta;
-  let h = '';
-  h += '<div class="card hero"><div class="marca">Ceprocenter</div>' +
-       '<h1>Encuesta de satisfacción</h1>' +
-       '<div class="meta">' +
-         '<div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
-         '<div><span>Módulo:</span> <b>' + esc(e.modulo) + '</b></div>' +
-         '<div><span>Tutor:</span> <b>' + esc(e.tutor) + '</b></div>' +
-       '</div></div>';
-  h += '<div class="card small muted">Te tomará menos de 3 minutos. Califica del <b>1</b> (muy malo) al <b>5</b> (excelente). Tus respuestas las revisa el equipo de Ceprocenter y nos ayudan a mejorar.</div>';
+function renderIdentificacion(mensaje) {
+  IDENT = null;
+  $app.innerHTML = heroHTML() +
+    '<div class="card" style="text-align:center">' +
+      '<h2>Para comenzar, entra con tu cuenta de Google</h2>' +
+      '<p class="muted small" style="margin:4px 0 0">Toca el botón y elige la cuenta de Gmail de tu dispositivo. Cada cuenta puede responder una sola vez.</p>' +
+      (esNavegadorDeApp() ? '<div class="msg aviso">Estás abriendo el enlace dentro de una app. Para entrar con Google, ábrelo en <b>Chrome</b> o <b>Safari</b> (menú ⋮ o ··· → "Abrir en el navegador").</div>' : '') +
+      '<div id="gbtn"></div>' +
+      '<div id="errIdent">' + (mensaje ? '<div class="msg err">' + esc(mensaje) + '</div>' : '') + '</div>' +
+    '</div>';
+  esperarGoogle(ok => {
+    if (!ok) {
+      document.getElementById('errIdent').innerHTML = '<div class="msg err">No se pudo cargar el inicio de sesión de Google. Abre el enlace en Chrome o Safari e inténtalo de nuevo.</div>';
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: ENC.googleClientId,
+      callback: alEntrarConGoogle,
+      auto_select: true,
+      cancel_on_tap_outside: false,
+      itp_support: true,
+      use_fedcm_for_prompt: true,
+      context: 'use'
+    });
+    const ancho = Math.min(320, document.getElementById('gbtn').offsetWidth || 300);
+    google.accounts.id.renderButton(document.getElementById('gbtn'), {
+      theme: 'filled_blue', size: 'large', text: 'continue_with', shape: 'pill', locale: 'es', width: ancho
+    });
+    google.accounts.id.prompt(); // muestra la cuenta del dispositivo para entrar con un toque
+  });
+}
 
-  const estParam = (params.get('est') || '').trim().toLowerCase();
-  h += '<div class="card"><div class="q" data-key="estudiante" style="padding:0"><div class="qt">¿Quién eres?</div>' +
-       '<select id="estudiante"><option value="">Selecciona tu nombre…</option>' +
-       (ENC.estudiantes || []).map(n => '<option' + (n.trim().toLowerCase() === estParam ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
-       '</select><p class="muted small" style="margin:6px 0 0">Si no apareces en la lista, escríbele a tu asesor.</p></div></div>';
+function esperarGoogle(cb, intentos) {
+  intentos = intentos || 0;
+  if (window.google && google.accounts && google.accounts.id) return cb(true);
+  if (intentos > 80) return cb(false); // ~8 segundos
+  setTimeout(() => esperarGoogle(cb, intentos + 1), 100);
+}
+
+async function alEntrarConGoogle(respuestaGoogle) {
+  const $err = document.getElementById('errIdent');
+  if ($err) $err.innerHTML = '<div class="msg info">Verificando tu cuenta…</div>';
+  try {
+    const res = await api({ action: 'identificarConGoogle', id: ENC_ID, credential: respuestaGoogle.credential });
+    if (res.error) { if ($err) $err.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+    IDENT = { correo: res.correo, nombre: res.nombre, firma: res.firma };
+    guardarIdent(IDENT);
+    if (res.yaRespondio) return pantallaGracias(true);
+    renderEncuesta();
+  } catch (e) {
+    if ($err) $err.innerHTML = '<div class="msg err">No pudimos verificar tu cuenta. Revisa tu conexión e inténtalo de nuevo.</div>';
+  }
+}
+
+function usarOtraCuenta() {
+  borrarIdent();
+  try { google.accounts.id.disableAutoSelect(); } catch (e) {}
+  renderIdentificacion();
+}
+
+function renderEncuesta() {
+  let h = heroHTML();
+  h += '<div class="card yo"><div><div class="muted small">Respondiendo como</div><b>' + esc(IDENT.nombre) + '</b>' +
+       (IDENT.nombre !== IDENT.correo ? ' <span class="muted small">' + esc(IDENT.correo) + '</span>' : '') + '</div>' +
+       '<button class="link small" id="btnOtra">Usar otra cuenta</button></div>';
+  h += '<div class="card small muted">Te tomará menos de 3 minutos. Califica del <b>1</b> (muy malo) al <b>5</b> (excelente). Tus respuestas las revisa el equipo de Ceprocenter y nos ayudan a mejorar.</div>';
 
   ENC.secciones.forEach(s => {
     h += '<div class="card"><h2>' + esc(s.titulo) + '</h2><p class="muted small" style="margin:0 0 6px">' + esc(s.descripcion) + '</p>';
@@ -177,6 +259,13 @@ function renderEncuesta() {
 
   h += '<div id="errEnc"></div><div style="margin-top:16px"><button class="btn full" id="btnEnviar">Enviar mis respuestas</button></div>';
   $app.innerHTML = h;
+  window.scrollTo(0, 0);
+
+  // Si había respuestas marcadas (por ejemplo, tras volver a identificarse), se restauran.
+  Object.keys(resp).forEach(k => {
+    const b = $app.querySelector('.opt[data-key="' + k + '"][data-v="' + resp[k] + '"]');
+    if (b) b.classList.add('sel');
+  });
 
   $app.querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.key;
@@ -184,9 +273,7 @@ function renderEncuesta() {
     $app.querySelectorAll('.opt[data-key="' + k + '"]').forEach(x => x.classList.toggle('sel', x === b));
     const q = b.closest('.q'); if (q) q.classList.remove('falta');
   }));
-  document.getElementById('estudiante').addEventListener('change', ev => {
-    if (ev.target.value) ev.target.closest('.q').classList.remove('falta');
-  });
+  document.getElementById('btnOtra').addEventListener('click', usarOtraCuenta);
   document.getElementById('btnEnviar').addEventListener('click', enviarEncuesta);
 }
 
@@ -195,30 +282,26 @@ async function enviarEncuesta() {
   ENC.secciones.forEach(s => s.preguntas.forEach(p => requeridas.push(p.key)));
   requeridas.push('nps');
   const faltan = requeridas.filter(k => resp[k] === undefined);
-  const estudiante = document.getElementById('estudiante').value;
-  if (!estudiante) faltan.unshift('estudiante');
   const $err = document.getElementById('errEnc');
   if (faltan.length) {
     faltan.forEach(k => { const q = $app.querySelector('.q[data-key="' + k + '"]'); if (q) q.classList.add('falta'); });
-    const nPreg = faltan.filter(k => k !== 'estudiante').length;
-    const partes = [];
-    if (!estudiante) partes.push('elegir tu nombre');
-    if (nPreg) partes.push('calificar ' + (nPreg === 1 ? '1 pregunta' : nPreg + ' preguntas'));
-    $err.innerHTML = '<div class="msg err">Te falta ' + partes.join(' y ') + ' (marcado en rojo).</div>';
+    $err.innerHTML = '<div class="msg err">Te ' + (faltan.length === 1 ? 'falta 1 pregunta' : 'faltan ' + faltan.length + ' preguntas') + ' por calificar (marcadas en rojo).</div>';
     $app.querySelector('.q.falta').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
   const data = Object.assign({}, resp);
   ENC.abiertas.forEach(a => data[a.key] = document.getElementById(a.key).value);
-  data.estudiante = estudiante;
+  data.correo = IDENT.correo;
+  data.firma = IDENT.firma;
+  data.nombreGoogle = IDENT.nombre !== IDENT.correo ? IDENT.nombre : '';
 
   const btn = document.getElementById('btnEnviar');
   btn.disabled = true; btn.textContent = 'Enviando…'; $err.innerHTML = '';
   try {
     const res = await api({ action: 'responderEncuesta', id: ENC_ID, data: data });
-    if (res.yaRespondio) { guardarLocal('enc_resp_' + ENC_ID, '1'); return pantallaGracias(true); }
+    if (res.yaRespondio) return pantallaGracias(true);
+    if (res.reidentificar) { borrarIdent(); return renderIdentificacion(res.error); }
     if (res.error) throw new Error(res.error);
-    guardarLocal('enc_resp_' + ENC_ID, '1');
     pantallaGracias(false);
   } catch (e) {
     btn.disabled = false; btn.textContent = 'Enviar mis respuestas';
@@ -230,7 +313,9 @@ function pantallaGracias(yaRespondida) {
   window.scrollTo(0, 0);
   $app.innerHTML = '<div class="card centro"><div class="emoji">💙</div>' +
     '<h1>' + (yaRespondida ? 'Ya respondiste esta encuesta' : '¡Gracias por tu opinión!') + '</h1>' +
-    '<p class="muted">Tus respuestas nos ayudan a seguir mejorando cada módulo en Ceprocenter.</p></div>';
+    '<p class="muted">Tus respuestas nos ayudan a seguir mejorando cada módulo en Ceprocenter.</p>' +
+    (IDENT ? '<p class="muted small">Cuenta: ' + esc(IDENT.correo) + (yaRespondida ? ' · <button class="link" onclick="usarOtraCuenta()">Responder con otra cuenta</button>' : '') + '</p>' : '') +
+    '</div>';
 }
 
 /* =========================================================================
@@ -333,18 +418,18 @@ function mostrarCreada(enc) {
   const box = document.getElementById('resCrear');
   box.innerHTML = '<div class="card" style="border-color:#bfe6d1;background:#f6fcf9">' +
     '<h2>✅ Encuesta creada</h2><p class="muted small" style="margin:0">' + esc(enc.modulo) + ' · ' + esc(enc.curso) + ' · ' + esc(enc.tutor) + '</p>' +
-    '<label class="lbl">Enlace para los estudiantes</label><input readonly value="' + esc(link) + '" onclick="this.select()">' +
-    botonesCompartir(enc) + '<div class="res-envio"></div></div>';
+    '<label class="lbl">Enlace para los estudiantes (el mismo para todos)</label><input readonly value="' + esc(link) + '" onclick="this.select()">' +
+    botonesCompartir() + '</div><div class="res-envio"></div></div>';
   conectarCompartir(box, enc);
   box.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function botonesCompartir(enc) {
+function botonesCompartir(extra) {
   return '<div class="acciones">' +
     '<button class="btn sm sec" data-acc="copiar">📋 Copiar enlace</button>' +
     '<button class="btn sm wa" data-acc="wa">WhatsApp</button>' +
-    '<button class="btn sm" data-acc="correo">✉️ Enviar por correo a los estudiantes</button>' +
-    '</div>';
+    '<button class="btn sm ghost" data-acc="correo">✉️ Enviar por correo</button>' +
+    (extra || '');
 }
 
 function conectarCompartir(cont, enc) {
@@ -359,24 +444,17 @@ function conectarCompartir(cont, enc) {
       '. Nos ayudarías mucho respondiendo esta encuesta corta (menos de 3 minutos): ' + link + ' ¡Gracias! 💙 Equipo Ceprocenter';
     window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
   };
-  const enviarCorreos = async (btn, soloPendientes) => {
-    const pregunta = soloPendientes
-      ? '¿Enviar un recordatorio por correo SOLO a los estudiantes de "' + enc.curso + '" que todavía no respondieron?'
-      : '¿Enviar el enlace por correo a TODOS los estudiantes activos de "' + enc.curso + '"?';
-    if (!confirm(pregunta)) return;
-    const textoOriginal = btn.textContent;
+  cont.querySelector('[data-acc="correo"]').onclick = async ev => {
+    if (!confirm('¿Enviar el enlace por correo a todos los estudiantes activos de "' + enc.curso + '"?')) return;
+    const btn = ev.target, original = btn.textContent;
     btn.disabled = true; btn.textContent = 'Enviando…';
-    const res = await api({ action: 'enviarEncuestaEstudiantes', clave: CLAVE, id: enc.id, link: link, soloPendientes: soloPendientes }).catch(() => ({ error: 'Sin conexión.' }));
-    btn.disabled = false; btn.textContent = textoOriginal;
+    const res = await api({ action: 'enviarEncuestaEstudiantes', clave: CLAVE, id: enc.id, link: link }).catch(() => ({ error: 'Sin conexión.' }));
+    btn.disabled = false; btn.textContent = original;
     if (res.error) { $res.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
-    if (res.mensaje) { $res.innerHTML = '<div class="msg ok">' + esc(res.mensaje) + '</div>'; return; }
     $res.innerHTML = '<div class="msg ok">Se enviaron ' + res.enviados + ' de ' + res.total + ' correo(s).' +
       (res.sinCorreo ? ' ' + res.sinCorreo + ' estudiante(s) sin correo registrado.' : '') +
       (res.errores && res.errores.length ? ' Errores: ' + esc(res.errores.join('; ')) : '') + '</div>';
   };
-  cont.querySelector('[data-acc="correo"]').onclick = ev => enviarCorreos(ev.target, false);
-  const $pend = cont.querySelector('[data-acc="pendientes"]');
-  if ($pend) $pend.onclick = ev => enviarCorreos(ev.target, true);
 }
 
 let LISTA_CACHE = [];
@@ -406,18 +484,17 @@ function pintarLista(filtro) {
       '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2>' + esc(e.modulo) + '</h2>' +
       '<div class="muted small">' + esc(e.curso) + '</div><div class="small">Tutor: <b>' + esc(e.tutor) + '</b> · ' + esc(e.modalidad) + ' · creada ' + esc(e.fechaCreacion) +
       (e.fechaCierre ? ' · cierra ' + esc(e.fechaCierre) : '') + '</div></div>' +
-      '<div style="text-align:right"><div class="grande">' + s.total + (e.totalEstudiantes ? '<span class="muted" style="font-size:16px"> / ' + e.totalEstudiantes + '</span>' : '') + '</div><div class="muted small">respondieron</div></div></div>' +
+      '<div style="text-align:right"><div class="grande">' + s.total + (e.totalEstudiantes ? '<span class="muted" style="font-size:16px"> / ' + e.totalEstudiantes + '</span>' : '') + '</div><div class="muted small">respuestas</div></div></div>' +
       '<div class="chips">' + estado +
         '<span class="chip">Tutor ' + fmt(ps.tutor) + '</span>' +
         '<span class="chip">Servicio ' + fmt(ps.servicio) + '</span>' +
         (ps.instalaciones !== undefined ? '<span class="chip">Instalaciones ' + fmt(ps.instalaciones) + '</span>' : '') +
         npsChip + (e.correosEnviados ? '<span class="chip off">✉️ ' + e.correosEnviados + ' enviados</span>' : '') +
       '</div>' +
-      botonesCompartir(e).replace('</div>',
-        '<button class="btn sm sec" data-acc="pendientes">🔔 Recordar a los que faltan</button>' +
+      botonesCompartir(
         '<button class="btn sm ghost" data-acc="ver">Ver resultados</button>' +
-        '<button class="btn sm ghost" data-acc="estado">' + (e.activa ? '🔒 Cerrar' : '🔓 Reabrir') + '</button></div>') +
-      '<div class="res-envio"></div><div class="detalle-box"></div></div>';
+        '<button class="btn sm ghost" data-acc="estado">' + (e.activa ? '🔒 Cerrar' : '🔓 Reabrir') + '</button>') +
+      '</div><div class="res-envio"></div><div class="detalle-box"></div></div>';
   }).join('');
 
   cont.querySelectorAll('.card[data-id]').forEach(card => {
@@ -441,9 +518,7 @@ async function verResultados(card, e, btn) {
   if (r.error) { box.innerHTML = '<div class="msg err">' + esc(r.error) + '</div>'; return; }
   btn.textContent = 'Ocultar resultados';
   const s = r.stats;
-  const listaPendientes = '<h2 style="margin-top:18px">Faltan por responder (' + r.pendientes.length + ')</h2>' +
-    (r.pendientes.length ? '<p class="small" style="margin:4px 0">' + r.pendientes.map(esc).join(' · ') + '</p>' : '<p class="muted small">¡Todos respondieron! 🎉</p>');
-  if (!s.total) { box.innerHTML = '<div class="detalle"><p class="muted">Todavía nadie ha respondido esta encuesta.</p>' + listaPendientes + '</div>'; return; }
+  if (!s.total) { box.innerHTML = '<div class="detalle muted">Todavía nadie ha respondido esta encuesta.</div>'; return; }
 
   let h = '<div class="detalle"><div class="resumen">';
   r.secciones.forEach(sec => h += '<div class="card"><div class="grande">' + fmt(s.porSeccion[sec.id]) + '</div><div class="muted small">' + esc(sec.titulo) + ' (de 5)</div></div>');
@@ -457,21 +532,18 @@ async function verResultados(card, e, btn) {
     });
   });
 
-  h += '<h2 style="margin-top:18px">Respondieron (' + r.respondieron.length + ')</h2>' +
-    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--muted)">' +
-    '<th style="padding:6px 4px">Estudiante</th><th style="padding:6px 4px">Fecha</th>' +
-    r.secciones.map(sec => '<th style="padding:6px 4px">' + esc(sec.titulo.replace('Servicio de Ceprocenter', 'Servicio').replace('Nuestras instalaciones', 'Instalaciones')) + '</th>').join('') +
-    '<th style="padding:6px 4px">Recomienda</th></tr></thead><tbody>' +
-    r.respondieron.map(x => '<tr style="border-top:1px solid var(--line)"><td style="padding:6px 4px"><b>' + esc(x.estudiante) + '</b></td><td style="padding:6px 4px">' + esc(x.fecha) + '</td>' +
-      r.secciones.map(sec => '<td style="padding:6px 4px">' + fmt(x[sec.id]) + '</td>').join('') +
-      '<td style="padding:6px 4px">' + esc(x.nps) + '/10</td></tr>').join('') +
+  const corto = t => t.replace('Servicio de Ceprocenter', 'Servicio').replace('Nuestras instalaciones', 'Instalaciones');
+  h += '<h2 style="margin-top:18px">Quién respondió (' + r.respondieron.length + ')</h2>' +
+    '<div style="overflow-x:auto"><table class="tabla"><thead><tr><th>Nombre</th><th>Correo de Google</th><th>Fecha</th>' +
+    r.secciones.map(sec => '<th>' + esc(corto(sec.titulo)) + '</th>').join('') + '<th>Recomienda</th></tr></thead><tbody>' +
+    r.respondieron.map(x => '<tr><td><b>' + esc(x.nombre) + '</b></td><td class="muted">' + esc(x.correo) + '</td><td>' + esc(x.fecha) + '</td>' +
+      r.secciones.map(sec => '<td>' + fmt(x[sec.id]) + '</td>').join('') + '<td>' + esc(x.nps) + '/10</td></tr>').join('') +
     '</tbody></table></div>';
-  h += listaPendientes;
 
   h += '<h2 style="margin-top:18px">Comentarios (' + r.comentarios.length + ')</h2>';
   if (!r.comentarios.length) h += '<p class="muted small">Sin comentarios escritos.</p>';
   r.comentarios.forEach(c => {
-    h += '<div class="coment"><div class="small"><b>' + esc(c.estudiante || '—') + '</b> <span class="muted">· ' + esc(c.fecha) + '</span></div>';
+    h += '<div class="coment"><div class="small"><b>' + esc(c.nombre || c.correo) + '</b> <span class="muted">· ' + esc(c.correo) + ' · ' + esc(c.fecha) + '</span></div>';
     r.abiertas.forEach(a => { if (String(c[a.key] || '').trim()) h += '<p><b>' + esc(a.texto) + '</b><br>' + esc(c[a.key]) + '</p>'; });
     h += '</div>';
   });
