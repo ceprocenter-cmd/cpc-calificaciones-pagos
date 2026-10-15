@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encuesta de Satisfacción — Ceprocenter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#fff; --ink:#1b2033; --muted:#6b7288; --line:#e3e7f0;
+    --brand:#2b3a8f; --brand2:#4a5fd1; --soft:#eef1ff; --ok:#1f9d62; --okbg:#e7f7ef;
+    --warn:#c0392b; --warnbg:#fdecea; --amber:#d68910;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:15px;line-height:1.5}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+  .wrap.ancho{max-width:960px}
+  .marca{font-weight:800;letter-spacing:.04em;color:var(--brand);font-size:13px;text-transform:uppercase}
+  h1{font-size:24px;margin:6px 0 4px;line-height:1.25}
+  h2{font-size:18px;margin:0 0 4px}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:16px}
+  .hero{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;border:none}
+  .hero .marca{color:#cdd5ff}
+  .hero .meta{display:grid;gap:4px;margin-top:12px;font-size:14px}
+  .hero .meta b{color:#fff}
+  .hero .meta span{color:#dfe4ff}
+  .q{padding:14px 0;border-top:1px solid var(--line)}
+  .q:first-of-type{border-top:none}
+  .q.falta .qt{color:var(--warn)}
+  .q.falta .escala .opt,.q.falta select{border-color:#f1b0a8}
+  .qt{font-weight:600;margin-bottom:8px}
+  .escala{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .escala.nps{grid-template-columns:repeat(11,1fr);gap:4px}
+  .opt{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 0;font:inherit;font-weight:700;cursor:pointer;color:var(--ink);transition:.12s}
+  .opt:hover{border-color:var(--brand2)}
+  .opt.sel{background:var(--brand);border-color:var(--brand);color:#fff}
+  .escala.nps .opt{padding:9px 0;font-size:13px;border-radius:8px}
+  .leyenda{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+  textarea,input,select{width:100%;font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;color:var(--ink)}
+  textarea{min-height:84px;resize:vertical}
+  textarea:focus,input:focus,select:focus{outline:none;border-color:var(--brand2)}
+  label.lbl{display:block;font-weight:600;margin:14px 0 6px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--brand);color:#fff}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .btn.full{width:100%;padding:15px}
+  .btn.sec{background:var(--soft);color:var(--brand)}
+  .btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+  .btn.wa{background:#1fa855}
+  .btn.sm{padding:8px 12px;font-size:13px}
+  .msg{border-radius:10px;padding:12px 14px;margin-top:12px;font-size:14px}
+  .msg.err{background:var(--warnbg);color:var(--warn)}
+  .msg.ok{background:var(--okbg);color:var(--ok)}
+  .centro{text-align:center;padding:48px 20px}
+  .emoji{font-size:48px}
+  .spinner{width:34px;height:34px;border:4px solid var(--soft);border-top-color:var(--brand);border-radius:50%;animation:g 1s linear infinite;margin:0 auto}
+  @keyframes g{to{transform:rotate(360deg)}}
+  .tabs{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .tab{padding:10px 16px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .tab.act{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .seg .opt{font-weight:600}
+  .fila{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--soft);color:var(--brand)}
+  .chip.ok{background:var(--okbg);color:var(--ok)}
+  .chip.off{background:#eceef3;color:var(--muted)}
+  .chip.warn{background:var(--warnbg);color:var(--warn)}
+  .barra{height:8px;background:var(--soft);border-radius:999px;overflow:hidden;margin-top:4px}
+  .barra i{display:block;height:100%;background:var(--brand2);border-radius:999px}
+  .pr{display:grid;grid-template-columns:1fr 46px;gap:10px;align-items:center;padding:7px 0;font-size:14px}
+  .pr b{text-align:right}
+  .coment{border-top:1px solid var(--line);padding:12px 0;font-size:14px}
+  .coment p{margin:4px 0}
+  .detalle{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  .grande{font-size:28px;font-weight:800;color:var(--brand)}
+  .resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:8px}
+  .resumen .card{margin:0;padding:14px;text-align:center}
+  @media (max-width:560px){
+    .fila{grid-template-columns:1fr}
+    .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
+    h1{font-size:21px}
+  }
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+
+<script>
+// ⚠️ Pega aquí la MISMA URL de Apps Script que usan Matrículas y Calificaciones (termina en /exec).
+const SCRIPT_URL = 'PEGA_AQUI_LA_URL_DE_TU_APPS_SCRIPT';
+
+const EQUIPO = ['Kin', 'Jose', 'Sara'];
+const params = new URLSearchParams(location.search);
+const ENC_ID = params.get('id');
+const $app = document.getElementById('app');
+
+async function api(payload) {
+  const r = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+  return r.json();
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function cargando(texto) {
+  return '<div class="card centro"><div class="spinner"></div><p class="muted">' + esc(texto || 'Cargando…') + '</p></div>';
+}
+function guardarLocal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function leerLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function linkEncuesta(id) { return location.origin + location.pathname + '?id=' + encodeURIComponent(id); }
+function fmt(n) { return n == null ? '—' : Number(n).toFixed(1); }
+
+/* =========================================================================
+   MODO ESTUDIANTE  (encuestas.html?id=XXXX)
+   ========================================================================= */
+let ENC = null;
+const resp = {};
+
+async function iniciarEncuesta() {
+  document.title = 'Encuesta — Ceprocenter';
+  // Ya no se bloquea por dispositivo: el control de "una respuesta por estudiante" lo hace el servidor,
+  // así varios estudiantes pueden responder desde la misma computadora o tablet de la oficina.
+  $app.innerHTML = cargando('Cargando encuesta…');
+  try {
+    const res = await api({ action: 'obtenerEncuesta', id: ENC_ID });
+    if (res.error) {
+      $app.innerHTML = '<div class="card centro"><div class="emoji">' + (res.cerrada ? '🔒' : '🔎') + '</div><h2>' + esc(res.error) + '</h2></div>';
+      return;
+    }
+    ENC = res;
+    renderEncuesta();
+  } catch (e) {
+    $app.innerHTML = '<div class="card centro"><div class="emoji">📶</div><h2>No pudimos cargar la encuesta</h2><p class="muted">Revisa tu conexión e inténtalo de nuevo.</p><button class="btn" onclick="iniciarEncuesta()">Reintentar</button></div>';
+  }
+}
+
+function renderEncuesta() {
+  const e = ENC.encuesta;
+  let h = '';
+  h += '<div class="card hero"><div class="marca">Ceprocenter</div>' +
+       '<h1>Encuesta de satisfacción</h1>' +
+       '<div class="meta">' +
+         '<div><span>Curso:</span> <b>' + esc(e.curso) + '</b></div>' +
+         '<div><span>Módulo:</span> <b>' + esc(e.modulo) + '</b></div>' +
+         '<div><span>Tutor:</span> <b>' + esc(e.tutor) + '</b></div>' +
+       '</div></div>';
+  h += '<div class="card small muted">Te tomará menos de 3 minutos. Califica del <b>1</b> (muy malo) al <b>5</b> (excelente). Tus respuestas las revisa el equipo de Ceprocenter y nos ayudan a mejorar.</div>';
+
+  const estParam = (params.get('est') || '').trim().toLowerCase();
+  h += '<div class="card"><div class="q" data-key="estudiante" style="padding:0"><div class="qt">¿Quién eres?</div>' +
+       '<select id="estudiante"><option value="">Selecciona tu nombre…</option>' +
+       (ENC.estudiantes || []).map(n => '<option' + (n.trim().toLowerCase() === estParam ? ' selected' : '') + '>' + esc(n) + '</option>').join('') +
+       '</select><p class="muted small" style="margin:6px 0 0">Si no apareces en la lista, escríbele a tu asesor.</p></div></div>';
+
+  ENC.secciones.forEach(s => {
+    h += '<div class="card"><h2>' + esc(s.titulo) + '</h2><p class="muted small" style="margin:0 0 6px">' + esc(s.descripcion) + '</p>';
+    s.preguntas.forEach(p => {
+      h += '<div class="q" data-key="' + p.key + '"><div class="qt">' + esc(p.texto) + '</div><div class="escala">';
+      for (let v = 1; v <= 5; v++) h += '<button type="button" class="opt" data-key="' + p.key + '" data-v="' + v + '">' + v + '</button>';
+      h += '</div></div>';
+    });
+    h += '<div class="leyenda"><span>1 · Muy malo</span><span>5 · Excelente</span></div></div>';
+  });
+
+  h += '<div class="card"><div class="q" data-key="nps" style="padding-top:0"><div class="qt">' + esc(ENC.nps.texto) + '</div><div class="escala nps">';
+  for (let v = 0; v <= 10; v++) h += '<button type="button" class="opt" data-key="nps" data-v="' + v + '">' + v + '</button>';
+  h += '</div><div class="leyenda"><span>0 · Nada probable</span><span>10 · Muy probable</span></div></div></div>';
+
+  h += '<div class="card"><h2>Cuéntanos más <span class="muted small">(opcional)</span></h2>';
+  ENC.abiertas.forEach(a => {
+    h += '<label class="lbl" for="' + a.key + '">' + esc(a.texto) + '</label><textarea id="' + a.key + '" maxlength="2000"></textarea>';
+  });
+  h += '</div>';
+
+  h += '<div id="errEnc"></div><div style="margin-top:16px"><button class="btn full" id="btnEnviar">Enviar mis respuestas</button></div>';
+  $app.innerHTML = h;
+
+  $app.querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.key;
+    resp[k] = Number(b.dataset.v);
+    $app.querySelectorAll('.opt[data-key="' + k + '"]').forEach(x => x.classList.toggle('sel', x === b));
+    const q = b.closest('.q'); if (q) q.classList.remove('falta');
+  }));
+  document.getElementById('estudiante').addEventListener('change', ev => {
+    if (ev.target.value) ev.target.closest('.q').classList.remove('falta');
+  });
+  document.getElementById('btnEnviar').addEventListener('click', enviarEncuesta);
+}
+
+async function enviarEncuesta() {
+  const requeridas = [];
+  ENC.secciones.forEach(s => s.preguntas.forEach(p => requeridas.push(p.key)));
+  requeridas.push('nps');
+  const faltan = requeridas.filter(k => resp[k] === undefined);
+  const estudiante = document.getElementById('estudiante').value;
+  if (!estudiante) faltan.unshift('estudiante');
+  const $err = document.getElementById('errEnc');
+  if (faltan.length) {
+    faltan.forEach(k => { const q = $app.querySelector('.q[data-key="' + k + '"]'); if (q) q.classList.add('falta'); });
+    const nPreg = faltan.filter(k => k !== 'estudiante').length;
+    const partes = [];
+    if (!estudiante) partes.push('elegir tu nombre');
+    if (nPreg) partes.push('calificar ' + (nPreg === 1 ? '1 pregunta' : nPreg + ' preguntas'));
+    $err.innerHTML = '<div class="msg err">Te falta ' + partes.join(' y ') + ' (marcado en rojo).</div>';
+    $app.querySelector('.q.falta').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const data = Object.assign({}, resp);
+  ENC.abiertas.forEach(a => data[a.key] = document.getElementById(a.key).value);
+  data.estudiante = estudiante;
+
+  const btn = document.getElementById('btnEnviar');
+  btn.disabled = true; btn.textContent = 'Enviando…'; $err.innerHTML = '';
+  try {
+    const res = await api({ action: 'responderEncuesta', id: ENC_ID, data: data });
+    if (res.yaRespondio) { guardarLocal('enc_resp_' + ENC_ID, '1'); return pantallaGracias(true); }
+    if (res.error) throw new Error(res.error);
+    guardarLocal('enc_resp_' + ENC_ID, '1');
+    pantallaGracias(false);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Enviar mis respuestas';
+    $err.innerHTML = '<div class="msg err">' + esc(e.message || 'No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.') + '</div>';
+  }
+}
+
+function pantallaGracias(yaRespondida) {
+  window.scrollTo(0, 0);
+  $app.innerHTML = '<div class="card centro"><div class="emoji">💙</div>' +
+    '<h1>' + (yaRespondida ? 'Ya respondiste esta encuesta' : '¡Gracias por tu opinión!') + '</h1>' +
+    '<p class="muted">Tus respuestas nos ayudan a seguir mejorando cada módulo en Ceprocenter.</p></div>';
+}
+
+/* =========================================================================
+   MODO ADMIN  (encuestas.html sin ?id)
+   ========================================================================= */
+let CLAVE = '';
+try { CLAVE = sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
+let LISTAS = null;
+let TAB = 'crear';
+
+async function iniciarAdmin() {
+  document.title = 'Encuestas — Ceprocenter';
+  $app.classList.add('ancho');
+  if (!CLAVE) return renderLogin();
+  $app.innerHTML = cargando();
+  const res = await api({ action: 'listasEncuesta', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
+  if (res.error) { CLAVE = ''; return renderLogin(res.error); }
+  LISTAS = res;
+  renderAdmin();
+}
+
+function renderLogin(error) {
+  $app.innerHTML = '<div class="card" style="max-width:420px;margin:60px auto 0">' +
+    '<div class="marca">Ceprocenter</div><h1>Encuestas de módulo</h1><p class="muted small">Panel interno. Ingresa la clave de administración.</p>' +
+    '<label class="lbl" for="clave">Clave</label><input id="clave" type="password" autocomplete="current-password">' +
+    (error ? '<div class="msg err">' + esc(error) + '</div>' : '') +
+    '<div style="margin-top:14px"><button class="btn full" id="btnLogin">Entrar</button></div></div>';
+  const go = () => {
+    CLAVE = document.getElementById('clave').value;
+    try { sessionStorage.setItem('enc_clave', CLAVE); } catch (e) {}
+    iniciarAdmin();
+  };
+  document.getElementById('btnLogin').onclick = go;
+  document.getElementById('clave').onkeydown = ev => { if (ev.key === 'Enter') go(); };
+}
+
+function renderAdmin() {
+  $app.innerHTML =
+    '<div class="marca">Ceprocenter</div><h1>Encuestas de módulo</h1>' +
+    '<p class="muted small" style="margin:0">Crea la encuesta al terminar cada módulo, compártela y revisa los resultados.</p>' +
+    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button></div>' +
+    '<div id="panel"></div>';
+  $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
+  pintarTab();
+}
+
+function pintarTab() {
+  $app.querySelectorAll('.tab').forEach(t => t.classList.toggle('act', t.dataset.tab === TAB));
+  if (TAB === 'crear') renderCrear(); else renderLista();
+}
+
+function renderCrear() {
+  const cursos = Object.keys(LISTAS.cursos || {}).sort();
+  const panel = document.getElementById('panel');
+  panel.innerHTML = '<div class="card">' +
+    '<label class="lbl" for="fCurso">Curso</label><select id="fCurso"><option value="">Selecciona el curso…</option>' +
+      cursos.map(c => '<option>' + esc(c) + '</option>').join('') + '</select>' +
+    '<label class="lbl" for="fModulo">Módulo que terminó</label><select id="fModulo" disabled><option value="">Primero elige el curso</option></select>' +
+    '<label class="lbl" for="fTutor">Tutor del módulo</label><input id="fTutor" list="dlTutores" placeholder="Escribe o elige el tutor">' +
+      '<datalist id="dlTutores">' + (LISTAS.tutores || []).map(t => '<option value="' + esc(t) + '">').join('') + '</datalist>' +
+    '<label class="lbl">¿Dónde se dictó?</label><div class="seg" id="fModalidad">' +
+      ['Virtual', 'Presencial', 'Híbrido'].map((m, i) => '<button type="button" class="opt' + (i === 0 ? ' sel' : '') + '" data-v="' + m + '">' + m + '</button>').join('') +
+    '</div><p class="muted small" style="margin:6px 0 0">Si es Presencial o Híbrido se agregan las preguntas sobre las instalaciones.</p>' +
+    '<div class="fila"><div><label class="lbl" for="fCierre">Cerrar la encuesta el <span class="muted small">(opcional)</span></label><input id="fCierre" type="date"></div>' +
+    '<div><label class="lbl" for="fCreado">Creada por</label><select id="fCreado">' + EQUIPO.map(p => '<option>' + p + '</option>').join('') + '</select></div></div>' +
+    '<div id="errCrear"></div><div style="margin-top:16px"><button class="btn full" id="btnCrear">Crear encuesta y generar enlace</button></div>' +
+    '</div><div id="resCrear"></div>';
+
+  const $curso = document.getElementById('fCurso'), $mod = document.getElementById('fModulo');
+  $curso.onchange = () => {
+    const mods = LISTAS.cursos[$curso.value] || [];
+    $mod.disabled = !mods.length;
+    $mod.innerHTML = mods.length ? '<option value="">Selecciona el módulo…</option>' + mods.map(m => '<option>' + esc(m) + '</option>').join('') : '<option value="">Primero elige el curso</option>';
+  };
+  let modalidad = 'Virtual';
+  panel.querySelectorAll('#fModalidad .opt').forEach(b => b.onclick = () => {
+    modalidad = b.dataset.v;
+    panel.querySelectorAll('#fModalidad .opt').forEach(x => x.classList.toggle('sel', x === b));
+  });
+
+  document.getElementById('btnCrear').onclick = async () => {
+    const data = {
+      curso: $curso.value, modulo: $mod.value, tutor: document.getElementById('fTutor').value.trim(),
+      modalidad: modalidad, fechaCierre: document.getElementById('fCierre').value, creadoPor: document.getElementById('fCreado').value
+    };
+    const $err = document.getElementById('errCrear');
+    if (!data.curso || !data.modulo || !data.tutor) { $err.innerHTML = '<div class="msg err">Completa curso, módulo y tutor.</div>'; return; }
+    const btn = document.getElementById('btnCrear');
+    btn.disabled = true; btn.textContent = 'Creando…'; $err.innerHTML = '';
+    const res = await api({ action: 'crearEncuesta', clave: CLAVE, data: data }).catch(() => ({ error: 'Sin conexión.' }));
+    btn.disabled = false; btn.textContent = 'Crear encuesta y generar enlace';
+    if (res.error) { $err.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+    if (LISTAS.tutores.indexOf(data.tutor) === -1) LISTAS.tutores.push(data.tutor);
+    mostrarCreada(Object.assign({ id: res.id }, data));
+  };
+}
+
+function mostrarCreada(enc) {
+  const link = linkEncuesta(enc.id);
+  const box = document.getElementById('resCrear');
+  box.innerHTML = '<div class="card" style="border-color:#bfe6d1;background:#f6fcf9">' +
+    '<h2>✅ Encuesta creada</h2><p class="muted small" style="margin:0">' + esc(enc.modulo) + ' · ' + esc(enc.curso) + ' · ' + esc(enc.tutor) + '</p>' +
+    '<label class="lbl">Enlace para los estudiantes</label><input readonly value="' + esc(link) + '" onclick="this.select()">' +
+    botonesCompartir(enc) + '<div class="res-envio"></div></div>';
+  conectarCompartir(box, enc);
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function botonesCompartir(enc) {
+  return '<div class="acciones">' +
+    '<button class="btn sm sec" data-acc="copiar">📋 Copiar enlace</button>' +
+    '<button class="btn sm wa" data-acc="wa">WhatsApp</button>' +
+    '<button class="btn sm" data-acc="correo">✉️ Enviar por correo a los estudiantes</button>' +
+    '</div>';
+}
+
+function conectarCompartir(cont, enc) {
+  const link = linkEncuesta(enc.id);
+  const $res = cont.querySelector('.res-envio');
+  cont.querySelector('[data-acc="copiar"]').onclick = async ev => {
+    try { await navigator.clipboard.writeText(link); ev.target.textContent = '✔ Copiado'; }
+    catch (e) { prompt('Copia el enlace:', link); }
+  };
+  cont.querySelector('[data-acc="wa"]').onclick = () => {
+    const texto = '¡Hola! 👋 Terminamos ' + enc.modulo + ' del curso "' + enc.curso + '" con ' + enc.tutor +
+      '. Nos ayudarías mucho respondiendo esta encuesta corta (menos de 3 minutos): ' + link + ' ¡Gracias! 💙 Equipo Ceprocenter';
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  };
+  const enviarCorreos = async (btn, soloPendientes) => {
+    const pregunta = soloPendientes
+      ? '¿Enviar un recordatorio por correo SOLO a los estudiantes de "' + enc.curso + '" que todavía no respondieron?'
+      : '¿Enviar el enlace por correo a TODOS los estudiantes activos de "' + enc.curso + '"?';
+    if (!confirm(pregunta)) return;
+    const textoOriginal = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    const res = await api({ action: 'enviarEncuestaEstudiantes', clave: CLAVE, id: enc.id, link: link, soloPendientes: soloPendientes }).catch(() => ({ error: 'Sin conexión.' }));
+    btn.disabled = false; btn.textContent = textoOriginal;
+    if (res.error) { $res.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+    if (res.mensaje) { $res.innerHTML = '<div class="msg ok">' + esc(res.mensaje) + '</div>'; return; }
+    $res.innerHTML = '<div class="msg ok">Se enviaron ' + res.enviados + ' de ' + res.total + ' correo(s).' +
+      (res.sinCorreo ? ' ' + res.sinCorreo + ' estudiante(s) sin correo registrado.' : '') +
+      (res.errores && res.errores.length ? ' Errores: ' + esc(res.errores.join('; ')) : '') + '</div>';
+  };
+  cont.querySelector('[data-acc="correo"]').onclick = ev => enviarCorreos(ev.target, false);
+  const $pend = cont.querySelector('[data-acc="pendientes"]');
+  if ($pend) $pend.onclick = ev => enviarCorreos(ev.target, true);
+}
+
+let LISTA_CACHE = [];
+async function renderLista() {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = cargando('Cargando encuestas…');
+  const res = await api({ action: 'listarEncuestas', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
+  if (TAB !== 'lista') return;
+  if (res.error) { panel.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+  LISTA_CACHE = res.encuestas || [];
+  panel.innerHTML = '<div class="card" style="padding:12px 14px"><input id="buscar" placeholder="Buscar por curso, módulo o tutor…"></div><div id="listaEnc"></div>';
+  document.getElementById('buscar').oninput = ev => pintarLista(ev.target.value);
+  pintarLista('');
+}
+
+function pintarLista(filtro) {
+  const f = (filtro || '').toLowerCase();
+  const items = LISTA_CACHE.filter(e => !f || (e.curso + ' ' + e.modulo + ' ' + e.tutor).toLowerCase().indexOf(f) !== -1);
+  const cont = document.getElementById('listaEnc');
+  if (!items.length) { cont.innerHTML = '<div class="card centro muted">' + (LISTA_CACHE.length ? 'Sin resultados para la búsqueda.' : 'Todavía no hay encuestas creadas.') + '</div>'; return; }
+
+  cont.innerHTML = items.map(e => {
+    const s = e.stats, ps = s.porSeccion;
+    const estado = e.abierta ? '<span class="chip ok">Abierta</span>' : '<span class="chip off">Cerrada</span>';
+    const npsChip = s.nps == null ? '' : '<span class="chip ' + (s.nps >= 50 ? 'ok' : s.nps < 0 ? 'warn' : '') + '">NPS ' + s.nps + '</span>';
+    return '<div class="card" data-id="' + esc(e.id) + '">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h2>' + esc(e.modulo) + '</h2>' +
+      '<div class="muted small">' + esc(e.curso) + '</div><div class="small">Tutor: <b>' + esc(e.tutor) + '</b> · ' + esc(e.modalidad) + ' · creada ' + esc(e.fechaCreacion) +
+      (e.fechaCierre ? ' · cierra ' + esc(e.fechaCierre) : '') + '</div></div>' +
+      '<div style="text-align:right"><div class="grande">' + s.total + (e.totalEstudiantes ? '<span class="muted" style="font-size:16px"> / ' + e.totalEstudiantes + '</span>' : '') + '</div><div class="muted small">respondieron</div></div></div>' +
+      '<div class="chips">' + estado +
+        '<span class="chip">Tutor ' + fmt(ps.tutor) + '</span>' +
+        '<span class="chip">Servicio ' + fmt(ps.servicio) + '</span>' +
+        (ps.instalaciones !== undefined ? '<span class="chip">Instalaciones ' + fmt(ps.instalaciones) + '</span>' : '') +
+        npsChip + (e.correosEnviados ? '<span class="chip off">✉️ ' + e.correosEnviados + ' enviados</span>' : '') +
+      '</div>' +
+      botonesCompartir(e).replace('</div>',
+        '<button class="btn sm sec" data-acc="pendientes">🔔 Recordar a los que faltan</button>' +
+        '<button class="btn sm ghost" data-acc="ver">Ver resultados</button>' +
+        '<button class="btn sm ghost" data-acc="estado">' + (e.activa ? '🔒 Cerrar' : '🔓 Reabrir') + '</button></div>') +
+      '<div class="res-envio"></div><div class="detalle-box"></div></div>';
+  }).join('');
+
+  cont.querySelectorAll('.card[data-id]').forEach(card => {
+    const e = LISTA_CACHE.find(x => x.id === card.dataset.id);
+    conectarCompartir(card, e);
+    card.querySelector('[data-acc="ver"]').onclick = ev => verResultados(card, e, ev.target);
+    card.querySelector('[data-acc="estado"]').onclick = async ev => {
+      ev.target.disabled = true;
+      const res = await api({ action: 'cambiarEstadoEncuesta', clave: CLAVE, id: e.id, activa: !e.activa }).catch(() => ({ error: 'Sin conexión.' }));
+      if (res.error) { alert(res.error); ev.target.disabled = false; return; }
+      renderLista();
+    };
+  });
+}
+
+async function verResultados(card, e, btn) {
+  const box = card.querySelector('.detalle-box');
+  if (box.innerHTML) { box.innerHTML = ''; btn.textContent = 'Ver resultados'; return; }
+  box.innerHTML = '<div class="detalle">' + cargando('Calculando…') + '</div>';
+  const r = await api({ action: 'resultadosEncuesta', clave: CLAVE, id: e.id }).catch(() => ({ error: 'Sin conexión.' }));
+  if (r.error) { box.innerHTML = '<div class="msg err">' + esc(r.error) + '</div>'; return; }
+  btn.textContent = 'Ocultar resultados';
+  const s = r.stats;
+  const listaPendientes = '<h2 style="margin-top:18px">Faltan por responder (' + r.pendientes.length + ')</h2>' +
+    (r.pendientes.length ? '<p class="small" style="margin:4px 0">' + r.pendientes.map(esc).join(' · ') + '</p>' : '<p class="muted small">¡Todos respondieron! 🎉</p>');
+  if (!s.total) { box.innerHTML = '<div class="detalle"><p class="muted">Todavía nadie ha respondido esta encuesta.</p>' + listaPendientes + '</div>'; return; }
+
+  let h = '<div class="detalle"><div class="resumen">';
+  r.secciones.forEach(sec => h += '<div class="card"><div class="grande">' + fmt(s.porSeccion[sec.id]) + '</div><div class="muted small">' + esc(sec.titulo) + ' (de 5)</div></div>');
+  h += '<div class="card"><div class="grande">' + (s.nps == null ? '—' : s.nps) + '</div><div class="muted small">NPS (−100 a 100)</div></div></div>';
+
+  r.secciones.forEach(sec => {
+    h += '<h2 style="margin-top:18px">' + esc(sec.titulo) + '</h2>';
+    sec.preguntas.forEach(p => {
+      const v = s.porPregunta[p.key];
+      h += '<div class="pr"><div>' + esc(p.texto) + '<div class="barra"><i style="width:' + (v ? v / 5 * 100 : 0) + '%"></i></div></div><b>' + fmt(v) + '</b></div>';
+    });
+  });
+
+  h += '<h2 style="margin-top:18px">Respondieron (' + r.respondieron.length + ')</h2>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:var(--muted)">' +
+    '<th style="padding:6px 4px">Estudiante</th><th style="padding:6px 4px">Fecha</th>' +
+    r.secciones.map(sec => '<th style="padding:6px 4px">' + esc(sec.titulo.replace('Servicio de Ceprocenter', 'Servicio').replace('Nuestras instalaciones', 'Instalaciones')) + '</th>').join('') +
+    '<th style="padding:6px 4px">Recomienda</th></tr></thead><tbody>' +
+    r.respondieron.map(x => '<tr style="border-top:1px solid var(--line)"><td style="padding:6px 4px"><b>' + esc(x.estudiante) + '</b></td><td style="padding:6px 4px">' + esc(x.fecha) + '</td>' +
+      r.secciones.map(sec => '<td style="padding:6px 4px">' + fmt(x[sec.id]) + '</td>').join('') +
+      '<td style="padding:6px 4px">' + esc(x.nps) + '/10</td></tr>').join('') +
+    '</tbody></table></div>';
+  h += listaPendientes;
+
+  h += '<h2 style="margin-top:18px">Comentarios (' + r.comentarios.length + ')</h2>';
+  if (!r.comentarios.length) h += '<p class="muted small">Sin comentarios escritos.</p>';
+  r.comentarios.forEach(c => {
+    h += '<div class="coment"><div class="small"><b>' + esc(c.estudiante || '—') + '</b> <span class="muted">· ' + esc(c.fecha) + '</span></div>';
+    r.abiertas.forEach(a => { if (String(c[a.key] || '').trim()) h += '<p><b>' + esc(a.texto) + '</b><br>' + esc(c[a.key]) + '</p>'; });
+    h += '</div>';
+  });
+  box.innerHTML = h + '</div>';
+}
+
+/* ========================================================================= */
+if (SCRIPT_URL.indexOf('PEGA_AQUI') === 0) {
+  $app.innerHTML = '<div class="card msg err">Falta configurar SCRIPT_URL al inicio del archivo encuestas.html.</div>';
+} else if (ENC_ID) {
+  iniciarEncuesta();
+} else {
+  iniciarAdmin();
+}
+</script>
+</body>
+</html>
