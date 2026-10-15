@@ -305,7 +305,7 @@ function empezarEncuesta() {
 function pasoCompleto(p) {
   if (p.tipo === 'texto') return String(RESP[p.key] || '').trim().length >= (p.minimo || 1);
   if (RESP[p.key] === undefined) return false;
-  if (p.mejorar && RESP[p.key] <= 3) return (MEJ[p.mejorar.key] || []).length > 0;
+  if (p.mejorar && RESP[p.key] <= (p.umbral || 3)) return (MEJ[p.mejorar.key] || []).length > 0;
   return true;
 }
 
@@ -363,7 +363,7 @@ function mostrarPaso(i) {
   const mostrarMejorar = () => {
     const m = document.getElementById('mejorar');
     if (!m) return;
-    const bajo = RESP[p.key] !== undefined && RESP[p.key] <= 3;
+    const bajo = RESP[p.key] !== undefined && RESP[p.key] <= (p.umbral || 3);
     const antes = m.style.display;
     m.style.display = bajo ? 'block' : 'none';
     if (bajo && antes === 'none') setTimeout(() => m.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
@@ -392,9 +392,9 @@ function mostrarPaso(i) {
         const v = Number(b.dataset.v);
         RESP[p.key] = v; pintar(v);
         document.getElementById('etq').textContent = ENC.etiquetasEstrellas[v - 1];
-        if (p.mejorar && v > 3) MEJ[p.mejorar.key] = [];
+        if (p.mejorar && v > (p.umbral || 3)) MEJ[p.mejorar.key] = [];
         mostrarMejorar(); refrescar();
-        if (!p.mejorar || v > 3) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 450);
+        if (!p.mejorar || v > (p.umbral || 3)) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 450);
       };
     });
   } else if (p.tipo === 'opciones' || p.tipo === 'nps') {
@@ -405,10 +405,10 @@ function mostrarPaso(i) {
         const v = Number(b.dataset.v);
         RESP[p.key] = v;
         cont.querySelectorAll('.opt').forEach(x => x.classList.toggle('sel', x === b));
-        if (p.mejorar && v > 3) MEJ[p.mejorar.key] = [];
+        if (p.mejorar && v > (p.umbral || 3)) MEJ[p.mejorar.key] = [];
         if (p.mejorar) cont.querySelectorAll('.chipsel').forEach(c => c.classList.toggle('sel', (MEJ[p.mejorar.key] || []).indexOf(c.dataset.o) !== -1));
         mostrarMejorar(); refrescar();
-        if (!p.mejorar || v > 3) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 350);
+        if (!p.mejorar || v > (p.umbral || 3)) avanceTimer = setTimeout(() => mostrarPaso(i + 1), 350);
       };
     });
   } else if (p.tipo === 'texto') {
@@ -701,7 +701,8 @@ async function verResultados(card, e, btn) {
   h += '<h2 style="margin-top:18px">Comentarios (' + r.respondieron.length + ')</h2>';
   r.respondieron.forEach(x => {
     h += '<div class="coment"><div class="small"><b>' + esc(x.nombre || x.correo) + '</b> <span class="muted">· ' + esc(x.correo) + ' · ' + esc(x.fecha) + '</span></div>' +
-      '<p>' + esc(x.comentario || '—') + '</p>' +
+      (x.opinionDocente ? '<p><b>Sobre el docente:</b> ' + esc(x.opinionDocente) + '</p>' : '') +
+      '<p><b>Para CEPROCENTER:</b> ' + esc(x.comentario || '—') + '</p>' +
       (etiquetas(x) ? '<div class="chips" style="margin-top:4px">' + etiquetas(x) + '</div>' : '') + '</div>';
   });
 
@@ -821,7 +822,7 @@ function detalleDocenteHTML(d) {
     '</tbody></table></div>';
 
   // Comentarios recientes
-  h += '<h2 style="margin-top:18px">Comentarios recientes (' + d.comentarios.length + ')</h2>';
+  h += '<h2 style="margin-top:18px">Lo que dicen de ' + esc(d.nombre) + ' (' + d.comentarios.length + ')</h2>';
   d.comentarios.forEach(c => {
     h += '<div class="coment"><div class="small">' + (c.estrellas ? estrellasHTML(c.estrellas, 13) + ' ' : '') + '<b>' + esc(c.nombre) + '</b> ' +
       '<span class="muted">· ' + esc(moduloCorto(c.modulo)) + ' · ' + esc(c.curso) + ' · ' + esc(c.fecha) + '</span></div><p>' + esc(c.texto) + '</p></div>';
