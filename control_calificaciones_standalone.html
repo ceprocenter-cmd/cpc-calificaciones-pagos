@@ -343,33 +343,16 @@
     </div>
     <div id="tab-certificados" style="display:none;">
       <div class="panel">
-        <h2>Configuración del Certificado</h2>
-        <p class="hint">Estos datos son propios de este curso y se usan al generar los certificados.</p>
+        <h2>Generar Certificados</h2>
+        <p class="hint">Elige <b>Nómina General</b> para sacar a todos los estudiantes activos del curso, o un <b>módulo</b> para sacar solo a quienes lo aprobaron. La fecha de cada módulo se toma de Facilitadores; puedes corregirla aquí antes de generar.</p>
         <div class="grid cols3">
-          <div class="field"><label>Horas Académicas</label><input id="ci_horas" type="number" step="1" placeholder="Ej. 120"></div>
-          <div class="field"><label>Modalidad</label>
-            <select id="ci_modalidad">
-              <option>Virtual</option><option>Presencial</option><option>Semipresencial</option><option>Otro</option>
-            </select>
-          </div>
-          <div class="field"><label>Se certifica por</label>
-            <select id="ci_tipo_certificacion">
-              <option value="Asistencia">Por su asistencia al</option>
-              <option value="Asistencia y Aprobación" selected>Por su asistencia y aprobación del</option>
-            </select>
-          </div>
-        </div>
-        <p class="hint" style="margin-top:10px;">La lista de quién se certifica siempre se decide por la nota mínima — esto solo cambia el texto de la frase del certificado.</p>
-        <div class="actions"><button class="btn btn-primary btn-sm" id="btn_guardar_curso_info">Guardar Configuración</button></div>
-      </div>
-      <div class="panel">
-        <h2>Generar Certificados de un Módulo</h2>
-        <p class="hint">El certificado se emite por módulo. Elige cuál y escribe el rango de fechas de esa sesión antes de generar.</p>
-        <div class="grid cols3">
-          <div class="field"><label>Módulo a Certificar</label><select id="cert_modulo"></select></div>
-          <div class="field"><label>Rango de Fechas</label><input id="cert_fecha_rango" placeholder='Ej. del 01 al 05 de Junio de 2026'></div>
+          <div class="field"><label>Módulo / Fecha</label><select id="cert_modulo"></select></div>
+          <div class="field"><label>Fecha</label><input id="cert_fecha_rango" placeholder='Ej. del 01 al 05 de Junio de 2026'></div>
         </div>
         <div id="cert_preview" class="hint" style="margin-top:10px;"></div>
+        <div class="table-scroll" style="margin-top:12px;">
+          <table><thead><tr><th>#</th><th>Nombre como saldrá en el certificado</th></tr></thead><tbody id="cert_lista_nombres"></tbody></table>
+        </div>
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_export_certificados">Descargar Datos (CSV para Canva)</button>
           <button class="btn btn-ghost btn-sm" id="btn_pdf_certificados">Descargar Lista (PDF)</button>
@@ -466,6 +449,7 @@ let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
 let NOTA_MINIMA = Number(localStorage.getItem('cepro_nota_minima')) || 7;
 let NOMINA = [];
+let SOLICITUDES_CERT = [];
 let MODULOS = [];
 let CALIFICACIONES = [];
 let MATRICULAS = [];
@@ -535,6 +519,7 @@ async function loadAll(){
   PAGOS = pag;
   EVALUACIONES = evs || [];
   RECORDATORIOS_LOG = log || [];
+  try{ const sol = await apiGet('Solicitudes'); SOLICITUDES_CERT = Array.isArray(sol) ? sol : []; }catch(e){ SOLICITUDES_CERT = []; }
 }
 // Recarga SOLO las hojas indicadas en vez de las 10 que trae loadAll(). Casi ninguna acción
 // (guardar una nota, tomar asistencia, etc.) toca todas las hojas a la vez, así que pedirlas
@@ -603,16 +588,40 @@ window.marcarActivoEstudiante = async function(estudiante, nuevoValor){
 function getCursoInfo(curso){
   return CURSOS_INFO.filter(c=>c.curso===curso).slice(-1)[0] || null;
 }
-function nombreParaCertificado(curso, estudiante){
-  const registros = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante);
-  const conCertificado = registros.filter(m=>m.certificado && m.certificado.trim());
-  if(conCertificado.length>0){
-    const titulo = conCertificado[conCertificado.length-1].certificado.trim();
-    // Si el título ya forma parte del nombre guardado, no lo dupliques.
-    if(estudiante.toLowerCase().startsWith(titulo.toLowerCase())) return estudiante;
-    return `${titulo} ${estudiante}`;
+// Normaliza un nombre para comparar: sin tildes, sin mayúsculas, sin espacios dobles.
+function normNombreCert(t){
+  return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+}
+// Busca lo que el estudiante escribió en el campo "Certificado a Nombre de" (de la matrícula o del formulario).
+// Antes solo se buscaba con el curso y el nombre EXACTOS, y si había cualquier diferencia (mayúsculas, tildes,
+// espacios, otro curso) salía solo el nombre. Ahora se busca primero en este curso y luego en cualquier matrícula
+// de la misma persona.
+function valorCertificadoGuardado(curso, estudiante){
+  const n = normNombreCert(estudiante);
+  const tiene = r=>r && r.certificado && String(r.certificado).trim();
+  const mismoNombre = r=>normNombreCert(r.estudiante)===n;
+  const fuentes = [
+    MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante),
+    MATRICULAS.filter(m=>m.curso===curso && mismoNombre(m)),
+    NOMINA.filter(r=>r.curso===curso && mismoNombre(r)),
+    MATRICULAS.filter(mismoNombre),
+    SOLICITUDES_CERT.filter(mismoNombre)
+  ];
+  for(const lista of fuentes){
+    const con = lista.filter(tiene);
+    if(con.length>0) return String(con[con.length-1].certificado).trim();
   }
-  return estudiante;
+  return '';
+}
+function nombreParaCertificado(curso, estudiante){
+  const valor = valorCertificadoGuardado(curso, estudiante);
+  if(!valor) return estudiante;
+  const nValor = normNombreCert(valor), nEst = normNombreCert(estudiante);
+  // Si en el campo escribieron el nombre completo con su título ("Lic. María Pérez"), se usa tal cual.
+  if(nValor.includes(nEst) || (nValor.split(' ').length>=3 && nEst.split(' ').some(p=>p.length>2 && nValor.split(' ').includes(p)))) return valor;
+  // Si el nombre guardado ya empieza con ese título ("Lic. María Pérez"), no se duplica.
+  if(nEst.startsWith(nValor+' ')) return estudiante;
+  return `${valor} ${estudiante}`;
 }
 async function initApp(){
   if(!API_URL){
@@ -1565,27 +1574,9 @@ document.querySelectorAll('.tab').forEach(tab=>{
   });
 });
 // ---------- CONFIGURACIÓN DEL CERTIFICADO (por curso) ----------
-function cargarConfigCertificado(){
-  const info = getCursoInfo(CURSO_ACTUAL);
-  document.getElementById('ci_horas').value = info ? info.horasAcademicas || '' : '';
-  document.getElementById('ci_modalidad').value = info ? info.modalidad || 'Virtual' : 'Virtual';
-  document.getElementById('ci_tipo_certificacion').value = info ? info.tipoCertificacion || 'Asistencia y Aprobación' : 'Asistencia y Aprobación';
-}
-document.getElementById('btn_guardar_curso_info').addEventListener('click', async ()=>{
-  const horasAcademicas = document.getElementById('ci_horas').value;
-  const modalidad = document.getElementById('ci_modalidad').value;
-  const tipoCertificacion = document.getElementById('ci_tipo_certificacion').value;
-  const info = getCursoInfo(CURSO_ACTUAL);
-  try{
-    if(info){
-      await apiPost('CursosInfo','update',{id:info.id, data:{horasAcademicas, modalidad, tipoCertificacion}});
-    }else{
-      await apiPost('CursosInfo','add',{data:{id:uid(), curso:CURSO_ACTUAL, horasAcademicas, modalidad, tipoCertificacion}});
-    }
-    showToast('Configuración del certificado guardada.');
-    await refrescarHojas(['CursosInfo']);
-  }catch(e){ showToast('Error al guardar: '+e.message); }
-});
+// La configuración del certificado (horas, modalidad, tipo de frase) ya no se edita desde aquí.
+// Si existe una fila guardada en la hoja CursosInfo se sigue usando; si no, se usan los valores por defecto.
+function cargarConfigCertificado(){}
 // Un estudiante marcado "No continuó" nunca cumple para certificarse — ni por
 // módulo ni el diplomado completo — sin importar qué nota tenga registrada.
 function cumpleAprobacionModulo(estudiante, modulo){
@@ -1639,31 +1630,50 @@ function fraseCertificadoModulo(curso, modulo){
   const base = (tipo === 'Asistencia') ? `Por su asistencia al` : `Por su asistencia y aprobación del`;
   return `${base} ${modulo}`;
 }
+const CERT_NOMINA_GENERAL = '__NOMINA_GENERAL__';
+function fechaDeModulo(modulo){
+  const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
+  return info && info.fechaModulo ? String(info.fechaModulo).trim() : '';
+}
 function poblarSelectCertModulo(){
   const sel = document.getElementById('cert_modulo');
+  const prev = sel.value;
   const modulos = modulosDelCurso();
-  sel.innerHTML = modulos.map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
-  const infoInicial = facilitadoresDelCurso().find(f=>f.modulo===sel.value);
-  if(infoInicial && infoInicial.fechaModulo){
-    document.getElementById('cert_fecha_rango').value = infoInicial.fechaModulo;
-  }
+  const esc = t=>String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  sel.innerHTML = `<option value="${CERT_NOMINA_GENERAL}">📋 Nómina General (todos los estudiantes)</option>`
+    + modulos.map(m=>{ const f = fechaDeModulo(m); return `<option value="${esc(m)}">${esc(m)} — ${f?esc(f):'sin fecha'}</option>`; }).join('');
+  if(prev && [...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  aplicarFechaCertSeleccion();
   actualizarPreviewCertificado();
   actualizarPreviewDiploma();
   actualizarPreviewHonor();
 }
+function aplicarFechaCertSeleccion(){
+  const modulo = document.getElementById('cert_modulo').value;
+  const input = document.getElementById('cert_fecha_rango');
+  if(modulo===CERT_NOMINA_GENERAL){ if(!input.value.trim()) input.value = ''; return; }
+  input.value = fechaDeModulo(modulo);
+}
+function estudiantesParaCertSeleccion(){
+  const modulo = document.getElementById('cert_modulo').value;
+  if(!modulo) return [];
+  if(modulo===CERT_NOMINA_GENERAL) return estudiantesActivosDelCurso().sort((a,b)=>a.localeCompare(b));
+  return estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo)).sort((a,b)=>a.localeCompare(b));
+}
 function actualizarPreviewCertificado(){
   const modulo = document.getElementById('cert_modulo').value;
   const box = document.getElementById('cert_preview');
-  if(!modulo){ box.textContent=''; return; }
-  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
-  box.textContent = `${califican.length} estudiante(s) cumplen la nota mínima para certificarse en "${modulo}".`;
+  const tbody = document.getElementById('cert_lista_nombres');
+  if(!modulo){ box.textContent=''; tbody.innerHTML=''; return; }
+  const lista = estudiantesParaCertSeleccion();
+  box.textContent = modulo===CERT_NOMINA_GENERAL
+    ? `Nómina general: ${lista.length} estudiante(s) activos en el curso.`
+    : `${lista.length} estudiante(s) aprobaron "${modulo}" (nota mínima ${NOTA_MINIMA}).`;
+  tbody.innerHTML = lista.map((est,i)=>`<tr><td>${i+1}</td><td>${nombreParaCertificado(CURSO_ACTUAL, est)}</td></tr>`).join('')
+    || `<tr><td colspan="2" style="text-align:center;color:var(--text-dim);">${modulo===CERT_NOMINA_GENERAL?'Sin estudiantes activos.':'Nadie ha aprobado este módulo todavía.'}</td></tr>`;
 }
 document.getElementById('cert_modulo').addEventListener('change', ()=>{
-  const modulo = document.getElementById('cert_modulo').value;
-  const info = facilitadoresDelCurso().find(f=>f.modulo===modulo);
-  if(info && info.fechaModulo){
-    document.getElementById('cert_fecha_rango').value = info.fechaModulo;
-  }
+  aplicarFechaCertSeleccion();
   actualizarPreviewCertificado();
 });
 function actualizarPreviewDiploma(){
@@ -2137,16 +2147,18 @@ function partirNombreLargo(nombre, maxCaracteresPorLinea){
   return linea2 ? linea1 + '\n' + linea2 : linea1;
 }
 function obtenerCertificadosModulo(){
-  const modulo = document.getElementById('cert_modulo').value;
+  const seleccion = document.getElementById('cert_modulo').value;
   const fechaRango = document.getElementById('cert_fecha_rango').value.trim();
-  if(!modulo){ showToast('Selecciona un módulo.'); return null; }
-  if(!fechaRango){ showToast('Escribe el rango de fechas de la sesión.'); return null; }
-  const califican = estudiantesDelCurso().filter(est=>cumpleAprobacionModulo(est, modulo));
-  if(califican.length===0){ showToast('Nadie cumple la nota mínima para este módulo todavía.'); return null; }
+  if(!seleccion){ showToast('Selecciona la Nómina General o un módulo.'); return null; }
+  const esGeneral = seleccion===CERT_NOMINA_GENERAL;
+  if(!esGeneral && !fechaRango){ showToast('Este módulo no tiene fecha: escríbela en el campo "Fecha".'); return null; }
+  const califican = estudiantesParaCertSeleccion();
+  if(califican.length===0){ showToast(esGeneral ? 'No hay estudiantes activos en este curso.' : 'Nadie cumple la nota mínima para este módulo todavía.'); return null; }
+  const modulo = esGeneral ? 'Nómina General' : seleccion;
   const info = getCursoInfo(CURSO_ACTUAL);
   const horas = info ? info.horasAcademicas || '' : '';
   const modalidad = info ? info.modalidad || '' : '';
-  const frase = fraseCertificadoModulo(CURSO_ACTUAL, modulo);
+  const frase = esGeneral ? fraseCertificadoFinal(CURSO_ACTUAL) : fraseCertificadoModulo(CURSO_ACTUAL, modulo);
   return califican.map(est=>({
     nombre: nombreParaCertificado(CURSO_ACTUAL, est),
     nombrePartido: partirNombreLargo(nombreParaCertificado(CURSO_ACTUAL, est), 28),
@@ -2176,7 +2188,7 @@ document.getElementById('btn_pdf_certificados').addEventListener('click', ()=>{
       Curso: <b>${CURSO_ACTUAL}</b><br>
       Módulo: <b>${filas[0].modulo}</b><br>
       Frase: <b>"${filas[0].frase}"</b><br>
-      Fechas: <b>${filas[0].fechaRango}</b><br>
+      Fecha: <b>${filas[0].fechaRango||'—'}</b><br>
       Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}
     </div>
   `;
