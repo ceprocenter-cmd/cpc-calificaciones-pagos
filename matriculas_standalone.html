@@ -324,6 +324,7 @@
             </label>
           </div>
         </div>
+        <div class="setup-banner" id="nomina_diagnostico" style="display:none;margin:10px 0 14px;"></div>
         <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
         <div class="table-scroll">
           <table>
@@ -813,7 +814,69 @@ async function loadAll(){
   MATRICULAS = mat.map(m=>({...m, montoMensual: normNum(m.montoMensual)}));
   SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
   EXALUMNOS = exal;
+  unificarNombresCargados();
 }
+// Si en el Sheets un curso quedó escrito con un espacio de más, otra mayúscula o sin tilde
+// ("Diplomado de TDAH " vs "Diplomado de TDAH"), el estudiante no aparecía en su curso porque la
+// comparación era letra por letra. Aquí se corrige en memoria: cada fila se asocia al curso
+// configurado que coincide, y se quitan espacios sobrantes del nombre del estudiante.
+function claveCurso(t){ return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim(); }
+function unificarNombresCargados(){
+  const mapa = {};
+  MODULOS.forEach(m=>{ if(m.curso){ m.curso = String(m.curso).replace(/\s+/g,' ').trim(); mapa[claveCurso(m.curso)] = m.curso; } });
+  const arreglar = lista=>lista.forEach(r=>{
+    if(r.curso!=null){ const c = mapa[claveCurso(r.curso)]; r.curso = c || String(r.curso).replace(/\s+/g,' ').trim(); }
+    if(typeof r.estudiante==='string') r.estudiante = r.estudiante.replace(/\s+/g,' ').trim();
+  });
+  arreglar(NOMINA); arreglar(MATRICULAS); arreglar(PAGOS);
+  CALENDARIO.forEach(c=>{ if(c.cursoMatricula){ c.cursoMatricula = mapa[claveCurso(c.cursoMatricula)] || String(c.cursoMatricula).replace(/\s+/g,' ').trim(); } });
+}
+// Matrículas que existen en la hoja Matriculas pero cuyo estudiante NO está en la hoja Nomina de ese curso
+// (por eso no salían en Cuentas por Cobrar ni en la Nómina), y filas de Nomina cuyo curso no existe.
+function diagnosticoNomina(){
+  const enNomina = new Set(NOMINA.map(n=>n.curso+'||'+n.estudiante));
+  const cursos = new Set(cursosUnicos());
+  const vistos = new Set();
+  const faltan = [];
+  MATRICULAS.forEach(m=>{
+    if(!m.curso || !m.estudiante) return;
+    const k = m.curso+'||'+m.estudiante;
+    if(enNomina.has(k) || vistos.has(k)) return;
+    vistos.add(k);
+    faltan.push({curso:m.curso, estudiante:m.estudiante, cedula:m.cedula||'', fecha:m.fecha||''});
+  });
+  const sinCurso = NOMINA.filter(n=>n.curso && !cursos.has(n.curso));
+  return {faltan, sinCurso};
+}
+function renderDiagnosticoNomina(){
+  const box = document.getElementById('nomina_diagnostico');
+  if(!box) return;
+  const {faltan, sinCurso} = diagnosticoNomina();
+  if(faltan.length===0 && sinCurso.length===0){ box.style.display='none'; box.innerHTML=''; return; }
+  window._faltanEnNomina = faltan;
+  const filasF = faltan.map((f,i)=>`<tr><td>${escHtml(f.estudiante)}</td><td style="white-space:normal;">${escHtml(f.curso)}</td><td>${f.fecha?fechaCorta(ymdLocal(f.fecha)||f.fecha):'—'}</td><td><button class="btn btn-primary btn-sm" onclick="agregarANominaFaltante(${i})">+ Agregar al curso</button></td></tr>`).join('');
+  const filasS = sinCurso.map(n=>`<li><b>${escHtml(n.estudiante)}</b> — curso "${escHtml(n.curso)}"</li>`).join('');
+  box.style.display='block';
+  box.innerHTML = `
+    ${faltan.length?`<h3>⚠ ${faltan.length} matrícula(s) que no aparecen en su curso</h3>
+    <p class="hint" style="margin:0 0 10px;">Están guardadas en la hoja Matriculas, pero el estudiante no quedó en la hoja Nomina de ese curso. Por eso no salen en la Nómina ni en Cuentas por Cobrar. Con el botón se agregan al curso; sus pagos ya registrados se ven de inmediato.</p>
+    <div class="table-scroll"><table><thead><tr><th>Estudiante</th><th>Curso</th><th>Fecha</th><th></th></tr></thead><tbody>${filasF}</tbody></table></div>`:''}
+    ${sinCurso.length?`<h3 style="margin-top:14px;">⚠ Estudiantes en un curso que no existe</h3>
+    <p class="hint" style="margin:0 0 6px;">Su curso en la hoja Nomina no coincide con ningún curso configurado. Corrige el nombre del curso en el Sheets o crea el curso.</p><ul style="margin:0;font-size:13px;">${filasS}</ul>`:''}
+  `;
+}
+window.agregarANominaFaltante = async function(i){
+  const f = (window._faltanEnNomina||[])[i];
+  if(!f) return;
+  if(!API_URL){ showToast('Conecta tu Apps Script real para poder guardar esto.'); return; }
+  showToast('Agregando a la nómina...');
+  try{
+    await apiPost('Nomina','add',{data:{id:uid(), curso:f.curso, estudiante:f.estudiante, identificador:f.cedula, activo:true}});
+    await refrescarHojas(['Nomina']);
+    renderAll();
+    showToast(`${f.estudiante} ya aparece en "${f.curso}".`);
+  }catch(e){ showToast('Error al agregar: '+e.message); }
+};
 // Recarga SOLO las hojas indicadas, en vez de todas las que trae loadAll(). Si una hoja falla al leerse,
 // se conservan los datos que ya había (antes se reemplazaban por una lista vacía y la Nómina aparecía vacía o vieja).
 async function refrescarHojas(nombres){
@@ -829,6 +892,7 @@ async function refrescarHojas(nombres){
     else if(n==='ExAlumnos') EXALUMNOS = data;
     else if(n==='CalendarioDocente') CALENDARIO = data;
   });
+  unificarNombresCargados();
 }
 async function initApp(){
   if(!API_URL){
@@ -943,6 +1007,7 @@ function opcionesCursosAgrupadas(cursos){
 function renderAll(){
   renderTicker(); renderTickerReporte(); renderCategoriasCursos(); renderTablaCursos(); renderSelectsCurso(); renderChipsConceptos();
   renderSolicitudes(); renderCXC(); renderResumenGeneralDeudores(); renderReporteMensual(); renderBaseEstudiantes();
+  renderDiagnosticoNomina();
 }
 function renderTickerReporte(){
   const box = document.getElementById('ticker_reporte');
@@ -1306,6 +1371,7 @@ async function refrescarNominaDesdeSheets(avisar){
   await refrescarHojas(['Nomina']);
   renderTicker();
   renderTablaNominaEstudiantes();
+  renderDiagnosticoNomina();
   if(avisar) showToast('Nómina actualizada.');
 }
 document.getElementById('nomina_curso_sel').addEventListener('change', renderTablaNominaEstudiantes);
@@ -1635,6 +1701,10 @@ document.getElementById('btn_guardar_matricula').addEventListener('click', async
     document.getElementById('m_file_comprobante').value=''; document.getElementById('m_file_titulo').value=''; document.getElementById('m_file_cedula').value='';
     document.getElementById('pago_lines').innerHTML=''; agregarLineaPago();
     await refrescarHojas(['Nomina','Matriculas','Pagos']); renderAll(); actualizarDatalistEstudiantes();
+    const nomEst = estudiante.replace(/\s+/g,' ').trim();
+    if(!NOMINA.some(n=>claveCurso(n.curso)===claveCurso(curso) && n.estudiante===nomEst)){
+      showToast(`Ojo: la matrícula se guardó, pero ${nomEst} no quedó en la nómina del curso. Ve a "Nómina Estudiantes" y usa "+ Agregar al curso".`);
+    }
   }catch(e){ showToast('Error al matricular: '+e.message); }
 });
 // ---------- CUENTAS POR COBRAR ----------
