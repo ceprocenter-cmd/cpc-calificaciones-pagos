@@ -314,7 +314,7 @@
     <div id="tab-nomina" style="display:none;">
       <div class="panel">
         <h2>Nómina de Estudiantes</h2>
-        <p class="hint">Consulta rápida de la nómina de cualquier curso.</p>
+        <p class="hint">Consulta rápida de la nómina de cualquier curso. Se actualiza con el Sheets cada vez que abres esta pestaña.</p>
         <div class="grid cols3" style="max-width:900px;">
           <div class="field"><label>Curso</label><select id="nomina_curso_sel"><option value="">Selecciona un curso</option></select></div>
           <div class="field" style="display:flex;align-items:flex-end;">
@@ -332,7 +332,10 @@
           </table>
         </div>
         <div class="empty" id="nomina_empty" style="display:none;">Selecciona un curso para ver su nómina.</div>
-        <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_imprimir_nomina">Imprimir / Guardar PDF</button></div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" id="btn_refrescar_nomina">🔄 Actualizar</button>
+          <button class="btn btn-ghost btn-sm" id="btn_imprimir_nomina">Imprimir / Guardar PDF</button>
+        </div>
       </div>
     </div>
     <!-- REPORTE MENSUAL -->
@@ -485,7 +488,7 @@ const CODIGOS_PAIS = {
   'el salvador':'+503','nicaragua':'+505','republica dominicana':'+1','cuba':'+53',
   'espana':'+34','estados unidos':'+1','canada':'+1','puerto rico':'+1'
 };
-function normalizarPais(t){ return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function normalizarPais(t){ return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
 document.getElementById('m_fecha').value = new Date().toISOString().slice(0,10);
 document.getElementById('lista_paises').innerHTML = ['Ecuador','Colombia','Venezuela','Perú','México','Argentina','Chile','Bolivia','Paraguay','Uruguay','Brasil','Panamá','Costa Rica','Guatemala','Honduras','El Salvador','Nicaragua','República Dominicana','Cuba','España','Estados Unidos','Canadá','Puerto Rico'].map(p=>`<option value="${p}">`).join('');
 function actualizarCodigoPais(){
@@ -542,7 +545,7 @@ document.getElementById('m_telefono').addEventListener('focus', ()=>{ if(!docume
 // y otra vez sin él.
 const TITULOS_PROFESIONALES = ['psic','psicologo','psicologa','dr','dra','lic','ing','mgs','msc','phd','prof','sr','sra','srta'];
 function normalizarNombreEst(t){
-  let s = String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  let s = String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
   let cambio = true;
   while(cambio){
     cambio = false;
@@ -705,7 +708,8 @@ document.getElementById('btn_guardar_config').addEventListener('click', async ()
   await initApp();
 });
 async function apiGet(sheet){
-  const res = await fetch(`${API_URL}?sheet=${sheet}`);
+  // El parámetro "_" y cache:'no-store' evitan que el navegador devuelva una copia vieja de la hoja.
+  const res = await fetch(`${API_URL}?sheet=${sheet}&_=${Date.now()}`, {cache:'no-store'});
   const json = await res.json();
   if(json.error) throw new Error(json.error);
   return json;
@@ -810,20 +814,20 @@ async function loadAll(){
   SOLICITUDES = sol.filter(s=>s.estado==='Pendiente');
   EXALUMNOS = exal;
 }
-// Recarga SOLO las hojas indicadas, en vez de las 6 que trae loadAll(). Casi ninguna acción
-// (guardar un pago, marcar un curso oculto, etc.) toca todas las hojas a la vez, así que pedirlas
-// todas de nuevo en cada clic solo hace más lenta la app y satura tu Apps Script sin necesidad.
+// Recarga SOLO las hojas indicadas, en vez de todas las que trae loadAll(). Si una hoja falla al leerse,
+// se conservan los datos que ya había (antes se reemplazaban por una lista vacía y la Nómina aparecía vacía o vieja).
 async function refrescarHojas(nombres){
-  const resultados = await Promise.all(nombres.map(n=>apiGet(n).catch(()=>[])));
+  const resultados = await Promise.all(nombres.map(n=>apiGet(n).catch(e=>{ showToast('No se pudo actualizar "'+n+'": '+e.message); return null; })));
   nombres.forEach((n, i)=>{
     const data = resultados[i];
+    if(data===null || !Array.isArray(data)) return;
     if(n==='Nomina') NOMINA = data.map(x=>({...x, activo: !(x.activo===false || String(x.activo).trim().toUpperCase()==='FALSE')}));
     else if(n==='Modulos') MODULOS = data.map(x=>({...x, precio:normNum(x.precio)}));
     else if(n==='Pagos') PAGOS = data.map(x=>({...x, monto:normNum(x.monto), esAbono:normBool(x.esAbono), precioAcordado:normNum(x.precioAcordado), confirmadoBanco:normBool(x.confirmadoBanco), exonerado:normBool(x.exonerado)}));
     else if(n==='Matriculas') MATRICULAS = data.map(x=>({...x, montoMensual: normNum(x.montoMensual)}));
     else if(n==='Solicitudes') SOLICITUDES = data.filter(s=>s.estado==='Pendiente');
     else if(n==='ExAlumnos') EXALUMNOS = data;
-    else if(n==='CalendarioDocente') CALENDARIO = Array.isArray(data) ? data : [];
+    else if(n==='CalendarioDocente') CALENDARIO = data;
   });
 }
 async function initApp(){
@@ -1006,7 +1010,6 @@ function renderTablaCursos(){
   hintCategoria.style.display='none';
   wrap.style.display='block';
   const cursos = todos.filter(c=>categoriaDe(c)===_categoriaCursoActiva);
-  // Los cursos ocultos de la Vista de Formulario quedan al fondo; entre cursos con el mismo estado se mantiene el orden alfabético.
   // Primero los cursos en marcha, al fondo los finalizados; dentro de cada grupo, los ocultos del formulario van al final.
   cursos.sort((a,b)=>((cursoFinalizado(a)?2:0)+(cursoVisiblePublico(a)?0:1)) - ((cursoFinalizado(b)?2:0)+(cursoVisiblePublico(b)?0:1)));
   if(cursos.length===0){ body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Sin cursos en esta categoría.</td></tr>`; return; }
@@ -1083,7 +1086,6 @@ function renderSolicitudes(){
   const cursos = cursosUnicos();
   box.innerHTML = SOLICITUDES.map(s=>{
     const opcionesCurso = cursos.map(c=>`<option value="${c}" ${c===s.curso?'selected':''}>${c}</option>`).join('');
-    const opcionesItems = itemsDe(s.curso || cursos[0] || '').map(it=>`<option value="${it.modulo}" data-precio="${it.precio}">${it.modulo}</option>`).join('');
     return `
     <div class="panel" style="background:var(--panel-2);" id="sol_${s.id}">
       <div class="grid cols3">
@@ -1298,8 +1300,17 @@ function renderTablaNominaEstudiantes(){
     </tr>
   `).join('');
 }
+// Vuelve a pedir la hoja Nomina al Sheets y redibuja (al abrir la pestaña o con el botón 🔄 Actualizar).
+async function refrescarNominaDesdeSheets(avisar){
+  if(!API_URL) return;
+  await refrescarHojas(['Nomina']);
+  renderTicker();
+  renderTablaNominaEstudiantes();
+  if(avisar) showToast('Nómina actualizada.');
+}
 document.getElementById('nomina_curso_sel').addEventListener('change', renderTablaNominaEstudiantes);
 document.getElementById('nomina_mostrar_inactivos').addEventListener('change', renderTablaNominaEstudiantes);
+document.getElementById('btn_refrescar_nomina').addEventListener('click', ()=>refrescarNominaDesdeSheets(true));
 document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
   const curso = document.getElementById('nomina_curso_sel').value;
   if(!curso){ showToast('Selecciona un curso primero.'); return; }
@@ -1392,10 +1403,7 @@ function agregarLineaPago(){
   });
   inputMonto.addEventListener('input', ()=>{ actualizarEstadoLinea(row); actualizarTotalPago(); });
   inputPrecio.addEventListener('input', ()=>{ actualizarEstadoLinea(row); });
-  // Ya no se dispara el 'change' automáticamente al crear la línea — antes eso dejaba
-  // seleccionado por default el primer concepto de la lista (normalmente "Módulo 1") sin
-  // que nadie lo eligiera a propósito. Ahora la línea arranca en blanco ("Selecciona un
-  // concepto") y hay que elegir la opción de forma explícita.
+  // La línea arranca en blanco ("Selecciona un concepto") y hay que elegir la opción de forma explícita.
 }
 document.getElementById('btn_add_pago_line').addEventListener('click', agregarLineaPago);
 function renderChipsConceptos(){
@@ -1507,8 +1515,8 @@ window.marcarGraduacion = async function(curso, estudiante, valor){
 function precioEsperadoDetalle(curso, estudiante, concepto){
   const saltado = moduloSaltado(curso, estudiante, concepto);
   if(saltado) return {precio:0, saltado, origen:'no tomó este módulo (saltado)'+(saltado.motivo?': '+saltado.motivo:'')};
-  // Igual que antes, pero además dice DE DÓNDE salió el número — para que quien esté cobrando
-  // sepa si es el precio de lista, un monto acordado por promo, o lo que ya se cobró antes.
+  // Además del número, dice DE DÓNDE salió — para que quien esté cobrando sepa si es el precio de lista,
+  // un monto acordado por promo, o lo que ya se cobró antes.
   const pagosConcepto = PAGOS.filter(p=>p.curso===curso && p.estudiante===estudiante && p.modulo===concepto);
   const pagoExonerado = pagosConcepto.filter(p=>p.exonerado).slice(-1)[0];
   if(pagoExonerado) return {precio:0, origen:'exonerado / gratis (ya quedó marcado así antes)'};
@@ -1526,9 +1534,7 @@ function precioEsperadoDetalle(curso, estudiante, concepto){
   if(pagos.length>0) return {precio:pagos[pagos.length-1].precioAcordado, origen:'lo que se acordó y quedó registrado en su pago anterior de este mismo ítem'};
   const item = itemsDe(curso).find(i=>i.modulo===concepto);
   const precioRef = item ? item.precio : 0;
-  // El "Monto Acordado" (precio especial por promo) es por MÓDULO/mensualidad — la Inscripción no se ve afectada
-  // por él (a veces se regala aparte, con su propio precio o gratis), así que nunca se le aplica el monto acordado
-  // general: para Inscripción siempre se usa lo que se le cobró realmente o el precio de referencia del curso.
+  // El "Monto Acordado" (precio especial por promo) es por MÓDULO/mensualidad — la Inscripción no se ve afectada por él.
   if(/inscripci[oó]n/i.test(concepto)) return {precio:precioRef, origen:'precio de lista del curso (Inscripción no usa el Monto Acordado)'};
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0];
   const montoMensual = registro && registro.montoMensual ? Number(registro.montoMensual) : 0;
@@ -1650,7 +1656,7 @@ window.marcarActivoEstudianteCXC = async function(curso, estudiante, nuevoValor)
     await apiPost('Nomina','update',{id:reg.id, data:{activo:nuevoValor}});
     showToast(nuevoValor ? 'Estudiante reactivado.' : 'Marcado como "no continuó".');
     await refrescarHojas(['Nomina']);
-    renderCXC();
+    renderAll(); // antes solo se redibujaba Cuentas por Cobrar y la Nómina quedaba desactualizada
   }catch(e){ showToast('Error al actualizar: '+e.message); }
 };
 // Envía un correo de cobro a un solo estudiante desde su fila en Cuentas por Cobrar.
@@ -1719,9 +1725,7 @@ function renderCXC(){
       const esperado = precioEsperado(curso, est, it.modulo);
       const saldo = Math.max(0, esperado - pagado);
       saldoTotal += saldo;
-      // Los totales "desde afuera" del curso se arman aquí mismo: dinero realmente cobrado suma siempre
-      // (ya entró, sin importar si el estudiante sigue activo), mientras que el valor acordado y lo pendiente
-      // solo cuentan a estudiantes activos (a quien "no continuó" ya no se le espera cobrar el resto).
+      // Dinero realmente cobrado suma siempre; valor acordado y pendiente solo cuentan a estudiantes activos.
       totalIngresoCurso += pagado;
       ingresoPorModulo[it.modulo] += pagado;
       if(activoParaTotales){
@@ -1729,8 +1733,7 @@ function renderCXC(){
         acordadoPorModulo[it.modulo] += esperado; pendientePorModulo[it.modulo] += saldo;
       }
       let estadoTxt, celda;
-      // El botón de "gratis" con un clic solo aplica a Inscripción — los demás módulos/mensualidades se manejan
-      // con el checkbox "Exonerado" del formulario de Matricular (donde sí tiene sentido revisar bien el pago).
+      // El botón de "gratis" con un clic solo aplica a Inscripción.
       const esInscripcionCelda = /inscripci[oó]n/i.test(it.modulo);
       const btnGratis = esInscripcionCelda
         ? `<button class="btn btn-ghost btn-sm" title="Marcar la Inscripción como gratis/exonerada para ${est.replace(/"/g,'&quot;')}" style="padding:2px 6px;font-size:12px;margin-left:4px;" onclick="marcarItemGratis('${curso.replace(/'/g,"\\'")}','${est.replace(/'/g,"\\'")}','${it.modulo.replace(/'/g,"\\'")}')">🎁</button>`
@@ -1773,10 +1776,7 @@ function renderCXC(){
     return `<tr${activo?'':' style="opacity:0.5;background:var(--panel-2);"'}><td>${i+1}</td><td>${nombreEst}${activo?'':' <span class="pill na">No continuó</span>'}</td>${btnPago}${celdaAsesor}${cells}<td class="num">${fmt(saldoTotal)}</td>${btnReporte}${btnBaja}${btnTransferir}${btnEditar}${btnCobro}</tr>`;
   }).join('') || '<tr><td colspan="17" style="text-align:center;color:var(--text-dim);">Sin estudiantes en este curso</td></tr>';
   window._cxcDeudoresActual = {curso, items: items.map(i=>i.modulo), filas: filasDeuda};
-  // Resumen "desde afuera" del curso completo: cuánto ha entrado ya, cuánto se acordó cobrarles en total
-  // a quienes siguen activos, y cuánto falta por cobrar — todo de un vistazo, sin entrar a registrar nada.
-  // Protegido con la MISMA clave que "Reporte Mensual": los asesores usan esta pantalla a diario para cobrar
-  // pero no deben ver los totales de ingresos del negocio, así que el resumen se queda oculto para ellos.
+  // Resumen financiero del curso, protegido con la MISMA clave que "Reporte Mensual".
   if(!financieroDesbloqueado()){
     resumenBox.style.display = 'block';
     resumenBox.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="desbloquearFinancieroDesdeCXC()">🔒 Ver resumen financiero del curso (requiere clave)</button>`;
@@ -1808,8 +1808,7 @@ function renderCXC(){
     `;
   }
 }
-// Marca UN ítem puntual como gratis/exonerado directo desde Cuentas por Cobrar, con un solo clic — sin tener que
-// ir al formulario de Matricular a llenar fecha, método de pago ni comprobante (no aplica porque no hay cobro real).
+// Marca UN ítem puntual como gratis/exonerado directo desde Cuentas por Cobrar, con un solo clic.
 window.marcarItemGratis = async function(curso, estudiante, modulo){
   if(!API_URL){ showToast('Conecta tu Apps Script real para poder guardar esto.'); return; }
   if(!confirm(`¿Marcar "${modulo}" como GRATIS/exonerado para ${estudiante}? Quedará registrado como pagado sin cobrarle nada.`)) return;
@@ -1828,7 +1827,7 @@ window.marcarItemGratis = async function(curso, estudiante, modulo){
     });
     showToast(`"${modulo}" quedó marcado como gratis para ${estudiante}.`);
     await refrescarHojas(['Nomina','Matriculas','Pagos']);
-    renderCXC();
+    renderAll();
   }catch(e){ showToast('Error al guardar: '+e.message); }
 };
 window.registrarPagoAdicional = function(curso, estudiante){
@@ -1851,7 +1850,7 @@ window.registrarPagoAdicional = function(curso, estudiante){
   document.getElementById('m_estudiante').dispatchEvent(new Event('input'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelector('.tab[data-tab="matricular"]').classList.add('active');
-  ['cursos','matricular','solicitudes','cobrar','reporte','exalumnos'].forEach(t=>{
+  ['cursos','matricular','solicitudes','cobrar','nomina','reporte','exalumnos'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = (t==='matricular') ? 'block' : 'none';
   });
   showToast('Datos de ' + estudiante + ' cargados — solo agrega el nuevo pago y el comprobante.');
@@ -1909,7 +1908,7 @@ function moduloMaxArrancado(curso){
   });
   return max;
 }
-// Decide qué ítems de un curso ya se deben cobrar HOY. Devuelve también los módulos sin fecha y si el curso usó el respaldo.
+// Decide qué ítems de un curso ya se deben cobrar HOY.
 function itemsVencidosDelCurso(curso){
   const items = itemsDeOrdenado(curso);
   const hoy = hoyYMD();
@@ -1939,8 +1938,7 @@ function itemsVencidosDelCurso(curso){
   });
   return {items: vencidos, sinFecha, sinCalendario:false, fechas: cal.mapa};
 }
-// finalizados=false → cursos en marcha (cobro normal). finalizados=true → "cartera" de cursos ya terminados,
-// con la misma regla de fechas del Calendario Docente (así un módulo que nunca se dictó no aparece como deuda).
+// finalizados=false → cursos en marcha (cobro normal). finalizados=true → "cartera" de cursos ya terminados.
 function calcularDeudoresGenerales(asesorFiltro, soloVencidos, finalizados){
   const lineas = [], avisosSinFecha = [], cursosSinCalendario = [], saltados = [], gradSinConfirmar = [];
   cursosUnicos().filter(c=>cursoFinalizado(c)===!!finalizados).forEach(curso=>{
@@ -2290,7 +2288,7 @@ window.confirmarTransferirEstudiante = async function(){
     showToast(`Transferido a "${cursoDestino}" correctamente.${json.carpetaMovida?' Carpeta de Drive movida también.':''}`);
     document.getElementById('modal_overlay').classList.remove('show');
     await refrescarHojas(['Nomina','Matriculas','Pagos']);
-    renderCXC();
+    renderAll(); // antes solo se redibujaba Cuentas por Cobrar y la Nómina quedaba desactualizada
   }catch(e){ showToast('Error al transferir: '+e.message); }
 };
 window.abrirEditarEstudiante = function(curso, estudiante){
@@ -2561,15 +2559,11 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
   showToast('Datos de ejemplo cargados. Carlos entró con promo: Inscripción a $30 (no $50) y Módulo 1 acordado en $120 (no $150) — mira "Cuentas por Cobrar" para ver cómo se respeta su precio real.');
 });
 // ---------- BASE DE DATOS DE ESTUDIANTES (Historial) ----------
-function normalizarBusquedaExal(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
-// Identidad única de un estudiante: si tiene cédula, se usa solo los dígitos de la cédula (así "091-234-5678",
-// "0912345678" y el número 912345678 -que Google Sheets a veces devuelve sin el cero inicial- cuentan como la MISMA persona).
-// Si no hay cédula, se cae al nombre normalizado (sin tildes, sin espacios extra, sin mayúsculas). Esto evita que
-// pequeñas diferencias de formato o tipeo generen estudiantes duplicados en la Base de Datos y en el buscador.
+function normalizarBusquedaExal(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+// Identidad única de un estudiante: si tiene cédula, se usan solo los dígitos de la cédula; si no, el nombre normalizado.
 function soloDigitos(t){
   let d = String(t==null?'':t).replace(/\D+/g,'');
-  // Si el Sheets guardó la cédula como NÚMERO (no texto), Google/JS le borran el 0 inicial y una
-  // cédula ecuatoriana de 10 dígitos queda en 9. Se le devuelve el cero para que siga siendo la misma clave.
+  // Si el Sheets guardó la cédula como NÚMERO, se pierde el 0 inicial: se le devuelve.
   if(d.length===9) d = '0'+d;
   return d;
 }
@@ -2606,16 +2600,11 @@ function construirBaseEstudiantes(){
     .filter(([key])=>!deMatriculas[key])
     .map(([key,val])=>({...val, curso:[...val.cursos].join(', ')}));
   const todos = [...yaMatriculados, ...soloImportados];
-  // Estos ya quedaron unificados como UNA sola persona (misma cédula, o mismo nombre normalizado sin título).
-  // Lo que sigue es solo para AVISAR de nombres muy parecidos que quedaron como personas distintas — casos así
-  // suelen ser la misma persona con una inicial de más/menos o un error de tipeo, pero como también podrían ser
-  // dos personas reales con el mismo nombre, no se fusionan solos: se marcan para que los revises tú.
+  // Aviso de nombres muy parecidos que quedaron como personas distintas (no se fusionan solos).
   const porNombreCentral = {};
   todos.forEach(e=>{
     const core = nombreCentral(normalizarNombreEst(e.nombre));
-    // Un core de una sola palabra (ej. solo "maria", por un registro importado sin apellido) es demasiado genérico:
-    // en una base de miles de estudiantes agruparía por coincidencia a personas totalmente distintas. Solo se
-    // considera "posible duplicado" cuando coinciden nombre Y apellido completos (2 palabras o más).
+    // Solo se considera "posible duplicado" cuando coinciden nombre Y apellido completos (2 palabras o más).
     if(!core || core.split(' ').length<2) return;
     (porNombreCentral[core] = porNombreCentral[core] || []).push(e);
   });
@@ -2627,10 +2616,7 @@ function construirBaseEstudiantes(){
   });
   return todos;
 }
-// ---------- FUSIONAR ESTUDIANTES DUPLICADOS (para cuando no todos tienen acceso al Sheets para corregir el nombre a mano) ----------
-// Reescribe el nombre (y cédula) de TODAS las filas de Matrículas, Pagos, Nómina y Base de Ex-Alumnos que tengan
-// cualquiera de las variantes de nombre del grupo, dejándolas todas con el mismo nombre/cédula elegido. No borra
-// ningún pago ni curso — solo unifica cómo se llama el estudiante en todos los registros.
+// ---------- FUSIONAR ESTUDIANTES DUPLICADOS ----------
 window.abrirFusionarDuplicado = function(idxGrupo){
   const grupo = (window._gruposDuplicadosActuales||[])[idxGrupo];
   if(!grupo || grupo.length<2){ showToast('No se pudo abrir la fusión, recarga la página e intenta de nuevo.'); return; }
@@ -2729,7 +2715,6 @@ function renderBaseEstudiantes(){
   const empty = document.getElementById('exalumnos_empty');
   let filas;
   if(_modoSoloDuplicados){
-    // Modo revisión rápida: solo los que quedaron marcados, agrupados para que las parejas/tríos queden juntos.
     filas = base.filter(e=>e._posibleDuplicado).sort((a,b)=> (a._grupoIdx-b._grupoIdx) || a.nombre.localeCompare(b.nombre));
     if(q) filas = filas.filter(e=>normalizarBusquedaExal(e.nombre).includes(q) || normalizarBusquedaExal(e.cedula).includes(q));
   } else {
@@ -2793,8 +2778,6 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
     const filas = filasCrudas.map(f=>{ const nombreCompleto = [f.nombre, f.apellido].filter(v=>v && v.trim()).join(' ').trim(); return {...f, nombre: nombreCompleto}; });
     const validas = filas.filter(f=>f.nombre && f.nombre.trim());
     if(validas.length===0){ resultadoBox.textContent = 'No se encontraron filas con nombre válido en el archivo.'; return; }
-    // Claves de todos los estudiantes que ya están en el sistema (matriculados + importados antes),
-    // usando la misma lógica de "cédula, o si no hay cédula, nombre completo" que usa la Base de Datos de Estudiantes.
     const existentes = new Set(construirBaseEstudiantes().map(e=>claveEstudiante(e.cedula, e.nombre)));
     const nuevas = []; const duplicadas = []; const vistosEnEsteArchivo = new Set();
     validas.forEach(f=>{
@@ -2819,7 +2802,7 @@ document.getElementById('btn_importar_exalumnos').addEventListener('click', asyn
 });
 function parseCSV(texto){
   // Quita el BOM (marca invisible de UTF-8) que Excel suele agregar al inicio del archivo.
-  texto = texto.replace(/^﻿/, '');
+  texto = texto.replace(/^\uFEFF/, '');
   const lineas = texto.split(/\r?\n/).filter(l=>l.trim());
   if(lineas.length<2) return [];
   // Detecta el separador automáticamente: algunos exportadores (Excel en español, etc.) usan ";" en vez de ",".
@@ -2855,6 +2838,9 @@ document.querySelectorAll('.tab').forEach(tab=>{
       document.getElementById('tab-'+t).style.display = (t===tab.dataset.tab) ? 'block' : 'none';
     });
     try{ localStorage.setItem('cepro_matriculas_ultima_pestana', tab.dataset.tab); }catch(e){}
+    // Al abrir la Nómina se vuelve a leer la hoja del Sheets, así se ven las matrículas hechas
+    // desde otra computadora o los cambios hechos a mano en el Sheets, sin recargar la página.
+    if(tab.dataset.tab==='nomina') refrescarNominaDesdeSheets(false);
   });
 });
 // Al recargar el navegador, vuelve a la última pestaña donde estabas en vez de siempre abrir en "Cursos".
