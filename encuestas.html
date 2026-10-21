@@ -143,6 +143,7 @@
   .doc-btn.sel span{color:#dfe4ff}
   .parte-et{font-size:13px;font-weight:700;color:var(--brand)}
   .parte-n{display:inline-block;background:var(--soft);border-radius:999px;padding:2px 8px;margin-right:4px;font-size:12px}
+  .cab-admin{display:flex;justify-content:space-between;align-items:center;gap:10px}
   @media (max-width:560px){
     .fila{grid-template-columns:1fr}
     .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
@@ -460,7 +461,11 @@ function pantallaGracias(yaRespondida) {
    MODO ADMIN  (encuestas.html sin ?id)
    ========================================================================= */
 let CLAVE = '';
-try { CLAVE = sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
+// La clave se recuerda en este dispositivo hasta que toques "Cerrar sesión".
+try { CLAVE = localStorage.getItem('enc_clave') || sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
+function guardarClave(c) { try { localStorage.setItem('enc_clave', c); } catch (e) {} }
+function borrarClave() { try { localStorage.removeItem('enc_clave'); sessionStorage.removeItem('enc_clave'); } catch (e) {} }
+function cerrarSesion() { CLAVE = ''; borrarClave(); renderLogin(); }
 let LISTAS = null;
 let TAB = 'crear';
 
@@ -470,7 +475,7 @@ async function iniciarAdmin() {
   if (!CLAVE) return renderLogin();
   $app.innerHTML = cargando();
   const res = await api({ action: 'listasEncuesta', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
-  if (res.error) { CLAVE = ''; return renderLogin(res.error); }
+  if (res.error) { CLAVE = ''; borrarClave(); return renderLogin(res.error); }
   LISTAS = res;
   renderAdmin();
 }
@@ -483,7 +488,7 @@ function renderLogin(error) {
     '<div style="margin-top:14px"><button class="btn full" id="btnLogin">Entrar</button></div></div>';
   const go = () => {
     CLAVE = document.getElementById('clave').value;
-    try { sessionStorage.setItem('enc_clave', CLAVE); } catch (e) {}
+    guardarClave(CLAVE);
     iniciarAdmin();
   };
   document.getElementById('btnLogin').onclick = go;
@@ -492,11 +497,12 @@ function renderLogin(error) {
 
 function renderAdmin() {
   $app.innerHTML =
-    '<div class="marca">Ceprocenter</div><h1>Encuestas de módulo</h1>' +
+    '<div class="cab-admin"><div class="marca">Ceprocenter</div><button class="link small" id="btnSalir">Cerrar sesión</button></div><h1>Encuestas de módulo</h1>' +
     '<p class="muted small" style="margin:0">Crea la encuesta al terminar cada módulo, compártela y revisa los resultados.</p>' +
     '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button></div>' +
     '<div id="panel"></div>';
   $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
+  document.getElementById('btnSalir').onclick = () => { if (confirm('¿Cerrar sesión en este dispositivo? La próxima vez te pedirá la clave.')) cerrarSesion(); };
   pintarTab();
 }
 
