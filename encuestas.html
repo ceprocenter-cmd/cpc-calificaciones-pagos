@@ -986,7 +986,7 @@ async function enviarMasterclass(cert, pago) {
     if (res.error) throw new Error(res.error);
     document.getElementById('mcForm').outerHTML = '<div class="card centro anim"><div class="emoji">' + (cert ? '🎓' : '✅') + '</div><h2>¡Registro completado!</h2><p class="muted">' +
       (res.duplicado ? 'Ya estabas registrado; actualizamos tus datos. ' : 'Ya tenemos tus datos. ') +
-      (cert ? 'Te enviaremos tu certificado al correo que registraste.' : '¡Nos vemos en la masterclass!') + '</p>' +
+      '¡Nos vemos en la masterclass!</p>' +
       mcBotonGrupo(MC.grupoWhatsapp) + '</div>';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
