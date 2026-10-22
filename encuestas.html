@@ -143,7 +143,11 @@
   .doc-btn.sel span{color:#dfe4ff}
   .parte-et{font-size:13px;font-weight:700;color:var(--brand)}
   .parte-n{display:inline-block;background:var(--soft);border-radius:999px;padding:2px 8px;margin-right:4px;font-size:12px}
-  .cab-admin{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .mc-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:10px;font-size:14px}
+  .mc-check input{width:20px;height:20px;flex:none;margin-top:2px;accent-color:var(--brand)}
+  .mc-check a{color:var(--brand2)}
+  .mc-preview{margin-top:10px;background:var(--soft);border-radius:10px;padding:12px;text-align:center}
+  .mc-preview-nom{font-size:19px;font-weight:800;margin-top:4px;min-height:24px}
   @media (max-width:560px){
     .fila{grid-template-columns:1fr}
     .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
@@ -461,11 +465,7 @@ function pantallaGracias(yaRespondida) {
    MODO ADMIN  (encuestas.html sin ?id)
    ========================================================================= */
 let CLAVE = '';
-// La clave se recuerda en este dispositivo hasta que toques "Cerrar sesión".
-try { CLAVE = localStorage.getItem('enc_clave') || sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
-function guardarClave(c) { try { localStorage.setItem('enc_clave', c); } catch (e) {} }
-function borrarClave() { try { localStorage.removeItem('enc_clave'); sessionStorage.removeItem('enc_clave'); } catch (e) {} }
-function cerrarSesion() { CLAVE = ''; borrarClave(); renderLogin(); }
+try { CLAVE = sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
 let LISTAS = null;
 let TAB = 'crear';
 
@@ -475,7 +475,7 @@ async function iniciarAdmin() {
   if (!CLAVE) return renderLogin();
   $app.innerHTML = cargando();
   const res = await api({ action: 'listasEncuesta', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
-  if (res.error) { CLAVE = ''; borrarClave(); return renderLogin(res.error); }
+  if (res.error) { CLAVE = ''; return renderLogin(res.error); }
   LISTAS = res;
   renderAdmin();
 }
@@ -488,7 +488,7 @@ function renderLogin(error) {
     '<div style="margin-top:14px"><button class="btn full" id="btnLogin">Entrar</button></div></div>';
   const go = () => {
     CLAVE = document.getElementById('clave').value;
-    guardarClave(CLAVE);
+    try { sessionStorage.setItem('enc_clave', CLAVE); } catch (e) {}
     iniciarAdmin();
   };
   document.getElementById('btnLogin').onclick = go;
@@ -497,18 +497,17 @@ function renderLogin(error) {
 
 function renderAdmin() {
   $app.innerHTML =
-    '<div class="cab-admin"><div class="marca">Ceprocenter</div><button class="link small" id="btnSalir">Cerrar sesión</button></div><h1>Encuestas de módulo</h1>' +
-    '<p class="muted small" style="margin:0">Crea la encuesta al terminar cada módulo, compártela y revisa los resultados.</p>' +
-    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button></div>' +
+    '<div class="marca">Ceprocenter</div><h1>Encuestas y Masterclass</h1>' +
+    '<p class="muted small" style="margin:0">Crea encuestas de módulo y registros de masterclass, compártelos y revisa los resultados.</p>' +
+    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button><button class="tab" data-tab="masterclass">🎓 Masterclass</button></div>' +
     '<div id="panel"></div>';
   $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
-  document.getElementById('btnSalir').onclick = () => { if (confirm('¿Cerrar sesión en este dispositivo? La próxima vez te pedirá la clave.')) cerrarSesion(); };
   pintarTab();
 }
 
 function pintarTab() {
   $app.querySelectorAll('.tab').forEach(t => t.classList.toggle('act', t.dataset.tab === TAB));
-  if (TAB === 'crear') renderCrear(); else if (TAB === 'docentes') renderDocentes(); else renderLista();
+  if (TAB === 'crear') renderCrear(); else if (TAB === 'docentes') renderDocentes(); else if (TAB === 'masterclass') renderMasterclass(); else renderLista();
 }
 
 function renderCrear() {
@@ -837,9 +836,274 @@ function detalleDocenteHTML(d) {
   return h + '</div>';
 }
 
+/* =========================================================================
+   MASTERCLASS  (pestaña 🎓 del panel  +  formulario público encuestas.html?mc=XXXX)
+   Datos en las hojas "MasterclassEventos" y "Masterclass" del mismo Apps Script.
+   ========================================================================= */
+const MC_ID = params.get('mc');
+let MC = null;
+let MC_LISTA = null;
+let MC_VISTA = 'lista';
+
+function linkMasterclass(id) { return location.origin + location.pathname + '?mc=' + encodeURIComponent(id); }
+function mcFecha(f) {
+  const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(f || '');
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return parseInt(m[3], 10) + ' de ' + meses[parseInt(m[2], 10) - 1] + ' de ' + m[1];
+}
+function mcToast(texto, tipo) {
+  const box = document.getElementById('mcAviso');
+  if (box) { box.innerHTML = '<div class="msg ' + (tipo || 'err') + '">' + esc(texto) + '</div>'; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  else alert(texto);
+}
+
+/* ---------- Formulario público ---------- */
+async function iniciarFormMasterclass() {
+  document.title = 'Masterclass — Ceprocenter';
+  $app.innerHTML = cargando('Cargando formulario…');
+  const res = await api({ action: 'obtenerMasterclass', id: MC_ID }).catch(() => ({ error: 'Sin conexión. Revisa tu internet y recarga la página.' }));
+  if (res.error || !res.masterclass) {
+    $app.innerHTML = '<div class="card centro"><div class="emoji">🔎</div><h2>' + esc(res.error || 'No encontramos esta masterclass.') + '</h2></div>';
+    return;
+  }
+  MC = res.masterclass;
+  document.title = MC.nombre + ' — Ceprocenter';
+  const cab = '<div class="card hero"><div class="marca">Ceprocenter · Masterclass</div><h1>' + esc(MC.nombre) + '</h1>' +
+    (MC.fecha ? '<div class="meta"><div><span>Fecha:</span> <b>' + esc(mcFecha(MC.fecha)) + '</b></div></div>' : '') + '</div>';
+  if (!MC.activa) {
+    $app.innerHTML = cab + '<div class="card centro"><div class="emoji">🔒</div><h2>El registro para esta masterclass ya está cerrado.</h2></div>';
+    return;
+  }
+  const cert = !!MC.conCertificado, pago = !!(MC.conCertificado && MC.conPago);
+  const paises = ['Ecuador','Colombia','Venezuela','Perú','México','Argentina','Chile','Bolivia','Paraguay','Uruguay','Brasil','Panamá','Costa Rica','Guatemala','Honduras','El Salvador','Nicaragua','República Dominicana','Cuba','España','Estados Unidos','Canadá','Puerto Rico'];
+  $app.innerHTML = cab +
+    '<div class="card" id="mcForm">' +
+      '<h2>Tus datos</h2><p class="muted small" style="margin:0">' + (cert ? 'Completa tus datos para registrarte y recibir tu certificado.' : 'Completa tus datos para registrarte.') + '</p>' +
+      '<label class="lbl" for="mNombre">Nombres y apellidos completos *</label><input id="mNombre" autocomplete="name" placeholder="Tu nombre completo">' +
+      '<label class="lbl" for="mCorreo">Correo electrónico *</label><input id="mCorreo" type="email" autocomplete="email" placeholder="correo@ejemplo.com">' +
+        (cert ? '<p class="muted small" style="margin:4px 0 0">A este correo te enviaremos tu certificado. Revísalo bien.</p>' : '') +
+      '<div class="fila"><div><label class="lbl" for="mPais">País *</label><input id="mPais" list="dlPaises" placeholder="País"><datalist id="dlPaises">' + paises.map(p => '<option value="' + p + '">').join('') + '</datalist></div>' +
+        '<div><label class="lbl" for="mTel">Teléfono (WhatsApp) *</label><input id="mTel" type="tel" placeholder="+593 ..."></div></div>' +
+      '<div class="fila"><div><label class="lbl" for="mCiudad">Ciudad *</label><input id="mCiudad" placeholder="Ciudad"></div>' +
+        '<div><label class="lbl" for="mProf">Profesión *</label><input id="mProf" placeholder="Profesión"></div></div>' +
+      (cert ?
+        '<div class="mejorar"><h2>Tu certificado</h2>' +
+        '<label class="lbl" for="mCert">¿Cómo quieres que aparezca tu nombre en el certificado? *</label><input id="mCert" placeholder=\'Ej. "Lic. María Pérez"\'>' +
+        '<p class="muted small" style="margin:4px 0 0">Escríbelo exactamente como lo quieres, con tildes y mayúsculas. Si no usas título, deja solo tu nombre.</p>' +
+        '<div class="mc-preview"><div class="muted small">Así se verá en tu certificado</div><div class="mc-preview-nom" id="mPrev">—</div></div></div>' : '') +
+      (pago ?
+        '<div class="mejorar"><h2>Pago del certificado</h2>' +
+        '<label class="lbl" for="mMetodo">Método de pago *</label><select id="mMetodo"><option value="">Selecciona una opción</option>' +
+          ['Transferencia Bancaria','Depósito','Efectivo','PayPal','Zelle','Binance','Pago Móvil','Western Union/Zoom','Tarjeta de Crédito','Otro'].map(o => '<option>' + o + '</option>').join('') + '</select>' +
+        '<div id="mCuentaWrap" style="display:none"><label class="lbl" for="mCuenta">¿A cuál cuenta transferiste/depositaste? *</label><select id="mCuenta"><option value="">Selecciona una opción</option><option>Banco Pacífico</option><option>Banco Pichincha</option><option>Banco Guayaquil</option><option>Otra</option></select></div>' +
+        '<label class="lbl" for="mRef">N° de referencia del pago</label><input id="mRef" placeholder="Número de comprobante o transacción">' +
+        '<label class="lbl" for="mComp">Comprobante de pago *</label><input id="mComp" type="file" accept="image/*,.pdf"></div>' : '') +
+      '<label class="mc-check" style="margin-top:18px"><input type="checkbox" id="mAutorizo"><span>Autorizo el uso de mis datos personales para fines administrativos y de comunicación de Ceprocenter. <a href="privacidad.html" target="_blank">Política de privacidad</a>. *</span></label>' +
+      '<div id="mcAviso"></div>' +
+      '<div style="margin-top:16px"><button class="btn full" id="mEnviar">Registrarme</button></div>' +
+    '</div>';
+
+  // Código de país automático en el teléfono (igual que el Pre-Registro).
+  const CODIGOS = { 'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52','argentina':'+54','chile':'+56','bolivia':'+591','paraguay':'+595','uruguay':'+598','brasil':'+55','panama':'+507','costa rica':'+506','guatemala':'+502','honduras':'+504','el salvador':'+503','nicaragua':'+505','republica dominicana':'+1','cuba':'+53','espana':'+34','estados unidos':'+1','canada':'+1','puerto rico':'+1' };
+  const $pais = document.getElementById('mPais'), $tel = document.getElementById('mTel');
+  const ponerCodigo = () => {
+    const cod = CODIGOS[$pais.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()];
+    if (!cod) return;
+    const t = $tel.value.trim();
+    $tel.value = !t ? cod + ' ' : /^\+\d+/.test(t) ? t.replace(/^\+\d+\s*/, cod + ' ') : cod + ' ' + t;
+  };
+  $pais.addEventListener('change', ponerCodigo);
+  $pais.addEventListener('blur', ponerCodigo);
+  $tel.addEventListener('focus', () => { if (!$tel.value.trim()) ponerCodigo(); });
+
+  if (cert) {
+    const $c = document.getElementById('mCert'), $n = document.getElementById('mNombre');
+    let tocado = false;
+    const prev = () => { document.getElementById('mPrev').textContent = $c.value.trim() || '—'; };
+    $c.addEventListener('input', () => { tocado = true; prev(); });
+    $n.addEventListener('input', () => { if (!tocado) { $c.value = $n.value; prev(); } });
+  }
+  if (pago) {
+    document.getElementById('mMetodo').onchange = ev => {
+      document.getElementById('mCuentaWrap').style.display = /Transferencia|Depósito/.test(ev.target.value) ? 'block' : 'none';
+    };
+  }
+  document.getElementById('mEnviar').onclick = () => enviarMasterclass(cert, pago);
+}
+
+function mcArchivoBase64(file) {
+  return new Promise((ok, mal) => {
+    if (file.size > 8 * 1024 * 1024) return mal(new Error('El archivo "' + file.name + '" pesa demasiado. Usa una foto o captura más liviana (máximo 8MB).'));
+    const r = new FileReader();
+    r.onload = () => ok(r.result.split(',')[1]);
+    r.onerror = () => mal(new Error('No se pudo leer el archivo "' + file.name + '".'));
+    r.readAsDataURL(file);
+  });
+}
+
+async function enviarMasterclass(cert, pago) {
+  const v = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const data = { nombre: v('mNombre'), correo: v('mCorreo'), pais: v('mPais'), telefono: v('mTel'), ciudad: v('mCiudad'), profesion: v('mProf'),
+    nombreCertificado: cert ? v('mCert') : '', metodoPago: '', cuentaDestino: '', referenciaPago: '', autorizoDatos: true, archivos: {} };
+  if (!data.nombre || !data.correo || !data.pais || !data.telefono || !data.ciudad || !data.profesion || (cert && !data.nombreCertificado))
+    return mcToast('Por favor completa todos los campos marcados con *.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.correo)) return mcToast('Revisa tu correo: parece que no está bien escrito.');
+  let comp = null;
+  if (pago) {
+    data.metodoPago = v('mMetodo');
+    data.cuentaDestino = document.getElementById('mCuentaWrap').style.display !== 'none' ? v('mCuenta') : '';
+    data.referenciaPago = v('mRef');
+    comp = document.getElementById('mComp').files[0];
+    if (!data.metodoPago) return mcToast('Selecciona tu método de pago.');
+    if (/Transferencia|Depósito/.test(data.metodoPago) && !data.cuentaDestino) return mcToast('Selecciona a cuál cuenta transferiste o depositaste.');
+    if (!comp) return mcToast('El comprobante de pago es obligatorio.');
+  }
+  if (!document.getElementById('mAutorizo').checked) return mcToast('Debes autorizar el uso de tus datos personales para continuar.');
+
+  const btn = document.getElementById('mEnviar');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    if (comp) data.archivos.comprobante = { data: await mcArchivoBase64(comp), name: comp.name, mimeType: comp.type || 'application/octet-stream' };
+    const res = await api({ action: 'registrarMasterclass', id: MC_ID, data: data });
+    if (res.error) throw new Error(res.error);
+    document.getElementById('mcForm').outerHTML = '<div class="card centro anim"><div class="emoji">' + (cert ? '🎓' : '✅') + '</div><h2>¡Registro completado!</h2><p class="muted">' +
+      (res.duplicado ? 'Ya estabas registrado; actualizamos tus datos. ' : 'Ya tenemos tus datos. ') +
+      (cert ? 'Te enviaremos tu certificado al correo que registraste.' : '¡Nos vemos en la masterclass!') + '</p></div>';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    mcToast('Hubo un problema al enviar: ' + (e.message || 'error inesperado.'));
+    btn.disabled = false; btn.textContent = 'Registrarme';
+  }
+}
+
+/* ---------- Pestaña del panel ---------- */
+async function renderMasterclass() {
+  const panel = document.getElementById('panel');
+  if (MC_LISTA === null) {
+    panel.innerHTML = cargando();
+    const res = await api({ action: 'listarMasterclass', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
+    if (TAB !== 'masterclass') return;
+    if (res.error) { panel.innerHTML = '<div class="card msg err">' + esc(res.error) + '</div>'; return; }
+    MC_LISTA = res.masterclass || [];
+  }
+  panel.innerHTML =
+    '<div class="acciones" style="margin-top:16px">' +
+      '<button class="btn sm ' + (MC_VISTA === 'lista' ? '' : 'ghost') + '" data-v="lista">📋 Mis masterclass</button>' +
+      '<button class="btn sm ' + (MC_VISTA === 'crear' ? '' : 'ghost') + '" data-v="crear">➕ Crear masterclass</button></div>' +
+    '<div id="mcPanel"></div>';
+  panel.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { MC_VISTA = b.dataset.v; renderMasterclass(); });
+  if (MC_VISTA === 'crear') mcRenderCrear(); else mcRenderLista();
+}
+
+function mcRenderCrear() {
+  const box = document.getElementById('mcPanel');
+  box.innerHTML = '<div class="card">' +
+    '<label class="lbl" for="cNombre" style="margin-top:0">Nombre de la masterclass</label><input id="cNombre" placeholder="Así lo verán los asistentes en el formulario">' +
+    '<label class="lbl" for="cFecha">Fecha <span class="muted small">(opcional)</span></label><input id="cFecha" type="date">' +
+    '<label class="mc-check" style="margin-top:16px"><input type="checkbox" id="cCert"><span><b>Entrega certificado</b><br><span class="muted small">El formulario pedirá cómo quieren su nombre en el certificado.</span></span></label>' +
+    '<label class="mc-check" id="cPagoWrap" style="display:none;margin-left:30px"><input type="checkbox" id="cPago"><span><b>El certificado tiene costo</b><br><span class="muted small">El formulario pedirá método de pago y comprobante.</span></span></label>' +
+    '<div style="margin-top:16px"><button class="btn full" id="cCrear">Crear y obtener enlace</button></div>' +
+    '<div id="cRes"></div></div>';
+  const $cert = document.getElementById('cCert');
+  $cert.onchange = () => { document.getElementById('cPagoWrap').style.display = $cert.checked ? 'flex' : 'none'; if (!$cert.checked) document.getElementById('cPago').checked = false; };
+  document.getElementById('cCrear').onclick = async () => {
+    const nombre = document.getElementById('cNombre').value.trim();
+    const $res = document.getElementById('cRes');
+    if (!nombre) { $res.innerHTML = '<div class="msg err">Escribe el nombre de la masterclass.</div>'; return; }
+    const btn = document.getElementById('cCrear');
+    btn.disabled = true; btn.textContent = 'Creando…';
+    const data = { nombre: nombre, fecha: document.getElementById('cFecha').value, conCertificado: $cert.checked, conPago: $cert.checked && document.getElementById('cPago').checked };
+    const res = await api({ action: 'crearMasterclass', clave: CLAVE, data: data }).catch(() => ({ error: 'Sin conexión.' }));
+    btn.disabled = false; btn.textContent = 'Crear y obtener enlace';
+    if (res.error) { $res.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+    MC_LISTA.unshift(res.masterclass);
+    $res.innerHTML = '<div class="msg ok">✔ Masterclass creada. Este es el enlace para compartir:<br><b style="word-break:break-all">' + esc(linkMasterclass(res.masterclass.id)) + '</b></div>' + mcBotones();
+    mcConectar($res, res.masterclass);
+    document.getElementById('cNombre').value = ''; document.getElementById('cFecha').value = '';
+    $cert.checked = false; $cert.onchange();
+  };
+}
+
+function mcBotones(extra) {
+  return '<div class="acciones">' +
+    '<button class="btn sm sec" data-mc="copiar">📋 Copiar enlace</button>' +
+    '<button class="btn sm wa" data-mc="wa">WhatsApp</button>' +
+    '<button class="btn sm ghost" data-mc="abrir">Ver formulario</button>' + (extra || '') + '</div>';
+}
+
+function mcConectar(cont, ev) {
+  const link = linkMasterclass(ev.id);
+  cont.querySelector('[data-mc="copiar"]').onclick = async e => {
+    try { await navigator.clipboard.writeText(link); e.target.textContent = '✔ Copiado'; } catch (_) { prompt('Copia el enlace:', link); }
+  };
+  cont.querySelector('[data-mc="wa"]').onclick = () => {
+    const texto = '¡Hola! 👋 Regístrate en la masterclass "' + ev.nombre + '"' + (ev.conCertificado ? ' para recibir tu certificado' : '') + ': ' + link + ' 💚 Equipo Ceprocenter';
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  };
+  cont.querySelector('[data-mc="abrir"]').onclick = () => window.open(link, '_blank');
+}
+
+function mcRenderLista() {
+  const box = document.getElementById('mcPanel');
+  if (!MC_LISTA.length) {
+    box.innerHTML = '<div class="card centro"><div class="emoji">🎓</div><h2>Aún no has creado ninguna masterclass</h2><p class="muted">Usa “➕ Crear masterclass” para empezar.</p></div>';
+    return;
+  }
+  box.innerHTML = MC_LISTA.map((ev, i) =>
+    '<div class="card" data-i="' + i + '"' + (ev.activa ? '' : ' style="opacity:.7"') + '>' +
+      '<div class="doc-fila"><div><h2>' + esc(ev.nombre) + '</h2><div class="muted small">' + (ev.fecha ? esc(mcFecha(ev.fecha)) : 'Sin fecha') + '</div>' +
+        '<div class="chips">' + (ev.activa ? '<span class="chip ok">Registro abierto</span>' : '<span class="chip off">Registro cerrado</span>') +
+          (ev.conCertificado ? '<span class="chip">🎓 Con certificado</span>' : '<span class="chip off">Sin certificado</span>') +
+          (ev.conPago ? '<span class="chip warn">💳 Certificado con costo</span>' : '') + '</div></div>' +
+        '<div class="doc-nota"><div class="grande">' + (ev.inscritos || 0) + '</div><div class="muted small">registrados</div></div></div>' +
+      mcBotones('<button class="btn sm sec" data-mc="ver">👥 Ver registrados</button><button class="btn sm ghost" data-mc="estado">' + (ev.activa ? 'Cerrar registro' : 'Reabrir registro') + '</button>') +
+      '<div class="mc-inscritos"></div></div>').join('');
+
+  box.querySelectorAll('[data-i]').forEach(card => {
+    const ev = MC_LISTA[+card.dataset.i];
+    mcConectar(card, ev);
+    card.querySelector('[data-mc="estado"]').onclick = async e => {
+      if (!confirm('¿Seguro que quieres ' + (ev.activa ? 'cerrar' : 'reabrir') + ' el registro de "' + ev.nombre + '"?')) return;
+      e.target.disabled = true;
+      const res = await api({ action: 'cambiarEstadoMasterclass', clave: CLAVE, id: ev.id, activa: !ev.activa }).catch(() => ({ error: 'Sin conexión.' }));
+      if (res.error) { alert(res.error); e.target.disabled = false; return; }
+      ev.activa = !ev.activa; mcRenderLista();
+    };
+    card.querySelector('[data-mc="ver"]').onclick = () => mcVerInscritos(card, ev);
+  });
+}
+
+async function mcVerInscritos(card, ev) {
+  const box = card.querySelector('.mc-inscritos');
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="detalle centro" style="padding:20px"><div class="spinner"></div></div>';
+  const res = await api({ action: 'inscritosMasterclass', clave: CLAVE, id: ev.id }).catch(() => ({ error: 'Sin conexión.' }));
+  if (res.error) { box.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+  const filas = res.inscritos || [];
+  if (!filas.length) { box.innerHTML = '<div class="msg info">Todavía no hay registrados.</div>'; return; }
+  const cols = [['nombre','Nombre'],['correo','Correo'],['telefono','Teléfono'],['pais','País'],['ciudad','Ciudad'],['profesion','Profesión']];
+  if (ev.conCertificado) cols.push(['nombreCertificado','Nombre en certificado']);
+  if (ev.conPago) cols.push(['metodoPago','Pago'],['referenciaPago','Referencia'],['comprobanteUrl','Comprobante']);
+  const celda = (f, k) => k === 'comprobanteUrl' ? (f[k] ? '<a href="' + esc(f[k]) + '" target="_blank">Ver</a>' : '') : esc(String(f[k] == null ? '' : f[k]).replace(/^'/, ''));
+  box.innerHTML = '<div class="detalle"><div style="overflow-x:auto"><table class="tabla"><thead><tr><th>#</th>' + cols.map(c => '<th>' + c[1] + '</th>').join('') + '</tr></thead><tbody>' +
+    filas.map((f, i) => '<tr><td>' + (i + 1) + '</td>' + cols.map(([k]) => '<td>' + celda(f, k) + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table></div><div class="acciones"><button class="btn sm sec" data-mc="csv">⬇️ Descargar lista (Excel)</button></div></div>';
+  box.querySelector('[data-mc="csv"]').onclick = () => {
+    const q = s => '"' + String(s == null ? '' : s).replace(/^'/, '').replace(/"/g, '""') + '"';
+    const csv = '﻿' + [cols.map(c => q(c[1])).join(';')].concat(filas.map(f => cols.map(([k]) => q(f[k])).join(';'))).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'Registrados - ' + ev.nombre.replace(/[\\/:*?"<>|]/g, '') + '.csv';
+    a.click();
+  };
+}
+
 /* ========================================================================= */
 if (SCRIPT_URL.indexOf('PEGA_AQUI') === 0) {
   $app.innerHTML = '<div class="card msg err">Falta configurar SCRIPT_URL al inicio del archivo encuestas.html.</div>';
+} else if (MC_ID) {
+  iniciarFormMasterclass();
 } else if (ENC_ID) {
   iniciarEncuesta();
 } else {
