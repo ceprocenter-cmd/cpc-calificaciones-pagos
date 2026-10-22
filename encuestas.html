@@ -146,6 +146,9 @@
   .mc-check{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:10px;font-size:14px}
   .mc-check input{width:20px;height:20px;flex:none;margin-top:2px;accent-color:var(--brand)}
   .mc-check a{color:var(--brand2)}
+  .mc-grupo{margin-top:18px;background:#e9f8ef;border:1.5px solid #b9e6cb;border-radius:14px;padding:16px;text-align:left}
+  .mc-grupo-t{font-weight:800;color:#147a3f;font-size:16px}
+  a.btn{text-decoration:none}
   .mc-preview{margin-top:10px;background:var(--soft);border-radius:10px;padding:12px;text-align:center}
   .mc-preview-nom{font-size:19px;font-weight:800;margin-top:4px;min-height:24px}
   @media (max-width:560px){
@@ -858,6 +861,14 @@ function mcFecha(f) {
   const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   return parseInt(m[3], 10) + ' de ' + meses[parseInt(m[2], 10) - 1] + ' de ' + m[1];
 }
+function mcLinkSeguro(u) { return /^https:\/\/\S+$/i.test(String(u || '').trim()) ? String(u).trim() : ''; }
+function mcBotonGrupo(link) {
+  const u = mcLinkSeguro(link);
+  if (!u) return '';
+  return '<div class="mc-grupo"><div class="mc-grupo-t">📲 Último paso: únete al grupo de WhatsApp</div>' +
+    '<p class="muted small" style="margin:4px 0 12px">Ahí enviaremos el enlace de conexión, recordatorios y toda la información de la masterclass.</p>' +
+    '<a class="btn wa full" href="' + esc(u) + '" target="_blank" rel="noopener">Unirme al grupo de WhatsApp</a></div>';
+}
 function mcToast(texto, tipo) {
   const box = document.getElementById('mcAviso');
   if (box) { box.innerHTML = '<div class="msg ' + (tipo || 'err') + '">' + esc(texto) + '</div>'; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -975,7 +986,8 @@ async function enviarMasterclass(cert, pago) {
     if (res.error) throw new Error(res.error);
     document.getElementById('mcForm').outerHTML = '<div class="card centro anim"><div class="emoji">' + (cert ? '🎓' : '✅') + '</div><h2>¡Registro completado!</h2><p class="muted">' +
       (res.duplicado ? 'Ya estabas registrado; actualizamos tus datos. ' : 'Ya tenemos tus datos. ') +
-      (cert ? 'Te enviaremos tu certificado al correo que registraste.' : '¡Nos vemos en la masterclass!') + '</p></div>';
+      (cert ? 'Te enviaremos tu certificado al correo que registraste.' : '¡Nos vemos en la masterclass!') + '</p>' +
+      mcBotonGrupo(MC.grupoWhatsapp) + '</div>';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (e) {
     mcToast('Hubo un problema al enviar: ' + (e.message || 'error inesperado.'));
@@ -1007,6 +1019,8 @@ function mcRenderCrear() {
   box.innerHTML = '<div class="card">' +
     '<label class="lbl" for="cNombre" style="margin-top:0">Nombre de la masterclass</label><input id="cNombre" placeholder="Así lo verán los asistentes en el formulario">' +
     '<label class="lbl" for="cFecha">Fecha <span class="muted small">(opcional)</span></label><input id="cFecha" type="date">' +
+    '<label class="lbl" for="cGrupo">Link del grupo de WhatsApp <span class="muted small">(opcional)</span></label><input id="cGrupo" type="url" placeholder="https://chat.whatsapp.com/...">' +
+    '<p class="muted small" style="margin:4px 0 0">Al terminar el registro, la persona verá un botón para unirse a este grupo.</p>' +
     '<label class="mc-check" style="margin-top:16px"><input type="checkbox" id="cCert"><span><b>Entrega certificado</b><br><span class="muted small">El formulario pedirá cómo quieren su nombre en el certificado.</span></span></label>' +
     '<label class="mc-check" id="cPagoWrap" style="display:none;margin-left:30px"><input type="checkbox" id="cPago"><span><b>El certificado tiene costo</b><br><span class="muted small">El formulario pedirá método de pago y comprobante.</span></span></label>' +
     '<div style="margin-top:16px"><button class="btn full" id="cCrear">Crear y obtener enlace</button></div>' +
@@ -1017,16 +1031,18 @@ function mcRenderCrear() {
     const nombre = document.getElementById('cNombre').value.trim();
     const $res = document.getElementById('cRes');
     if (!nombre) { $res.innerHTML = '<div class="msg err">Escribe el nombre de la masterclass.</div>'; return; }
+    const grupo = document.getElementById('cGrupo').value.trim();
+    if (grupo && !mcLinkSeguro(grupo)) { $res.innerHTML = '<div class="msg err">El link del grupo debe empezar con https:// (cópialo desde WhatsApp → Invitar al grupo mediante enlace).</div>'; return; }
     const btn = document.getElementById('cCrear');
-    btn.disabled = true; btn.textContent = 'Creando…';
-    const data = { nombre: nombre, fecha: document.getElementById('cFecha').value, conCertificado: $cert.checked, conPago: $cert.checked && document.getElementById('cPago').checked };
+    btn.disabled = true; btn.textContent = 'Creando…'; $res.innerHTML = '';
+    const data = { nombre: nombre, fecha: document.getElementById('cFecha').value, grupoWhatsapp: grupo, conCertificado: $cert.checked, conPago: $cert.checked && document.getElementById('cPago').checked };
     const res = await api({ action: 'crearMasterclass', clave: CLAVE, data: data }).catch(() => ({ error: 'Sin conexión.' }));
     btn.disabled = false; btn.textContent = 'Crear y obtener enlace';
     if (res.error) { $res.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
     MC_LISTA.unshift(res.masterclass);
     $res.innerHTML = '<div class="msg ok">✔ Masterclass creada. Este es el enlace para compartir:<br><b style="word-break:break-all">' + esc(linkMasterclass(res.masterclass.id)) + '</b></div>' + mcBotones();
     mcConectar($res, res.masterclass);
-    document.getElementById('cNombre').value = ''; document.getElementById('cFecha').value = '';
+    document.getElementById('cNombre').value = ''; document.getElementById('cFecha').value = ''; document.getElementById('cGrupo').value = '';
     $cert.checked = false; $cert.onchange();
   };
 }
@@ -1061,9 +1077,10 @@ function mcRenderLista() {
       '<div class="doc-fila"><div><h2>' + esc(ev.nombre) + '</h2><div class="muted small">' + (ev.fecha ? esc(mcFecha(ev.fecha)) : 'Sin fecha') + '</div>' +
         '<div class="chips">' + (ev.activa ? '<span class="chip ok">Registro abierto</span>' : '<span class="chip off">Registro cerrado</span>') +
           (ev.conCertificado ? '<span class="chip">🎓 Con certificado</span>' : '<span class="chip off">Sin certificado</span>') +
-          (ev.conPago ? '<span class="chip warn">💳 Certificado con costo</span>' : '') + '</div></div>' +
+          (ev.conPago ? '<span class="chip warn">💳 Certificado con costo</span>' : '') +
+          (mcLinkSeguro(ev.grupoWhatsapp) ? '<span class="chip ok">📲 Grupo de WhatsApp</span>' : '<span class="chip off">Sin grupo de WhatsApp</span>') + '</div></div>' +
         '<div class="doc-nota"><div class="grande">' + (ev.inscritos || 0) + '</div><div class="muted small">registrados</div></div></div>' +
-      mcBotones('<button class="btn sm sec" data-mc="ver">👥 Ver registrados</button><button class="btn sm ghost" data-mc="estado">' + (ev.activa ? 'Cerrar registro' : 'Reabrir registro') + '</button>') +
+      mcBotones('<button class="btn sm sec" data-mc="ver">👥 Ver registrados</button><button class="btn sm ghost" data-mc="grupo">📲 ' + (mcLinkSeguro(ev.grupoWhatsapp) ? 'Cambiar grupo' : 'Agregar grupo') + '</button><button class="btn sm ghost" data-mc="estado">' + (ev.activa ? 'Cerrar registro' : 'Reabrir registro') + '</button>') +
       '<div class="mc-inscritos"></div></div>').join('');
 
   box.querySelectorAll('[data-i]').forEach(card => {
@@ -1077,6 +1094,16 @@ function mcRenderLista() {
       ev.activa = !ev.activa; mcRenderLista();
     };
     card.querySelector('[data-mc="ver"]').onclick = () => mcVerInscritos(card, ev);
+    card.querySelector('[data-mc="grupo"]').onclick = async e => {
+      const nuevo = prompt('Pega el link del grupo de WhatsApp de "' + ev.nombre + '".\n(Déjalo vacío para quitarlo.)', ev.grupoWhatsapp || '');
+      if (nuevo === null) return;
+      const link = nuevo.trim();
+      if (link && !mcLinkSeguro(link)) { alert('El link debe empezar con https:// (cópialo desde WhatsApp → Invitar al grupo mediante enlace).'); return; }
+      e.target.disabled = true;
+      const res = await api({ action: 'grupoMasterclass', clave: CLAVE, id: ev.id, grupoWhatsapp: link }).catch(() => ({ error: 'Sin conexión.' }));
+      if (res.error) { alert(res.error); e.target.disabled = false; return; }
+      ev.grupoWhatsapp = res.grupoWhatsapp || ''; mcRenderLista();
+    };
   });
 }
 
