@@ -982,7 +982,20 @@ async function enviarMasterclass(cert, pago) {
   btn.disabled = true; btn.textContent = 'Enviando…';
   try {
     if (comp) data.archivos.comprobante = { data: await mcArchivoBase64(comp), name: comp.name, mimeType: comp.type || 'application/octet-stream' };
-    const res = await api({ action: 'registrarMasterclass', id: MC_ID, data: data });
+    // Si mucha gente se registra al mismo tiempo, el servidor puede estar ocupado un momento:
+    // se reintenta solo (hasta 4 veces). Es seguro porque el mismo correo nunca se duplica.
+    let res = null, ultimoError = '';
+    for (let intento = 0; intento < 5; intento++) {
+      if (intento > 0) {
+        btn.textContent = 'Muchas personas registrándose, reintentando… (' + intento + '/4)';
+        await new Promise(r => setTimeout(r, 2000 * intento + Math.random() * 1500));
+      }
+      try { res = await api({ action: 'registrarMasterclass', id: MC_ID, data: data }); }
+      catch (e) { res = null; ultimoError = 'Sin conexión o servidor ocupado.'; continue; }
+      if (res && res.error && (res.ocupado || /too many|demasiad|simult|lock|timeout|tiempo/i.test(res.error))) { ultimoError = res.error; res = null; continue; }
+      break;
+    }
+    if (!res) throw new Error(ultimoError + ' Espera un minuto y vuelve a tocar "Registrarme"; tus datos siguen escritos.');
     if (res.error) throw new Error(res.error);
     document.getElementById('mcForm').outerHTML = '<div class="card centro anim"><div class="emoji">' + (cert ? '🎓' : '✅') + '</div><h2>¡Registro completado!</h2><p class="muted">' +
       (res.duplicado ? 'Ya estabas registrado; actualizamos tus datos. ' : 'Ya tenemos tus datos. ') +
