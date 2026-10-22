@@ -465,7 +465,8 @@ function pantallaGracias(yaRespondida) {
    MODO ADMIN  (encuestas.html sin ?id)
    ========================================================================= */
 let CLAVE = '';
-try { CLAVE = sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
+// La clave queda recordada en este navegador (no hay que escribirla cada vez). "Cerrar sesión" la borra.
+try { CLAVE = localStorage.getItem('enc_clave') || sessionStorage.getItem('enc_clave') || ''; } catch (e) {}
 let LISTAS = null;
 let TAB = 'crear';
 
@@ -475,7 +476,7 @@ async function iniciarAdmin() {
   if (!CLAVE) return renderLogin();
   $app.innerHTML = cargando();
   const res = await api({ action: 'listasEncuesta', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
-  if (res.error) { CLAVE = ''; return renderLogin(res.error); }
+  if (res.error) { CLAVE = ''; try { localStorage.removeItem('enc_clave'); sessionStorage.removeItem('enc_clave'); } catch (e) {} return renderLogin(res.error); }
   LISTAS = res;
   renderAdmin();
 }
@@ -488,7 +489,7 @@ function renderLogin(error) {
     '<div style="margin-top:14px"><button class="btn full" id="btnLogin">Entrar</button></div></div>';
   const go = () => {
     CLAVE = document.getElementById('clave').value;
-    try { sessionStorage.setItem('enc_clave', CLAVE); } catch (e) {}
+    try { localStorage.setItem('enc_clave', CLAVE); } catch (e) {}
     iniciarAdmin();
   };
   document.getElementById('btnLogin').onclick = go;
@@ -498,10 +499,15 @@ function renderLogin(error) {
 function renderAdmin() {
   $app.innerHTML =
     '<div class="marca">Ceprocenter</div><h1>Encuestas y Masterclass</h1>' +
-    '<p class="muted small" style="margin:0">Crea encuestas de módulo y registros de masterclass, compártelos y revisa los resultados.</p>' +
+    '<p class="muted small" style="margin:0">Crea encuestas de módulo y registros de masterclass, compártelos y revisa los resultados. · <button class="link" id="btnSalir">Cerrar sesión</button></p>' +
     '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button><button class="tab" data-tab="masterclass">🎓 Masterclass</button></div>' +
     '<div id="panel"></div>';
   $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
+  document.getElementById('btnSalir').onclick = () => {
+    if (!confirm('¿Cerrar sesión en este navegador? Te pedirá la clave la próxima vez.')) return;
+    try { localStorage.removeItem('enc_clave'); sessionStorage.removeItem('enc_clave'); } catch (e) {}
+    CLAVE = ''; MC_LISTA = null; renderLogin();
+  };
   pintarTab();
 }
 
