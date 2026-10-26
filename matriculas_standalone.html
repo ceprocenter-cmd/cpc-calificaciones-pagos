@@ -355,6 +355,19 @@
           <div class="ticker" id="ticker_reporte"></div>
         </div>
         <div class="panel">
+          <h2>Proyección de Ingresos por Mes</h2>
+          <p class="hint">Lo que falta por cobrar a los estudiantes <b>activos</b> de los cursos <b>en marcha</b>, según el valor que paga cada uno (monto acordado o precio de lista) y la fecha en que arranca cada módulo en el Calendario Docente. No incluye nuevas matrículas, estudiantes que no continuaron, módulos saltados ni exonerados. Da clic en un mes para ver el detalle por curso.</p>
+          <div class="ticker" id="proy_ticker"></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Mes</th><th class="num">Cobros</th><th class="num">Estudiantes</th><th class="num">Por Cobrar</th><th class="num">Ya Recibido</th><th class="num">Total del Mes</th><th style="min-width:120px;"></th></tr></thead>
+              <tbody id="proy_tabla"></tbody>
+            </table>
+          </div>
+          <div id="proy_avisos"></div>
+          <div class="actions"><button class="btn btn-ghost btn-sm" id="btn_proy_csv">Descargar Proyección (CSV)</button></div>
+        </div>
+        <div class="panel">
           <h2>Reporte Mensual de Pagos</h2>
           <div class="field" style="max-width:220px;margin-bottom:16px;"><label>Mes</label><input type="month" id="rep_mes"></div>
           <div id="reporte_resumen"></div>
@@ -1023,7 +1036,143 @@ function renderTickerReporte(){
     <div class="tick"><div class="n">${fmt(confirmado)}</div><div class="l">Confirmado en Banco</div></div>
     <div class="tick"><div class="n">${fmt(pendiente)}</div><div class="l">Pendiente de Confirmar</div></div>
   `;
+  renderProyeccionIngresos();
 }
+// ---------- PROYECCIÓN DE INGRESOS POR MES ----------
+// Para cada curso en marcha (no finalizado) y cada estudiante activo, toma lo que le falta pagar
+// de cada ítem (mismo cálculo de precio que Cuentas por Cobrar) y lo ubica en el mes en que ese
+// ítem se vuelve cobrable: Inscripción = ya; Módulo N = mes en que arranca ese módulo en el
+// Calendario Docente; Pago Único = arranque del curso; Graduación = arranque del último módulo.
+// Lo que debió cobrarse en meses anteriores y sigue pendiente va aparte, como "Atrasado".
+var PROY_ATRASADO = '0000-atrasado', PROY_SIN_FECHA = '9999-sinfecha';
+var PROY_MES_ABIERTO = null;
+var PROY_LINEAS = [];
+function fechaCobroItem(curso, item, cal, ultimoModulo, maxArr){
+  const nombre = item.modulo;
+  if(/inscripci[oó]n/i.test(nombre)) return 'ya';
+  const n = numeroDeModulo(nombre);
+  if(!cal.tieneSesiones){
+    // Curso sin vincular en el Calendario: lo ya arrancado (según pagos de compañeros) cuenta como atrasado.
+    if(esGraduacion(nombre)) return (ultimoModulo>0 && maxArr>=ultimoModulo) ? 'ya' : '';
+    if(n===null || n<=maxArr) return 'ya';
+    return '';
+  }
+  if(esGraduacion(nombre)) return ultimoModulo>0 ? (cal.mapa[ultimoModulo]||'') : cal.primeraFecha;
+  if(n===null) return cal.primeraFecha;
+  return cal.mapa[n] || '';
+}
+function calcularProyeccionIngresos(){
+  const mesActual = hoyYMD().slice(0,7);
+  const lineas = [];
+  let gradSinConfirmar = 0, gradSinConfirmarMonto = 0;
+  cursosUnicos().filter(c=>!cursoFinalizado(c)).forEach(curso=>{
+    const items = itemsDeOrdenado(curso);
+    if(items.length===0) return;
+    const cal = fechasInicioModulos(curso);
+    const ultimoModulo = Math.max(0, ...items.map(it=>numeroDeModulo(it.modulo)||0));
+    const maxArr = cal.tieneSesiones ? 0 : moduloMaxArrancado(curso);
+    const estudiantes = [...new Set(NOMINA.filter(n=>n.curso===curso).map(n=>n.estudiante))].filter(est=>nominaActivaCXC(curso, est));
+    estudiantes.forEach(est=>{
+      items.forEach(it=>{
+        const det = precioEsperadoDetalle(curso, est, it.modulo);
+        const pagado = PAGOS.filter(p=>p.curso===curso && p.estudiante===est && p.modulo===it.modulo).reduce((s,p)=>s+p.monto,0);
+        if(det.graduacion==='Sin confirmar'){
+          const posible = Math.max(0, (det.precioSiAsiste||0) - pagado);
+          if(posible>0.009){ gradSinConfirmar++; gradSinConfirmarMonto += posible; }
+          return;
+        }
+        const saldo = Math.max(0, det.precio - pagado);
+        if(saldo<=0.009) return;
+        const f = fechaCobroItem(curso, it, cal, ultimoModulo, maxArr);
+        let mes;
+        if(f==='ya') mes = PROY_ATRASADO;
+        else if(!f) mes = PROY_SIN_FECHA;
+        else mes = f.slice(0,7) < mesActual ? PROY_ATRASADO : f.slice(0,7);
+        lineas.push({mes, fecha: f==='ya'?'':f, curso, estudiante:est, asesor: asesorDeEstudiante(curso, est)||'—', modulo:it.modulo, saldo});
+      });
+    });
+  });
+  // "Ya recibido" por mes (solo tiene sentido para el mes actual y los pasados, pero se calcula para todos).
+  const recibidoPorMes = {};
+  PAGOS.forEach(p=>{ const m = ymdLocal(p.fecha).slice(0,7); if(m) recibidoPorMes[m] = (recibidoPorMes[m]||0) + p.monto; });
+  const porMes = {};
+  lineas.forEach(l=>{
+    const g = porMes[l.mes] = porMes[l.mes] || {mes:l.mes, total:0, cobros:0, estudiantes:new Set(), cursos:{}};
+    g.total += l.saldo; g.cobros++; g.estudiantes.add(l.curso+'|||'+l.estudiante);
+    const c = g.cursos[l.curso] = g.cursos[l.curso] || {curso:l.curso, total:0, estudiantes:new Set(), modulos:new Set()};
+    c.total += l.saldo; c.estudiantes.add(l.estudiante); c.modulos.add(l.modulo);
+  });
+  if(!porMes[mesActual]) porMes[mesActual] = {mes:mesActual, total:0, cobros:0, estudiantes:new Set(), cursos:{}};
+  const meses = Object.values(porMes).sort((a,b)=>a.mes.localeCompare(b.mes));
+  meses.forEach(m=>{ m.recibido = (m.mes===mesActual) ? (recibidoPorMes[mesActual]||0) : 0; });
+  return {lineas, meses, mesActual, gradSinConfirmar, gradSinConfirmarMonto};
+}
+function etiquetaMesProyeccion(mes, mesActual){
+  if(mes===PROY_ATRASADO) return '⏰ Atrasado (meses anteriores)';
+  if(mes===PROY_SIN_FECHA) return '❔ Sin fecha en el calendario';
+  const [y,m] = mes.split('-').map(Number);
+  const txt = new Date(y, m-1, 1).toLocaleDateString('es-EC',{month:'long', year:'numeric'});
+  return txt.charAt(0).toUpperCase()+txt.slice(1) + (mes===mesActual ? ' (este mes)' : '');
+}
+function renderProyeccionIngresos(){
+  const tbody = document.getElementById('proy_tabla');
+  if(!tbody || !financieroDesbloqueado()) return;
+  const r = calcularProyeccionIngresos();
+  PROY_LINEAS = r.lineas;
+  const fechados = r.meses.filter(m=>m.mes!==PROY_ATRASADO && m.mes!==PROY_SIN_FECHA);
+  const atrasado = r.meses.find(m=>m.mes===PROY_ATRASADO);
+  const sinFecha = r.meses.find(m=>m.mes===PROY_SIN_FECHA);
+  const esteMes = r.meses.find(m=>m.mes===r.mesActual);
+  const futuro = fechados.filter(m=>m.mes>r.mesActual).reduce((s,m)=>s+m.total,0);
+  const totalPendiente = r.lineas.reduce((s,l)=>s+l.saldo,0);
+  document.getElementById('proy_ticker').innerHTML = `
+    <div class="tick"><div class="n">${fmt(esteMes.total + esteMes.recibido)}</div><div class="l">Proyectado este mes</div></div>
+    <div class="tick"><div class="n neg">${fmt(atrasado?atrasado.total:0)}</div><div class="l">Atrasado por cobrar</div></div>
+    <div class="tick"><div class="n">${fmt(futuro)}</div><div class="l">Meses siguientes</div></div>
+    <div class="tick"><div class="n">${fmt(totalPendiente)}</div><div class="l">Total por cobrar</div></div>
+  `;
+  const maxMes = Math.max(1, ...r.meses.map(m=>m.total + m.recibido));
+  tbody.innerHTML = r.meses.map(m=>{
+    const total = m.total + m.recibido;
+    const abierto = PROY_MES_ABIERTO===m.mes;
+    const detalle = abierto ? `<tr><td colspan="7" style="background:var(--panel-2);white-space:normal;padding:10px 14px;">
+      <table style="font-size:13px;"><thead><tr><th>Curso</th><th class="num">Estudiantes</th><th>Ítems</th><th class="num">Por Cobrar</th></tr></thead><tbody>
+      ${Object.values(m.cursos).sort((a,b)=>b.total-a.total).map(c=>`<tr><td style="white-space:normal;">${c.curso}</td><td class="num">${c.estudiantes.size}</td><td style="white-space:normal;">${[...c.modulos].join(', ')}</td><td class="num">${fmt(c.total)}</td></tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);">Nada pendiente por cobrar este mes.</td></tr>'}
+      </tbody></table></td></tr>` : '';
+    return `<tr style="cursor:pointer;${m.mes===PROY_ATRASADO?'color:var(--danger);':''}" onclick="toggleMesProyeccion('${m.mes}')">
+      <td>${abierto?'▾':'▸'} ${etiquetaMesProyeccion(m.mes, r.mesActual)}</td>
+      <td class="num">${m.cobros}</td>
+      <td class="num">${m.estudiantes.size}</td>
+      <td class="num">${fmt(m.total)}</td>
+      <td class="num">${m.mes===r.mesActual ? fmt(m.recibido) : '—'}</td>
+      <td class="num"><b>${fmt(total)}</b></td>
+      <td><div style="background:var(--panel-2);border-radius:6px;overflow:hidden;height:10px;"><div style="background:${m.mes===PROY_ATRASADO?'var(--danger)':'var(--accent)'};height:100%;width:${total/maxMes*100}%;"></div></div></td>
+    </tr>${detalle}`;
+  }).join('');
+  const avisos = [];
+  if(sinFecha) avisos.push(`❔ ${fmt(sinFecha.total)} no se pudo ubicar en un mes porque esos módulos no tienen fecha en el Calendario Docente (o el curso no está vinculado allí).`);
+  if(r.gradSinConfirmar) avisos.push(`🎓 ${r.gradSinConfirmar} graduación(es) sin confirmar no están sumadas — serían hasta ${fmt(r.gradSinConfirmarMonto)} más si todos asisten.`);
+  avisos.push('Lo "Atrasado" es dinero que ya se debía cobrar y sigue pendiente; no está garantizado que entre.');
+  document.getElementById('proy_avisos').innerHTML = avisos.map(a=>`<p class="hint" style="margin:8px 0 0;">${a}</p>`).join('');
+}
+window.toggleMesProyeccion = function(mes){
+  PROY_MES_ABIERTO = PROY_MES_ABIERTO===mes ? null : mes;
+  renderProyeccionIngresos();
+};
+document.getElementById('btn_proy_csv').addEventListener('click', ()=>{
+  if(!financieroDesbloqueado()){ showToast('Ingresa la clave primero.'); return; }
+  const mesActual = hoyYMD().slice(0,7);
+  const rows = [['Mes','Fecha de Cobro','Curso','Estudiante','Asesor','Concepto','Por Cobrar'].join(',')];
+  PROY_LINEAS.slice().sort((a,b)=>a.mes.localeCompare(b.mes)||a.curso.localeCompare(b.curso)).forEach(l=>{
+    rows.push([etiquetaMesProyeccion(l.mes, mesActual), l.fecha, l.curso, l.estudiante, l.asesor, l.modulo, l.saldo.toFixed(2)].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob(['\ufeff'+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `proyeccion_ingresos_${hoyYMD()}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Proyección descargada.');
+});
 function renderTicker(){
   const cursos = cursosUnicos().length;
   const estudiantes = NOMINA.length;
