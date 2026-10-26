@@ -130,6 +130,10 @@
       <p class="hint">Elige un curso para registrar y ver sus calificaciones, o crea uno nuevo cargando su nómina.</p>
       <div class="curso-grid" id="curso_grid"></div>
       <div class="empty" id="curso_grid_empty" style="display:none;">Aún no has cargado ningún curso.</div>
+      <div id="cursos_finalizados_wrap" style="display:none;margin-bottom:10px;">
+        <button class="btn btn-ghost btn-sm" id="btn_toggle_finalizados"></button>
+        <div class="curso-grid" id="curso_grid_finalizados" style="display:none;margin-top:14px;"></div>
+      </div>
       <div class="actions"><button class="btn btn-primary" id="btn_nuevo_curso">+ Crear Nuevo Curso</button></div>
     </div>
     <div class="panel" id="panel_nuevo_curso" style="display:none;">
@@ -644,7 +648,7 @@ async function initApp(){
 function restaurarVistaGuardada(){
   let curso = '';
   try{ curso = localStorage.getItem('cepro_control_ultimo_curso') || ''; }catch(e){}
-  if(curso && cursosUnicos().includes(curso)){
+  if(curso && cursosUnicos().includes(curso) && !cursoFinalizado(curso)){
     abrirCurso(curso);
     let pestana = '';
     try{ pestana = localStorage.getItem('cepro_control_ultima_pestana') || ''; }catch(e){}
@@ -668,21 +672,47 @@ function mostrarHome(){
 function cursosUnicos(){
   return [...new Set(NOMINA.map(n=>n.curso).filter(Boolean))].sort();
 }
+// ---------- CURSOS FINALIZADOS ----------
+// Matrículas marca un curso como finalizado escribiendo la fecha de cierre en la
+// columna "finalizado" de la hoja Modulos (la misma hoja que lee esta app). Vacío o
+// FALSE = en curso. Aquí se lee ese mismo dato para sacar los cursos finalizados de
+// la lista principal; siguen disponibles en "Cursos finalizados" por si necesitas
+// sacar certificados o revisar notas de un curso ya cerrado.
+function cursoFinalizado(curso){
+  return MODULOS.some(m=>m.curso===curso && m.finalizado && String(m.finalizado).trim() && String(m.finalizado).trim().toUpperCase()!=='FALSE');
+}
+let MOSTRAR_FINALIZADOS = false;
+function tarjetaCurso(c){
+  const estudiantes = NOMINA.filter(n=>n.curso===c).length;
+  const evaluados = new Set(CALIFICACIONES.filter(x=>x.curso===c).map(x=>x.estudiante)).size;
+  const fin = cursoFinalizado(c);
+  return `<div class="curso-card" style="${fin?'opacity:0.7;':''}" onclick="abrirCurso('${c.replace(/'/g,"\\'")}')">
+    <div class="nombre">${c}</div>
+    <div class="meta">${estudiantes} estudiante${estudiantes!==1?'s':''} · ${evaluados} con notas${fin?' · 🏁 Finalizado':''}</div>
+  </div>`;
+}
 function renderCursoGrid(){
   const cursos = cursosUnicos();
+  const activos = cursos.filter(c=>!cursoFinalizado(c));
+  const finalizados = cursos.filter(c=>cursoFinalizado(c));
   const grid = document.getElementById('curso_grid');
   const empty = document.getElementById('curso_grid_empty');
-  if(cursos.length===0){ grid.innerHTML=''; empty.style.display='block'; return; }
-  empty.style.display='none';
-  grid.innerHTML = cursos.map(c=>{
-    const estudiantes = NOMINA.filter(n=>n.curso===c).length;
-    const evaluados = new Set(CALIFICACIONES.filter(x=>x.curso===c).map(x=>x.estudiante)).size;
-    return `<div class="curso-card" onclick="abrirCurso('${c.replace(/'/g,"\\'")}')">
-      <div class="nombre">${c}</div>
-      <div class="meta">${estudiantes} estudiante${estudiantes!==1?'s':''} · ${evaluados} con notas</div>
-    </div>`;
-  }).join('');
+  const finWrap = document.getElementById('cursos_finalizados_wrap');
+  const finGrid = document.getElementById('curso_grid_finalizados');
+  grid.innerHTML = activos.map(tarjetaCurso).join('');
+  if(cursos.length===0){ empty.textContent='Aún no has cargado ningún curso.'; empty.style.display='block'; }
+  else if(activos.length===0){ empty.textContent='No hay cursos en marcha — todos están finalizados.'; empty.style.display='block'; }
+  else empty.style.display='none';
+  if(finalizados.length===0){ finWrap.style.display='none'; return; }
+  finWrap.style.display='block';
+  document.getElementById('btn_toggle_finalizados').textContent = `${MOSTRAR_FINALIZADOS?'▾':'▸'} 🏁 Cursos finalizados (${finalizados.length})`;
+  finGrid.style.display = MOSTRAR_FINALIZADOS ? 'grid' : 'none';
+  finGrid.innerHTML = finalizados.map(tarjetaCurso).join('');
 }
+document.getElementById('btn_toggle_finalizados').addEventListener('click', ()=>{
+  MOSTRAR_FINALIZADOS = !MOSTRAR_FINALIZADOS;
+  renderCursoGrid();
+});
 document.getElementById('btn_nuevo_curso').addEventListener('click', ()=>{
   document.getElementById('panel_nuevo_curso').style.display='block';
   document.getElementById('nc_nombre').value='';
@@ -726,7 +756,7 @@ window.abrirCurso = function(curso){
   try{ localStorage.setItem('cepro_control_ultimo_curso', curso); }catch(e){}
   document.getElementById('view_home').style.display='none';
   document.getElementById('view_curso').style.display='block';
-  document.getElementById('curso_actual_nombre').textContent = curso;
+  document.getElementById('curso_actual_nombre').textContent = curso + (cursoFinalizado(curso) ? ' — 🏁 Finalizado' : '');
   document.getElementById('panel_agregar_estudiantes').style.display='none';
   document.getElementById('panel_agregar_modulos').style.display='none';
   document.getElementById('panel_editar_correos').style.display='none';
