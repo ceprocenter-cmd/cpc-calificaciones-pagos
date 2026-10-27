@@ -1184,8 +1184,8 @@ async function iniciarCertificado() {
   }
   $app.innerHTML = cab +
     '<div class="card"><h2>Descarga tu certificado</h2>' +
-      '<p class="muted small" style="margin:0">Escribe tus dos apellidos para encontrar tu certificado.</p>' +
-      '<label class="lbl" for="certNombre">Tus dos apellidos *</label><input id="certNombre" autocomplete="family-name" placeholder="Ej. Pérez López">' +
+      '<p class="muted small" style="margin:0">Escribe tu apellido (o tus dos apellidos). Si hay varias personas con el mismo apellido, te pediremos también tu nombre.</p>' +
+      '<label class="lbl" for="certNombre">Tus apellidos *</label><input id="certNombre" autocomplete="family-name" placeholder="Ej. Pérez López">' +
       '<div id="certAviso"></div>' +
       '<div style="margin-top:14px"><button class="btn full" id="certBuscar">Buscar mi certificado</button></div>' +
     '</div><div id="certRes"></div>';
@@ -1195,7 +1195,7 @@ async function iniciarCertificado() {
     const nombre = $n.value.trim();
     const $a = document.getElementById('certAviso');
     document.getElementById('certRes').innerHTML = '';
-    if (nombre.split(/\s+/).filter(Boolean).length < 2) { $a.innerHTML = '<div class="msg err">Escribe tus dos apellidos (ej. Pérez López).</div>'; return; }
+    if (nombre.replace(/[^A-Za-zÀ-ÿ]/g, '').length < 2) { $a.innerHTML = '<div class="msg err">Escribe tu apellido.</div>'; return; }
     $b.disabled = true; $b.textContent = 'Buscando…'; $a.innerHTML = '';
     const r = await api({ action: 'buscarCertificado', id: CERT_ID, nombre: nombre }).catch(() => ({ error: 'Sin conexión. Inténtalo de nuevo.' }));
     $b.disabled = false; $b.textContent = 'Buscar mi certificado';
@@ -1229,7 +1229,7 @@ function certMostrar(a) {
 /* ---------- Pestaña del panel ---------- */
 const CERT_AYUDA = '<div class="msg info small" style="margin-top:16px">📌 <b>Cómo nombrar los archivos:</b> cada certificado debe llamarse con el nombre completo del estudiante, por ejemplo ' +
   '<b>María José Pérez López.pdf</b>. Puede tener texto extra como "Certificado - María José Pérez López.pdf". ' +
-  'El estudiante encuentra el suyo escribiendo sus dos apellidos; las tildes y mayúsculas no importan.</div>';
+  'El estudiante encuentra el suyo escribiendo uno o sus dos apellidos; las tildes, mayúsculas y un error de tipeo no importan.</div>';
 
 async function renderCertificados() {
   const panel = document.getElementById('panel');
