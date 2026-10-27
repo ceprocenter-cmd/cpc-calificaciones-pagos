@@ -151,6 +151,8 @@
   a.btn{text-decoration:none}
   .mc-preview{margin-top:10px;background:var(--soft);border-radius:10px;padding:12px;text-align:center}
   .mc-preview-nom{font-size:19px;font-weight:800;margin-top:4px;min-height:24px}
+  .cert-vista{display:block;width:100%;margin-top:16px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  iframe.cert-vista{height:560px}
   @media (max-width:560px){
     .fila{grid-template-columns:1fr}
     .escala.nps{grid-template-columns:repeat(6,1fr);gap:6px}
@@ -503,20 +505,24 @@ function renderAdmin() {
   $app.innerHTML =
     '<div class="marca">Ceprocenter</div><h1>Encuestas y Masterclass</h1>' +
     '<p class="muted small" style="margin:0">Crea encuestas de módulo y registros de masterclass, compártelos y revisa los resultados. · <button class="link" id="btnSalir">Cerrar sesión</button></p>' +
-    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button><button class="tab" data-tab="masterclass">🎓 Masterclass</button></div>' +
+    '<div class="tabs"><button class="tab" data-tab="crear">➕ Crear encuesta</button><button class="tab" data-tab="lista">📊 Encuestas y resultados</button><button class="tab" data-tab="docentes">👩‍🏫 Docentes</button><button class="tab" data-tab="masterclass">🎓 Masterclass</button><button class="tab" data-tab="certificados">📜 Certificados</button></div>' +
     '<div id="panel"></div>';
   $app.querySelectorAll('.tab').forEach(t => t.onclick = () => { TAB = t.dataset.tab; pintarTab(); });
   document.getElementById('btnSalir').onclick = () => {
     if (!confirm('¿Cerrar sesión en este navegador? Te pedirá la clave la próxima vez.')) return;
     try { localStorage.removeItem('enc_clave'); sessionStorage.removeItem('enc_clave'); } catch (e) {}
-    CLAVE = ''; MC_LISTA = null; renderLogin();
+    CLAVE = ''; MC_LISTA = null; CERT_LISTA = null; renderLogin();
   };
   pintarTab();
 }
 
 function pintarTab() {
   $app.querySelectorAll('.tab').forEach(t => t.classList.toggle('act', t.dataset.tab === TAB));
-  if (TAB === 'crear') renderCrear(); else if (TAB === 'docentes') renderDocentes(); else if (TAB === 'masterclass') renderMasterclass(); else renderLista();
+  if (TAB === 'crear') renderCrear();
+  else if (TAB === 'docentes') renderDocentes();
+  else if (TAB === 'masterclass') renderMasterclass();
+  else if (TAB === 'certificados') renderCertificados();
+  else renderLista();
 }
 
 function renderCrear() {
@@ -925,7 +931,7 @@ async function iniciarFormMasterclass() {
   const CODIGOS = { 'ecuador':'+593','colombia':'+57','venezuela':'+58','peru':'+51','mexico':'+52','argentina':'+54','chile':'+56','bolivia':'+591','paraguay':'+595','uruguay':'+598','brasil':'+55','panama':'+507','costa rica':'+506','guatemala':'+502','honduras':'+504','el salvador':'+503','nicaragua':'+505','republica dominicana':'+1','cuba':'+53','espana':'+34','estados unidos':'+1','canada':'+1','puerto rico':'+1' };
   const $pais = document.getElementById('mPais'), $tel = document.getElementById('mTel');
   const ponerCodigo = () => {
-    const cod = CODIGOS[$pais.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()];
+    const cod = CODIGOS[$pais.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()];
     if (!cod) return;
     const t = $tel.value.trim();
     $tel.value = !t ? cod + ' ' : /^\+\d+/.test(t) ? t.replace(/^\+\d+\s*/, cod + ' ') : cod + ' ' + t;
@@ -1137,7 +1143,7 @@ async function mcVerInscritos(card, ev) {
     '</tbody></table></div><div class="acciones"><button class="btn sm sec" data-mc="csv">⬇️ Descargar lista (Excel)</button></div></div>';
   box.querySelector('[data-mc="csv"]').onclick = () => {
     const q = s => '"' + String(s == null ? '' : s).replace(/^'/, '').replace(/"/g, '""') + '"';
-    const csv = '﻿' + [cols.map(c => q(c[1])).join(';')].concat(filas.map(f => cols.map(([k]) => q(f[k])).join(';'))).join('\r\n');
+    const csv = '\uFEFF' + [cols.map(c => q(c[1])).join(';')].concat(filas.map(f => cols.map(([k]) => q(f[k])).join(';'))).join('\r\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     a.download = 'Registrados - ' + ev.nombre.replace(/[\\/:*?"<>|]/g, '') + '.csv';
@@ -1145,9 +1151,266 @@ async function mcVerInscritos(card, ev) {
   };
 }
 
+/* =========================================================================
+   CERTIFICADOS  (pestaña 📜 del panel  +  página pública encuestas.html?cert=XXXX)
+   Cada "entrega" es una carpeta en Drive con los certificados.
+   El nombre de cada ARCHIVO debe ser el nombre del estudiante.
+   El estudiante escribe su nombre y solo recibe SU archivo.
+   ========================================================================= */
+const CERT_ID = params.get('cert');
+let CERT_LISTA = null;
+let CERT_VISTA = 'lista';
+let CERT_URL = null;
+
+function linkCertificados(id) { return location.origin + location.pathname + '?cert=' + encodeURIComponent(id); }
+function esMovil() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''); }
+
+/* ---------- Página pública (estudiantes) ---------- */
+async function iniciarCertificado() {
+  document.title = 'Certificados — Ceprocenter';
+  $app.innerHTML = cargando('Cargando…');
+  const res = await api({ action: 'obtenerCertificados', id: CERT_ID }).catch(() => ({ error: 'Sin conexión. Revisa tu internet y recarga la página.' }));
+  if (res.error || !res.entrega) {
+    $app.innerHTML = '<div class="card centro"><div class="emoji">🔎</div><h2>' + esc(res.error || 'No encontramos esta página de certificados.') + '</h2></div>';
+    return;
+  }
+  const E = res.entrega;
+  document.title = E.nombre + ' — Certificados Ceprocenter';
+  const cab = '<div class="card hero"><div class="marca">Ceprocenter · Certificados</div><h1>' + esc(E.nombre) + '</h1>' +
+    (E.fecha ? '<div class="meta"><div><span>Fecha:</span> <b>' + esc(mcFecha(E.fecha)) + '</b></div></div>' : '') + '</div>';
+  if (!E.activa) {
+    $app.innerHTML = cab + '<div class="card centro"><div class="emoji">🔒</div><h2>La descarga de certificados está cerrada por ahora.</h2></div>';
+    return;
+  }
+  $app.innerHTML = cab +
+    '<div class="card"><h2>Descarga tu certificado</h2>' +
+      '<p class="muted small" style="margin:0">Escribe tus dos apellidos para encontrar tu certificado.</p>' +
+      '<label class="lbl" for="certNombre">Tus dos apellidos *</label><input id="certNombre" autocomplete="family-name" placeholder="Ej. Pérez López">' +
+      '<div id="certAviso"></div>' +
+      '<div style="margin-top:14px"><button class="btn full" id="certBuscar">Buscar mi certificado</button></div>' +
+    '</div><div id="certRes"></div>';
+
+  const $n = document.getElementById('certNombre'), $b = document.getElementById('certBuscar');
+  const buscar = async () => {
+    const nombre = $n.value.trim();
+    const $a = document.getElementById('certAviso');
+    document.getElementById('certRes').innerHTML = '';
+    if (nombre.split(/\s+/).filter(Boolean).length < 2) { $a.innerHTML = '<div class="msg err">Escribe tus dos apellidos (ej. Pérez López).</div>'; return; }
+    $b.disabled = true; $b.textContent = 'Buscando…'; $a.innerHTML = '';
+    const r = await api({ action: 'buscarCertificado', id: CERT_ID, nombre: nombre }).catch(() => ({ error: 'Sin conexión. Inténtalo de nuevo.' }));
+    $b.disabled = false; $b.textContent = 'Buscar mi certificado';
+    if (r.error || !r.archivo) {
+      $a.innerHTML = '<div class="msg ' + (r.varios ? 'aviso' : 'err') + '">' + esc(r.error || 'No encontramos tu certificado.') + '</div>';
+      return;
+    }
+    certMostrar(r.archivo);
+  };
+  $b.onclick = buscar;
+  $n.onkeydown = ev => { if (ev.key === 'Enter') buscar(); };
+}
+
+function certMostrar(a) {
+  if (CERT_URL) URL.revokeObjectURL(CERT_URL);
+  const bin = atob(a.data), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  CERT_URL = URL.createObjectURL(new Blob([bytes], { type: a.mimeType || 'application/pdf' }));
+  const esPdf = /pdf/i.test(a.mimeType), esImg = /^image\//i.test(a.mimeType);
+  const vista = esImg ? '<img class="cert-vista" src="' + CERT_URL + '" alt="Tu certificado">' :
+    (esPdf && !esMovil()) ? '<iframe class="cert-vista" src="' + CERT_URL + '" title="Tu certificado"></iframe>' : '';
+  const $r = document.getElementById('certRes');
+  $r.innerHTML = '<div class="card anim" style="text-align:center"><div class="emoji">🎓</div>' +
+    '<h2>¡Aquí está tu certificado!</h2><p class="muted small" style="margin:0 0 14px">' + esc(a.nombre) + '</p>' +
+    '<a class="btn full" href="' + CERT_URL + '" download="' + esc(a.nombre) + '">⬇️ Descargar certificado</a>' +
+    vista +
+    '<p class="muted small" style="margin-top:12px">¿Ves algún error en tu nombre? Escríbenos por WhatsApp y lo corregimos.</p></div>';
+  $r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ---------- Pestaña del panel ---------- */
+const CERT_AYUDA = '<div class="msg info small" style="margin-top:16px">📌 <b>Cómo nombrar los archivos:</b> cada certificado debe llamarse con el nombre completo del estudiante, por ejemplo ' +
+  '<b>María José Pérez López.pdf</b>. Puede tener texto extra como "Certificado - María José Pérez López.pdf". ' +
+  'El estudiante encuentra el suyo escribiendo sus dos apellidos; las tildes y mayúsculas no importan.</div>';
+
+async function renderCertificados() {
+  const panel = document.getElementById('panel');
+  if (CERT_LISTA === null) {
+    panel.innerHTML = cargando();
+    const res = await api({ action: 'listarCertificados', clave: CLAVE }).catch(() => ({ error: 'Sin conexión.' }));
+    if (TAB !== 'certificados') return;
+    if (res.error) { panel.innerHTML = '<div class="card msg err">' + esc(res.error) + '</div>'; return; }
+    CERT_LISTA = res.entregas || [];
+  }
+  panel.innerHTML =
+    '<div class="acciones" style="margin-top:16px">' +
+      '<button class="btn sm ' + (CERT_VISTA === 'lista' ? '' : 'ghost') + '" data-v="lista">📋 Mis entregas</button>' +
+      '<button class="btn sm ' + (CERT_VISTA === 'crear' ? '' : 'ghost') + '" data-v="crear">➕ Nueva entrega de certificados</button></div>' +
+    '<div id="certPanel"></div>';
+  panel.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { CERT_VISTA = b.dataset.v; renderCertificados(); });
+  if (CERT_VISTA === 'crear') certRenderCrear(); else certRenderLista();
+}
+
+function certRenderCrear() {
+  const box = document.getElementById('certPanel');
+  box.innerHTML = '<div class="card">' +
+    '<label class="lbl" for="ctNombre" style="margin-top:0">Nombre de la entrega</label>' +
+    '<input id="ctNombre" placeholder="Ej. Masterclass Autismo — Octubre 2026">' +
+    '<p class="muted small" style="margin:4px 0 0">Es lo que verán los estudiantes arriba de la página.</p>' +
+    '<label class="lbl" for="ctFecha">Fecha <span class="muted small">(opcional)</span></label><input id="ctFecha" type="date">' +
+    CERT_AYUDA +
+    '<div style="margin-top:16px"><button class="btn full" id="ctCrear">Crear entrega</button></div>' +
+    '<div id="ctRes"></div></div>';
+  document.getElementById('ctCrear').onclick = async () => {
+    const nombre = document.getElementById('ctNombre').value.trim();
+    const $res = document.getElementById('ctRes');
+    if (!nombre) { $res.innerHTML = '<div class="msg err">Escribe el nombre de la entrega.</div>'; return; }
+    const btn = document.getElementById('ctCrear');
+    btn.disabled = true; btn.textContent = 'Creando…'; $res.innerHTML = '';
+    const res = await api({ action: 'crearCertificados', clave: CLAVE, data: { nombre: nombre, fecha: document.getElementById('ctFecha').value } })
+      .catch(() => ({ error: 'Sin conexión.' }));
+    btn.disabled = false; btn.textContent = 'Crear entrega';
+    if (res.error) { $res.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+    CERT_LISTA.unshift(res.entrega);
+    CERT_VISTA = 'lista';
+    renderCertificados();
+    const primera = document.querySelector('#certPanel [data-i="0"] .cert-res');
+    if (primera) primera.innerHTML = '<div class="msg ok">✔ Entrega creada. Ahora toca <b>⬆️ Subir certificados</b> y elige todos los archivos a la vez.</div>';
+  };
+}
+
+function certBotones(extra) {
+  return '<div class="acciones">' +
+    '<button class="btn sm sec" data-ct="copiar">📋 Copiar enlace</button>' +
+    '<button class="btn sm wa" data-ct="wa">WhatsApp</button>' +
+    '<button class="btn sm ghost" data-ct="abrir">Ver página</button>' + (extra || '') + '</div>';
+}
+
+function certRenderLista() {
+  const box = document.getElementById('certPanel');
+  if (!CERT_LISTA.length) {
+    box.innerHTML = '<div class="card centro"><div class="emoji">📜</div><h2>Aún no has creado ninguna entrega de certificados</h2>' +
+      '<p class="muted">Usa “➕ Nueva entrega de certificados” para empezar.</p></div>' + CERT_AYUDA;
+    return;
+  }
+  box.innerHTML = CERT_AYUDA + CERT_LISTA.map((ev, i) =>
+    '<div class="card" data-i="' + i + '"' + (ev.activa ? '' : ' style="opacity:.7"') + '>' +
+      '<div class="doc-fila"><div><h2>' + esc(ev.nombre) + '</h2><div class="muted small">' + (ev.fecha ? esc(mcFecha(ev.fecha)) : 'Sin fecha') + '</div>' +
+        '<div class="chips">' + (ev.activa ? '<span class="chip ok">Descarga abierta</span>' : '<span class="chip off">Descarga cerrada</span>') +
+          '<span class="chip">⬇️ ' + (ev.descargas || 0) + ' ya descargaron</span></div></div>' +
+        '<div class="doc-nota"><div class="grande">' + (ev.total || 0) + '</div><div class="muted small">certificados</div></div></div>' +
+      certBotones(
+        '<button class="btn sm" data-ct="subir">⬆️ Subir certificados</button>' +
+        '<button class="btn sm ghost" data-ct="archivos">📂 Ver archivos</button>' +
+        (ev.carpetaUrl ? '<a class="btn sm ghost" href="' + esc(ev.carpetaUrl) + '" target="_blank" rel="noopener">📁 Carpeta en Drive</a>' : '') +
+        '<button class="btn sm ghost" data-ct="estado">' + (ev.activa ? 'Cerrar descarga' : 'Reabrir descarga') + '</button>') +
+      '<input type="file" class="cert-input" multiple accept=".pdf,image/*" hidden>' +
+      '<div class="cert-res"></div><div class="cert-archivos"></div></div>').join('');
+
+  box.querySelectorAll('[data-i]').forEach(card => {
+    const ev = CERT_LISTA[+card.dataset.i];
+    const link = linkCertificados(ev.id);
+    card.querySelector('[data-ct="copiar"]').onclick = async e => {
+      try { await navigator.clipboard.writeText(link); e.target.textContent = '✔ Copiado'; } catch (_) { prompt('Copia el enlace:', link); }
+    };
+    card.querySelector('[data-ct="wa"]').onclick = () => {
+      const texto = '¡Hola! 🎓 Ya están listos los certificados de "' + ev.nombre + '". Entra aquí, escribe tu nombre y descarga el tuyo: ' + link + ' 💚 Equipo Ceprocenter';
+      window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+    };
+    card.querySelector('[data-ct="abrir"]').onclick = () => window.open(link, '_blank');
+    card.querySelector('[data-ct="estado"]').onclick = async e => {
+      if (!confirm('¿Seguro que quieres ' + (ev.activa ? 'cerrar' : 'reabrir') + ' la descarga de "' + ev.nombre + '"?')) return;
+      e.target.disabled = true;
+      const res = await api({ action: 'cambiarEstadoCertificados', clave: CLAVE, id: ev.id, activa: !ev.activa }).catch(() => ({ error: 'Sin conexión.' }));
+      if (res.error) { alert(res.error); e.target.disabled = false; return; }
+      ev.activa = !ev.activa; certRenderLista();
+    };
+    const $input = card.querySelector('.cert-input');
+    card.querySelector('[data-ct="subir"]').onclick = () => $input.click();
+    $input.onchange = () => certSubir(card, ev, Array.from($input.files || []), $input);
+    card.querySelector('[data-ct="archivos"]').onclick = () => certVerArchivos(card, ev);
+  });
+}
+
+async function certSubir(card, ev, files, $input) {
+  $input.value = '';
+  if (!files.length) return;
+  const $res = card.querySelector('.cert-res');
+  const botones = card.querySelectorAll('button');
+  botones.forEach(b => b.disabled = true);
+  let sig = 0, hechos = 0, nuevos = 0, reemplazados = 0;
+  const errores = [];
+  const pintar = () => {
+    $res.innerHTML = '<div class="msg info">Subiendo certificados… ' + hechos + ' de ' + files.length +
+      '<div class="barra" style="margin-top:8px"><i style="width:' + Math.round(hechos / files.length * 100) + '%"></i></div>' +
+      '<span class="small">No cierres esta página hasta que termine.</span></div>';
+  };
+  pintar();
+  // Sube de 3 en 3 para que sea rápido sin saturar el servidor.
+  const trabajador = async () => {
+    while (sig < files.length) {
+      const f = files[sig++];
+      try {
+        const data = await mcArchivoBase64(f);
+        let r = null;
+        for (let intento = 0; intento < 3 && !r; intento++) {
+          try { r = await api({ action: 'subirCertificado', clave: CLAVE, id: ev.id, archivo: { data: data, name: f.name, mimeType: f.type || 'application/pdf' } }); }
+          catch (e) { await new Promise(ok => setTimeout(ok, 1500 * (intento + 1))); }
+        }
+        if (!r) throw new Error('sin conexión');
+        if (r.error) throw new Error(r.error);
+        if (r.reemplazado) reemplazados++; else nuevos++;
+      } catch (e) {
+        errores.push(f.name + ' (' + (e.message || 'error') + ')');
+      }
+      hechos++; pintar();
+    }
+  };
+  await Promise.all([trabajador(), trabajador(), trabajador()]);
+  ev.total = (ev.total || 0) + nuevos;
+  certRenderLista();
+  const idx = CERT_LISTA.indexOf(ev);
+  const $nuevo = document.querySelector('#certPanel [data-i="' + idx + '"] .cert-res');
+  if ($nuevo) $nuevo.innerHTML = '<div class="msg ' + (errores.length ? 'aviso' : 'ok') + '">✔ ' + (nuevos + reemplazados) + ' de ' + files.length + ' certificado(s) subidos' +
+    (reemplazados ? ' (' + reemplazados + ' reemplazaron a uno con el mismo nombre)' : '') + '.' +
+    (errores.length ? '<br>No se pudieron subir: ' + esc(errores.join(', ')) : '') + '</div>';
+}
+
+async function certVerArchivos(card, ev) {
+  const box = card.querySelector('.cert-archivos');
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="detalle centro" style="padding:20px"><div class="spinner"></div></div>';
+  const res = await api({ action: 'archivosCertificados', clave: CLAVE, id: ev.id }).catch(() => ({ error: 'Sin conexión.' }));
+  if (res.error) { box.innerHTML = '<div class="msg err">' + esc(res.error) + '</div>'; return; }
+  const archivos = res.archivos || [];
+  ev.total = archivos.length;
+  card.querySelector('.doc-nota .grande').textContent = archivos.length;
+  if (!archivos.length) { box.innerHTML = '<div class="msg info">Todavía no hay certificados en esta entrega.</div>'; return; }
+  box.innerHTML = '<div class="detalle"><input class="ct-filtro" placeholder="Buscar archivo…" style="margin-bottom:8px">' +
+    '<div style="overflow-x:auto"><table class="tabla"><thead><tr><th>#</th><th>Archivo</th><th>Descargas</th><th></th></tr></thead><tbody>' +
+    archivos.map((a, i) => '<tr data-n="' + esc(a.nombre.toLowerCase()) + '"><td>' + (i + 1) + '</td><td>' + esc(a.nombre) + '</td>' +
+      '<td>' + (a.descargas ? '<span class="chip ok">' + a.descargas + '</span>' : '<span class="muted">—</span>') + '</td>' +
+      '<td><button class="link small" data-borrar="' + esc(a.id) + '">Quitar</button></td></tr>').join('') +
+    '</tbody></table></div></div>';
+  box.querySelector('.ct-filtro').oninput = e => {
+    const f = e.target.value.toLowerCase();
+    box.querySelectorAll('tr[data-n]').forEach(tr => tr.style.display = !f || tr.dataset.n.indexOf(f) !== -1 ? '' : 'none');
+  };
+  box.querySelectorAll('[data-borrar]').forEach(b => b.onclick = async () => {
+    const fila = b.closest('tr');
+    if (!confirm('¿Quitar el certificado "' + fila.children[1].textContent + '"? (Va a la papelera de Drive)')) return;
+    b.disabled = true;
+    const r = await api({ action: 'borrarCertificado', clave: CLAVE, id: ev.id, archivoId: b.dataset.borrar }).catch(() => ({ error: 'Sin conexión.' }));
+    if (r.error) { alert(r.error); b.disabled = false; return; }
+    fila.remove();
+    ev.total = Math.max(0, (ev.total || 1) - 1);
+    card.querySelector('.doc-nota .grande').textContent = ev.total;
+  });
+}
+
 /* ========================================================================= */
 if (SCRIPT_URL.indexOf('PEGA_AQUI') === 0) {
   $app.innerHTML = '<div class="card msg err">Falta configurar SCRIPT_URL al inicio del archivo encuestas.html.</div>';
+} else if (CERT_ID) {
+  iniciarCertificado();
 } else if (MC_ID) {
   iniciarFormMasterclass();
 } else if (ENC_ID) {
