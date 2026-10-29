@@ -510,12 +510,16 @@ async function apiPost(sheet, action, extra){
   if(json.error) throw new Error(json.error);
   return json;
 }
+// Una celda de nota VACÍA en la hoja (por ejemplo, una fila creada desde la página
+// de calificar de los tutores sin nota todavía) se lee como null = "sin nota", NO
+// como 0. Antes se convertía en 0 y salía como 0.0 en los reportes en vez de "—".
+// Un 0 escrito a propósito sigue siendo 0.
 function normNum(v){
   if(v===null || v===undefined || String(v).trim()==='') return null;
   const n = Number(v);
   return isNaN(n) ? null : n;
 }
-  async function loadAll(){
+async function loadAll(){
   const [nom, mod, cal, mat, asi, cinfo, fac, pag, evs, log] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos'), apiGet('EvaluacionesConfig').catch(()=>[]), apiGet('RecordatoriosEvaluacionesLog').catch(()=>[])]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod;
@@ -688,7 +692,7 @@ function cursoFinalizado(curso){
 let MOSTRAR_FINALIZADOS = false;
 function tarjetaCurso(c){
   const estudiantes = NOMINA.filter(n=>n.curso===c).length;
-  const evaluados = new Set(CALIFICACIONES.filter(x=>x.curso===c).map(x=>x.estudiante)).size;
+  const evaluados = new Set(CALIFICACIONES.filter(x=>x.curso===c && x.nota!==null).map(x=>x.estudiante)).size;
   const fin = cursoFinalizado(c);
   return `<div class="curso-card" style="${fin?'opacity:0.7;':''}" onclick="abrirCurso('${c.replace(/'/g,"\\'")}')">
     <div class="nombre">${c}</div>
@@ -891,8 +895,10 @@ function poblarSelectModulos(){
   sel.innerHTML = modulosDelCurso().map(m=>`<option value="${m}">${m}</option>`).join('') || '<option value="">(sin módulos)</option>';
 }
 // ---------- LÓGICA DE NOTA VIGENTE ----------
+// Solo cuentan las filas que SÍ tienen nota. Una fila con la nota vacía no es
+// un 0: el estudiante aparece como "Sin nota" (—) y no afecta su promedio.
 function notasVigentesCurso(){
-const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL && c.nota!==null);
+  const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL && c.nota!==null);
   const map = {};
   rows.forEach(r=>{
     const key = `${r.modulo}|||${r.estudiante}`;
@@ -945,12 +951,13 @@ document.getElementById('btn_guardar_nota').addEventListener('click', async ()=>
   const estudiante = document.getElementById('c_estudiante').value;
   const modulo = document.getElementById('c_modulo').value;
   const tipo = document.getElementById('c_tipo').value;
-  const nota = Number(document.getElementById('c_nota').value);
+  const notaTexto = document.getElementById('c_nota').value.trim();
+  const nota = Number(notaTexto);
   const retroalimentacion = document.getElementById('c_retro').value.trim();
   const maxNota = tipo === 'Recuperativa' ? 9 : 10;
   if(!estudiante){ showToast('No hay estudiante seleccionado.'); return; }
   if(!modulo){ showToast('No hay módulo seleccionado.'); return; }
-  if(isNaN(nota) || nota < 0 || nota > maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}${tipo==='Recuperativa'?' (las recuperativas son sobre 9)':''}.`); return; }
+  if(notaTexto==='' || isNaN(nota) || nota < 0 || nota > maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}${tipo==='Recuperativa'?' (las recuperativas son sobre 9)':''}.`); return; }
   try{
     await apiPost('Calificaciones','add',{data:{id:uid(), fecha, curso:CURSO_ACTUAL, modulo, estudiante, identificador:'', tipo, nota, retroalimentacion}});
     document.getElementById('c_nota').value=''; document.getElementById('c_retro').value='';
@@ -1413,7 +1420,7 @@ window.editarNotaModulo = function(id, estudiante){
           <option value="Recuperativa" ${registro.tipo==='Recuperativa'?'selected':''}>Recuperativa</option>
         </select>
       </div>
-      <div class="field"><label>Nota (sobre ${maxNota})</label><input id="edit_nota_valor" type="number" step="0.1" min="0" max="${maxNota}" value="${registro.nota}"></div>
+      <div class="field"><label>Nota (sobre ${maxNota})</label><input id="edit_nota_valor" type="number" step="0.1" min="0" max="${maxNota}" value="${registro.nota===null?'':registro.nota}"></div>
     </div>
     <div class="field" style="margin-top:14px;"><label>Retroalimentación</label><textarea id="edit_nota_retro" style="min-height:80px;">${registro.retroalimentacion||''}</textarea></div>
     <div class="actions"><button class="btn btn-primary" onclick="guardarNotaEditada('${id}')">Guardar Cambios</button></div>
@@ -1423,9 +1430,10 @@ window.editarNotaModulo = function(id, estudiante){
 window.guardarNotaEditada = async function(id){
   const tipo = document.getElementById('edit_nota_tipo').value;
   const maxNota = tipo==='Recuperativa' ? 9 : 10;
-  const nota = Number(document.getElementById('edit_nota_valor').value);
+  const notaTexto = document.getElementById('edit_nota_valor').value.trim();
+  const nota = Number(notaTexto);
   const retroalimentacion = document.getElementById('edit_nota_retro').value.trim();
-  if(isNaN(nota) || nota<0 || nota>maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}.`); return; }
+  if(notaTexto==='' || isNaN(nota) || nota<0 || nota>maxNota){ showToast(`La nota debe estar entre 0 y ${maxNota}.`); return; }
   try{
     await apiPost('Calificaciones','update',{id, data:{tipo, nota, retroalimentacion}});
     showToast('Calificación actualizada.');
@@ -1456,8 +1464,8 @@ document.getElementById('btn_export_modulo_seleccionado').addEventListener('clic
   const filas = datosModuloSeleccionado().filter(f=>!f.baja);
   const headers = ['Estudiante','Nota','Retroalimentación'];
   const rows = [headers.join(',')];
-  filas.forEach(f=>rows.push([f.estudiante, f.nota===null?'':f.nota.toFixed(1), f.retro||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
-  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  filas.forEach(f=>rows.push([f.estudiante, f.nota===null?'—':f.nota.toFixed(1), f.retro||''].map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')));
+  const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `notas_${MODULO_SELECCIONADO_REPORTE.replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
@@ -1510,8 +1518,8 @@ function renderHistorialCurso(){
     empty.style.display='none';
     body.innerHTML = rows.map(r=>`
       <tr style="${estaDadoDeBaja(r.estudiante)?'opacity:0.5;background:var(--panel-2);':''}"><td>${formatFechaDMY(r.fecha)}</td><td>${r.estudiante}${pillBaja(r.estudiante)}</td><td>${r.modulo}</td>
-<td class="num">${r.nota===null?'—':Number(r.nota).toFixed(1)}</td>
-<td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
+      <td class="num">${r.nota===null?'—':Number(r.nota).toFixed(1)}</td>
+      <td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="eliminarNota('${r.id}')">Eliminar</button></td></tr>
     `).join('');
   }
@@ -1524,14 +1532,18 @@ window.eliminarNota = async function(id){
   renderAllCurso();
 };
 // ---------- REPORTE INDIVIDUAL DESCARGABLE ----------
+// Muestra TODOS los módulos del curso: los que tienen nota con su valor, y los
+// que no tienen nota con "—" (no cuentan para el promedio).
 window.descargarReporteIndividual = function(estudiante){
   const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
   if(vig.length===0){ showToast('No hay notas para este estudiante.'); return; }
   const prom = vig.reduce((s,v)=>s+v.nota,0)/vig.length;
   const aprobado = prom >= NOTA_MINIMA;
-  const filasHtml = vig.sort((a,b)=>a.modulo.localeCompare(b.modulo)).map(v=>`
-    <tr><td>${v.modulo}</td><td>${v.tipo==='Recuperativa'?'Recuperativa':'Regular'}</td><td style="text-align:right;">${v.nota.toFixed(1)}</td></tr>
-  `).join('');
+  const filasHtml = modulosDelCurso().map(m=>{
+    const v = vig.find(x=>x.modulo===m);
+    if(!v) return `<tr><td>${m}</td><td>—</td><td style="text-align:right;">—</td></tr>`;
+    return `<tr><td>${m}</td><td>${v.tipo==='Recuperativa'?'Recuperativa':'Regular'}</td><td style="text-align:right;">${v.nota.toFixed(1)}</td></tr>`;
+  }).join('');
   document.getElementById('print_individual_content').innerHTML = `
     <div class="doc-header">
       <div class="brand">Ceprocenter</div>
@@ -1589,12 +1601,13 @@ document.getElementById('btn_demo').addEventListener('click', ()=>{
     {id:'d4', fecha:'2026-05-10', curso:'Diplomado de TDAH', modulo:'Módulo 1 - Fundamentos', estudiante:'Carlos Andrade', identificador:'', tipo:'Regular', nota:5.5},
     {id:'d5', fecha:'2026-05-24', curso:'Diplomado de TDAH', modulo:'Módulo 2 - Evaluación', estudiante:'Carlos Andrade', identificador:'', tipo:'Regular', nota:6.0},
     {id:'d6', fecha:'2026-06-20', curso:'Diplomado de TDAH', modulo:'Módulo 2 - Evaluación', estudiante:'Carlos Andrade', identificador:'', tipo:'Recuperativa', nota:7.8},
+    {id:'d7', fecha:'2026-06-25', curso:'Diplomado de TDAH', modulo:'Módulo 3 - Intervención', estudiante:'Pedro Salinas', identificador:'', tipo:'Regular', nota:null},
     {id:'d8', fecha:'2026-04-15', curso:'Seminario de Interpretación de Informes', modulo:'Evaluación Final', estudiante:'Ana Gómez', identificador:'', tipo:'Regular', nota:9.4},
   ];
   EVALUACIONES = [];
   document.getElementById('setup_banner').style.display='none';
   mostrarHome();
-  showToast('Datos de ejemplo cargados — nada de esto se guarda. Pedro Salinas está en nómina pero sin notas aún, a propósito.');
+  showToast('Datos de ejemplo cargados — nada de esto se guarda. Pedro Salinas tiene una fila sin nota, a propósito: debe salir con "—".');
 });
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(tab=>{
@@ -1637,7 +1650,7 @@ function fraseCertificadoFinal(curso){
 }
 function modulosConCalificacion(){
   const modulosEnCurso = modulosDelCurso();
-  const conNota = new Set(CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL).map(c=>c.modulo));
+  const conNota = new Set(CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL && c.nota!==null).map(c=>c.modulo));
   return modulosEnCurso.filter(m=>conNota.has(m));
 }
 function promedioHonorEstudiante(estudiante){
