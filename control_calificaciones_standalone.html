@@ -510,8 +510,12 @@ async function apiPost(sheet, action, extra){
   if(json.error) throw new Error(json.error);
   return json;
 }
-function normNum(v){ return Number(v)||0; }
-async function loadAll(){
+function normNum(v){
+  if(v===null || v===undefined || String(v).trim()==='') return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+  async function loadAll(){
   const [nom, mod, cal, mat, asi, cinfo, fac, pag, evs, log] = await Promise.all([apiGet('Nomina'), apiGet('Modulos'), apiGet('Calificaciones'), apiGet('Matriculas'), apiGet('Asistencia'), apiGet('CursosInfo'), apiGet('Facilitadores'), apiGet('Pagos'), apiGet('EvaluacionesConfig').catch(()=>[]), apiGet('RecordatoriosEvaluacionesLog').catch(()=>[])]);
   NOMINA = nom.map(n=>({...n, activo: !(n.activo===false || String(n.activo).trim().toUpperCase()==='FALSE')}));
   MODULOS = mod;
@@ -888,7 +892,7 @@ function poblarSelectModulos(){
 }
 // ---------- LÓGICA DE NOTA VIGENTE ----------
 function notasVigentesCurso(){
-  const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL);
+const rows = CALIFICACIONES.filter(c=>c.curso===CURSO_ACTUAL && c.nota!==null);
   const map = {};
   rows.forEach(r=>{
     const key = `${r.modulo}|||${r.estudiante}`;
@@ -1506,8 +1510,8 @@ function renderHistorialCurso(){
     empty.style.display='none';
     body.innerHTML = rows.map(r=>`
       <tr style="${estaDadoDeBaja(r.estudiante)?'opacity:0.5;background:var(--panel-2);':''}"><td>${formatFechaDMY(r.fecha)}</td><td>${r.estudiante}${pillBaja(r.estudiante)}</td><td>${r.modulo}</td>
-      <td class="num">${Number(r.nota).toFixed(1)}</td>
-      <td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
+<td class="num">${r.nota===null?'—':Number(r.nota).toFixed(1)}</td>
+<td>${r.tipo==='Recuperativa'?'<span class="pill recup">Recuperativa</span>':'Regular'}</td>
       <td><button class="btn btn-ghost btn-sm" onclick="eliminarNota('${r.id}')">Eliminar</button></td></tr>
     `).join('');
   }
