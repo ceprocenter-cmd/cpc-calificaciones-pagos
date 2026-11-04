@@ -9,7 +9,11 @@
 <title>Ceprocenter · Matrículas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style id="print_orientation_override"></style>
+<style id="print_orientation_override">  .cpc-top-logo{display:block;height:46px;width:auto;max-width:220px;object-fit:contain;margin:0 0 10px;}
+  .cpc-chip{display:inline-flex;align-items:center;background:#fff;border-radius:8px;padding:4px 8px;margin-right:6px;vertical-align:middle;}
+  .doc-header .brand img, .rol-header .brand img{display:block;}
+  .doc-header[style*="center"] .brand img{margin:0 auto;}
+</style>
 <style>
   :root{
     --bg: #EEF0F5; --panel: #FFFFFF; --panel-2: #F5F6FA; --line: #DEE2EA;
@@ -103,8 +107,6 @@
   .deudor-modulos td{padding:5px 0;border:none;}
   .deudor-modulos td:first-child{color:var(--text-dim);}
   .deudor-modulos td:last-child{text-align:right;}
-  .pf-logo-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
-  .pf-logo-box img{max-height:56px;max-width:180px;object-fit:contain;}
   .pf-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
   .pf-row .pf-desc{flex:1;min-width:0;}
   .pf-row .pf-cant{width:64px;flex:none;}
@@ -156,6 +158,7 @@
 <div class="wrap">
   <div class="top">
     <div>
+      <img class="cpc-top-logo" src="logo.png" alt="Ceprocenter" onerror="this.remove()">
       <h1>Matrículas <span class="accent">/ Ceprocenter</span></h1>
       <div class="sub">Registro de estudiantes, documentos y pagos flexibles por concepto.</div>
     </div>
@@ -292,15 +295,7 @@
       <!-- PROFORMA -->
       <div class="panel" id="panel_proforma">
         <h2>Generar Proforma</h2>
-        <p class="hint">Cotización con el logo de Ceprocenter para enviar al interesado antes de matricularse. No guarda nada en el Sheets ni registra pagos — solo genera el PDF.</p>
-        <div class="pf-logo-box">
-          <img id="pf_logo_preview" alt="Logo" style="display:none;">
-          <div id="pf_logo_vacio" class="hint" style="margin:0;">Sin logo cargado.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <label class="btn btn-ghost btn-sm" style="margin:0;">Subir logo<input type="file" id="pf_logo_file" accept="image/*" style="display:none;"></label>
-            <button type="button" class="btn btn-ghost btn-sm" id="btn_pf_quitar_logo" style="display:none;">Quitar logo</button>
-          </div>
-        </div>
+        <p class="hint">Cotización con el logo de Ceprocenter para enviar al interesado antes de matricularse. El número (PF-año-0001) lo da el Sheets, así que es el mismo para todos los asesores, y cada proforma queda registrada en la hoja "Proformas". No registra pagos ni matrículas.</p>
         <div class="actions" style="margin-top:0;margin-bottom:14px;">
           <button type="button" class="btn btn-ghost btn-sm" id="btn_pf_copiar_form">↑ Usar datos del formulario de arriba</button>
         </div>
@@ -566,6 +561,15 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
+
+// ---------- LOGO CEPROCENTER ----------
+// Todas las herramientas usan el mismo archivo logo.png de la raíz del repositorio (GitHub Pages).
+// Si no existe, se muestra el texto "Ceprocenter" en su lugar.
+const CPC_LOGO_URL = new URL('logo.png', location.href).href;
+(function(){ const i = new Image(); i.src = CPC_LOGO_URL; })(); // precarga para que salga en los PDF
+function cpcLogoHtml(alto){
+  return '<img class="cpc-logo" src="' + CPC_LOGO_URL + '" alt="Ceprocenter" style="height:' + (alto||48) + 'px;width:auto;max-width:260px;object-fit:contain;vertical-align:middle;" onerror="this.outerHTML=\'Ceprocenter\'">';
+}
 let API_URL = localStorage.getItem('cepro_api_url_academico') || '';
 const CLAVE_ADMIN = 'CPC0912=25069546SeGuRa$$%%';
 let NOMINA = [], MODULOS = [], PAGOS = [], MATRICULAS = [], SOLICITUDES = [];
@@ -1617,7 +1621,7 @@ document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
   `).join('');
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Nómina de Estudiantes — ${curso}</div>
     </div>
     <div class="hint" style="margin-bottom:14px;">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0?` (${estudiantes.length-noContinuaron} activos, ${noContinuaron} no continuaron)`:''}</div>
@@ -2385,7 +2389,7 @@ document.getElementById('btn_rg_pdf').addEventListener('click', ()=>{
     </div>` : '';
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Reporte General de Deudores — Todos los Cursos</div>
     </div>
     <div class="doc-meta">
@@ -2678,7 +2682,7 @@ window.pdfEstudianteIndividual = function(curso, estudiante){
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Reporte Individual de Pagos</div>
     </div>
     <div class="doc-meta">
@@ -2722,7 +2726,7 @@ window.pdfDeudoresModulo = function(curso, modulo){
   const soloNombres = deudores.map(d=>d.est).join('<br>');
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Deudores — ${modulo}</div>
     </div>
     <div class="doc-meta">Curso: <b>${curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente de este módulo: <b>${fmt(totalGeneral)}</b> (no incluye a quienes no continuaron)</div>
@@ -2756,7 +2760,7 @@ document.getElementById('btn_pdf_deudores').addEventListener('click', ()=>{
   const soloNombresGeneral = filasOrdenadas.map(f=>f[0]).join('<br>');
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Reporte de Deudores</div>
     </div>
     <div class="doc-meta">Curso: <b>${data.curso}</b>${asesorFiltro?' — Asesor: <b>'+asesorFiltro+'</b>':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})} — Total pendiente: <b>${fmt(totalGeneral)}</b></div>
@@ -2777,7 +2781,7 @@ document.getElementById('btn_pdf_reporte_mensual').addEventListener('click', ()=
   const filasCurso = Object.entries(porCurso).map(([c,v])=>`<tr><td>${c}</td><td style="text-align:right;">${v.count}</td><td style="text-align:right;">${fmt(v.total)}</td></tr>`).join('') || '<tr><td colspan="3">Sin pagos en este periodo</td></tr>';
   const html = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Reporte Mensual de Pagos</div>
     </div>
     <div class="doc-meta">
@@ -3053,7 +3057,7 @@ document.getElementById('btn_pdf_exalumnos').addEventListener('click', ()=>{
   const filasHtml = filas.map((e,i)=>`<tr><td>${i+1}</td><td>${e.nombre}</td><td>${e.cedula||'—'}</td><td>${e.correo||'—'}</td><td>${e.telefono||'—'}</td><td>${e.pais||'—'}</td><td>${e.curso||'—'}</td><td>${e.origen}</td></tr>`).join('');
   document.getElementById('print_doc_content').innerHTML = `
     <div class="doc-header">
-      <div class="brand">Ceprocenter</div>
+      <div class="brand">${cpcLogoHtml(52)}</div>
       <div class="title">Base de Datos de Estudiantes</div>
     </div>
     <div class="doc-meta">Total: <b>${filas.length}</b> estudiante${filas.length!==1?'s':''} — Generado: ${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
@@ -3130,57 +3134,11 @@ function parseCSV(texto){
 }
 // ---------- PROFORMA ----------
 // Genera una cotización en PDF (con logo) usando el mismo modal de impresión de los reportes.
-// No escribe nada en el Sheets. El logo, las condiciones y el contador de N° se guardan en este navegador.
-const PF_LOGO_KEY = 'cepro_proforma_logo';
+// El N° lo asigna el Apps Script (acción 'registrarProforma') y queda guardado en la hoja "Proformas".
+// Las condiciones de pago se recuerdan en este navegador.
 const PF_COND_KEY = 'cepro_proforma_condiciones';
-const PF_CONT_KEY = 'cepro_proforma_contador';
-let PF_LOGO_SRC = '';
 function pfGet(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } }
 function pfSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
-function pfMostrarLogo(){
-  const img = document.getElementById('pf_logo_preview');
-  const vacio = document.getElementById('pf_logo_vacio');
-  const subido = !!pfGet(PF_LOGO_KEY);
-  document.getElementById('btn_pf_quitar_logo').style.display = subido ? 'inline-block' : 'none';
-  if(PF_LOGO_SRC){ img.src = PF_LOGO_SRC; img.style.display='block'; vacio.style.display='none'; }
-  else{ img.style.display='none'; vacio.style.display='block'; }
-}
-function pfCargarLogo(){
-  const guardado = pfGet(PF_LOGO_KEY);
-  if(guardado){ PF_LOGO_SRC = guardado; pfMostrarLogo(); return; }
-  // Si no se ha subido uno, intenta usar el logo.png del repositorio (el mismo del formulario público).
-  const prueba = new Image();
-  prueba.onload = ()=>{ PF_LOGO_SRC = new URL('logo.png', location.href).href; pfMostrarLogo(); };
-  prueba.onerror = ()=>{ PF_LOGO_SRC = ''; pfMostrarLogo(); };
-  prueba.src = 'logo.png?v=' + Date.now();
-}
-document.getElementById('pf_logo_file').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    const img = new Image();
-    img.onload = ()=>{
-      // Se reduce a 600px de ancho máx. para que quepa en el almacenamiento del navegador.
-      const escala = Math.min(1, 600 / img.width);
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.width*escala); c.height = Math.round(img.height*escala);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      const dataUrl = c.toDataURL('image/png');
-      if(!pfSet(PF_LOGO_KEY, dataUrl)) showToast('El logo es muy pesado para guardarlo; se usará solo en esta sesión.');
-      PF_LOGO_SRC = dataUrl;
-      pfMostrarLogo();
-      showToast('Logo listo para las proformas.');
-    };
-    img.src = reader.result;
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
-});
-document.getElementById('btn_pf_quitar_logo').addEventListener('click', ()=>{
-  try{ localStorage.removeItem(PF_LOGO_KEY); }catch(e){}
-  pfCargarLogo();
-});
 function pfAgregarFila(desc, cant, precio){
   const row = document.createElement('div');
   row.className = 'pf-row';
@@ -3263,7 +3221,7 @@ function pfFechaLarga(iso){
   const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   return `${d} de ${meses[m-1]} de ${y}`;
 }
-document.getElementById('btn_pf_generar').addEventListener('click', ()=>{
+document.getElementById('btn_pf_generar').addEventListener('click', async ()=>{
   const cliente = document.getElementById('pf_cliente').value.trim();
   const c = pfCalcular();
   if(!cliente){ showToast('Escribe el nombre del cliente.'); return; }
@@ -3273,18 +3231,42 @@ document.getElementById('btn_pf_generar').addEventListener('click', ()=>{
   const dias = Math.max(1, parseInt(document.getElementById('pf_validez').value,10) || 15);
   const vence = new Date(fechaIso + 'T12:00:00'); vence.setDate(vence.getDate() + dias);
   const venceIso = vence.toISOString().slice(0,10);
-  const anio = fechaIso.slice(0,4);
-  let cont = {};
-  try{ cont = JSON.parse(pfGet(PF_CONT_KEY) || '{}'); }catch(e){}
-  cont[anio] = (cont[anio] || 0) + 1;
-  pfSet(PF_CONT_KEY, JSON.stringify(cont));
-  const numero = `PF-${anio}-${String(cont[anio]).padStart(4,'0')}`;
   const curso = document.getElementById('pf_curso').value;
   const asesor = document.getElementById('pf_asesor').value;
+  // Pide el número al Apps Script: así es correlativo para todos (no por computadora) y queda registrada.
+  const btn = document.getElementById('btn_pf_generar');
+  const textoBtn = btn.textContent;
+  let numero = '';
+  btn.disabled = true; btn.textContent = 'Generando número...';
+  try{
+    if(!API_URL){ numero = 'PF-DEMO'; throw null; } // modo demo: sin conexión no se registra
+    const res = await fetch(API_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'registrarProforma', clave: CLAVE_ADMIN, data:{
+        fecha: fechaIso, validaHasta: venceIso, cliente,
+        cedula: document.getElementById('pf_cedula').value.trim(),
+        correo: document.getElementById('pf_correo').value.trim(),
+        telefono: document.getElementById('pf_telefono').value.trim(),
+        curso, asesor,
+        conceptos: c.items.map(it=>`${it.cant} x ${it.desc} @ ${it.precio.toFixed(2)}`).join(' | '),
+        subtotal: Number(c.subtotal.toFixed(2)), descuento: Number(c.descuento.toFixed(2)), total: Number(c.total.toFixed(2))
+      }})
+    });
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    numero = json.numero;
+  }catch(err){
+    if(err === null){ /* modo demo */ }else{
+    showToast('No se pudo obtener el número de proforma: ' + err.message + '. ¿Ya actualizaste el Apps Script?');
+    return;
+    }
+  }finally{
+    btn.disabled = false; btn.textContent = textoBtn;
+  }
   const datoCli = (lbl, id)=>{ const val = document.getElementById(id).value.trim(); return val ? `<div><b>${lbl}</b>${escHtml(val)}</div>` : ''; };
   const filas = c.items.map((it,i)=>`<tr><td>${i+1}</td><td>${escHtml(it.desc)}</td><td class="r">${it.cant}</td><td class="r">${fmt(it.precio)}</td><td class="r">${fmt(it.sub)}</td></tr>`).join('');
   const cond = document.getElementById('pf_condiciones').value.trim();
-  const logoHtml = PF_LOGO_SRC ? `<img src="${PF_LOGO_SRC}" alt="Ceprocenter">` : `<div class="pf-brand">Ceprocenter</div>`;
+  const logoHtml = `<div class="pf-brand">${cpcLogoHtml(80)}</div>`;
   const html = `<div class="pf-doc">
     <div class="pf-head">
       <div>${logoHtml}</div>
@@ -3315,7 +3297,6 @@ document.getElementById('btn_pf_generar').addEventListener('click', ()=>{
 });
 document.getElementById('pf_fecha').value = new Date().toISOString().slice(0,10);
 document.getElementById('pf_condiciones').value = pfGet(PF_COND_KEY);
-pfCargarLogo();
 pfActualizarTotal();
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(tab=>{
