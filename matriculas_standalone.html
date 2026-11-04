@@ -103,6 +103,33 @@
   .deudor-modulos td{padding:5px 0;border:none;}
   .deudor-modulos td:first-child{color:var(--text-dim);}
   .deudor-modulos td:last-child{text-align:right;}
+  .pf-logo-box{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px dashed var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+  .pf-logo-box img{max-height:56px;max-width:180px;object-fit:contain;}
+  .pf-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .pf-row .pf-desc{flex:1;min-width:0;}
+  .pf-row .pf-cant{width:64px;flex:none;}
+  .pf-row .pf-precio{width:110px;flex:none;}
+  .pf-row input{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 10px;font-family:'Nunito',sans-serif;font-size:14px;color:var(--text);}
+  .pf-row .pf-sub{width:90px;text-align:right;font-variant-numeric:tabular-nums;font-size:13.5px;flex:none;}
+  @media(max-width:640px){ .pf-row{flex-wrap:wrap;} .pf-row .pf-desc{flex-basis:100%;} .pf-row .pf-sub{flex:1;} }
+  .pf-doc{font-family:'Nunito',sans-serif;color:#24273A;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .pf-doc .pf-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #62801A;padding-bottom:16px;margin-bottom:22px;}
+  .pf-doc .pf-head img{max-height:80px;max-width:220px;object-fit:contain;}
+  .pf-doc .pf-brand{font-family:'Quicksand',sans-serif;font-size:24px;font-weight:700;color:#62801A;}
+  .pf-doc .pf-num{text-align:right;}
+  .pf-doc .pf-num .t{font-family:'Quicksand',sans-serif;font-size:22px;font-weight:700;letter-spacing:0.06em;color:#24273A;}
+  .pf-doc .pf-num .n{font-size:13px;color:#767C93;margin-top:4px;line-height:1.5;}
+  .pf-doc .pf-cliente{background:#F5F6FA;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13.5px;line-height:1.7;}
+  .pf-doc .pf-cliente b{color:#767C93;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;margin-right:6px;}
+  .pf-doc table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:14px;}
+  .pf-doc th{background:#62801A;color:#fff;text-align:left;padding:9px 10px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;}
+  .pf-doc td{padding:9px 10px;border-bottom:1px solid #DEE2EA;white-space:normal;}
+  .pf-doc .r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .pf-doc .pf-totales{margin-left:auto;width:280px;font-size:14px;}
+  .pf-doc .pf-totales div{display:flex;justify-content:space-between;padding:5px 0;}
+  .pf-doc .pf-totales .tot{border-top:2px solid #24273A;margin-top:4px;padding-top:9px;font-family:'Quicksand',sans-serif;font-size:18px;font-weight:700;color:#62801A;}
+  .pf-doc .pf-cond{margin-top:26px;font-size:12.5px;color:#4a4f66;line-height:1.6;white-space:pre-wrap;border-top:1px solid #DEE2EA;padding-top:14px;}
+  .pf-doc .pf-pie{margin-top:28px;font-size:11.5px;color:#767C93;text-align:center;}
   @page{ size: portrait; margin: 15mm; }
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(36,39,58,0.55);z-index:300;align-items:center;justify-content:center;padding:20px;}
   .modal-overlay.show{display:flex;}
@@ -261,6 +288,53 @@
           </div>
         </div>
         <div class="actions"><button class="btn btn-primary" id="btn_guardar_matricula">Guardar Matrícula</button></div>
+      </div>
+      <!-- PROFORMA -->
+      <div class="panel" id="panel_proforma">
+        <h2>Generar Proforma</h2>
+        <p class="hint">Cotización con el logo de Ceprocenter para enviar al interesado antes de matricularse. No guarda nada en el Sheets ni registra pagos — solo genera el PDF.</p>
+        <div class="pf-logo-box">
+          <img id="pf_logo_preview" alt="Logo" style="display:none;">
+          <div id="pf_logo_vacio" class="hint" style="margin:0;">Sin logo cargado.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <label class="btn btn-ghost btn-sm" style="margin:0;">Subir logo<input type="file" id="pf_logo_file" accept="image/*" style="display:none;"></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn_pf_quitar_logo" style="display:none;">Quitar logo</button>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:0;margin-bottom:14px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn_pf_copiar_form">↑ Usar datos del formulario de arriba</button>
+        </div>
+        <div class="grid cols3">
+          <div class="field"><label>Cliente / Nombre</label><input id="pf_cliente" placeholder="Nombre completo o institución"></div>
+          <div class="field"><label>Cédula / RUC</label><input id="pf_cedula" placeholder="Opcional"></div>
+          <div class="field"><label>Correo</label><input id="pf_correo" type="email" placeholder="Opcional"></div>
+          <div class="field"><label>Teléfono</label><input id="pf_telefono" placeholder="Opcional"></div>
+          <div class="field"><label>Curso</label><select id="pf_curso"></select></div>
+          <div class="field"><label>Asesor</label><select id="pf_asesor"><option value="">—</option><option>Jose</option><option>Sara</option><option>Directo</option></select></div>
+        </div>
+        <div style="margin-top:18px;">
+          <label style="display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:8px;">Conceptos de la proforma (puedes cambiar precios y cantidades)</label>
+          <div id="pf_items"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn_pf_add_item">+ Agregar Concepto</button>
+        </div>
+        <div class="grid cols3" style="margin-top:16px;">
+          <div class="field"><label>Descuento</label>
+            <div style="display:flex;gap:6px;">
+              <input id="pf_descuento" type="number" step="0.01" min="0" placeholder="0" style="flex:1;">
+              <select id="pf_descuento_tipo" style="max-width:80px;"><option value="monto">$</option><option value="pct">%</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Válida por (días)</label><input id="pf_validez" type="number" min="1" value="15"></div>
+          <div class="field"><label>Fecha</label><input id="pf_fecha" type="date"></div>
+        </div>
+        <div class="field" style="margin-top:14px;"><label>Formas de pago / condiciones (se recuerda para la próxima)</label>
+          <textarea id="pf_condiciones" rows="4" placeholder="Ej. Transferencia a Banco Pichincha, Cta. Ahorros N° ..., a nombre de ...&#10;Los valores pueden pagarse por módulo."></textarea>
+        </div>
+        <div class="hint" id="pf_total_preview" style="margin-top:10px;font-size:14px;color:var(--text);">Total: $0.00</div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btn_pf_generar">📄 Ver / Descargar Proforma (PDF)</button>
+          <button type="button" class="btn btn-ghost" id="btn_pf_limpiar">Limpiar</button>
+        </div>
       </div>
     </div>
     <!-- SOLICITUDES -->
@@ -1467,6 +1541,12 @@ function renderSelectsCurso(){
   const prevN = nomCurso.value;
   nomCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
   if(cursos.includes(prevN)) nomCurso.value = prevN;
+  const pfCurso = document.getElementById('pf_curso');
+  if(pfCurso){
+    const prevP = pfCurso.value;
+    pfCurso.innerHTML = '<option value="">Selecciona un curso</option>' + opts;
+    if(cursos.includes(prevP)) pfCurso.value = prevP;
+  }
   renderTablaNominaEstudiantes();
 }
 // ---------- NÓMINA DE ESTUDIANTES ----------
@@ -3048,6 +3128,195 @@ function parseCSV(texto){
     return obj;
   });
 }
+// ---------- PROFORMA ----------
+// Genera una cotización en PDF (con logo) usando el mismo modal de impresión de los reportes.
+// No escribe nada en el Sheets. El logo, las condiciones y el contador de N° se guardan en este navegador.
+const PF_LOGO_KEY = 'cepro_proforma_logo';
+const PF_COND_KEY = 'cepro_proforma_condiciones';
+const PF_CONT_KEY = 'cepro_proforma_contador';
+let PF_LOGO_SRC = '';
+function pfGet(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } }
+function pfSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function pfMostrarLogo(){
+  const img = document.getElementById('pf_logo_preview');
+  const vacio = document.getElementById('pf_logo_vacio');
+  const subido = !!pfGet(PF_LOGO_KEY);
+  document.getElementById('btn_pf_quitar_logo').style.display = subido ? 'inline-block' : 'none';
+  if(PF_LOGO_SRC){ img.src = PF_LOGO_SRC; img.style.display='block'; vacio.style.display='none'; }
+  else{ img.style.display='none'; vacio.style.display='block'; }
+}
+function pfCargarLogo(){
+  const guardado = pfGet(PF_LOGO_KEY);
+  if(guardado){ PF_LOGO_SRC = guardado; pfMostrarLogo(); return; }
+  // Si no se ha subido uno, intenta usar el logo.png del repositorio (el mismo del formulario público).
+  const prueba = new Image();
+  prueba.onload = ()=>{ PF_LOGO_SRC = new URL('logo.png', location.href).href; pfMostrarLogo(); };
+  prueba.onerror = ()=>{ PF_LOGO_SRC = ''; pfMostrarLogo(); };
+  prueba.src = 'logo.png?v=' + Date.now();
+}
+document.getElementById('pf_logo_file').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      // Se reduce a 600px de ancho máx. para que quepa en el almacenamiento del navegador.
+      const escala = Math.min(1, 600 / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width*escala); c.height = Math.round(img.height*escala);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/png');
+      if(!pfSet(PF_LOGO_KEY, dataUrl)) showToast('El logo es muy pesado para guardarlo; se usará solo en esta sesión.');
+      PF_LOGO_SRC = dataUrl;
+      pfMostrarLogo();
+      showToast('Logo listo para las proformas.');
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+document.getElementById('btn_pf_quitar_logo').addEventListener('click', ()=>{
+  try{ localStorage.removeItem(PF_LOGO_KEY); }catch(e){}
+  pfCargarLogo();
+});
+function pfAgregarFila(desc, cant, precio){
+  const row = document.createElement('div');
+  row.className = 'pf-row';
+  row.innerHTML = `<input class="pf-desc" placeholder="Concepto" value="${escHtml(desc||'')}">
+    <input class="pf-cant" type="number" min="1" step="1" value="${cant||1}" title="Cantidad">
+    <input class="pf-precio" type="number" min="0" step="0.01" value="${precio!=null&&precio!==''?Number(precio):''}" placeholder="Precio">
+    <span class="pf-sub">$0.00</span>
+    <button type="button" class="btn btn-ghost btn-sm" title="Quitar">✕</button>`;
+  row.querySelector('button').addEventListener('click', ()=>{ row.remove(); pfActualizarTotal(); });
+  row.querySelectorAll('input').forEach(i=>i.addEventListener('input', pfActualizarTotal));
+  document.getElementById('pf_items').appendChild(row);
+  pfActualizarTotal();
+}
+function pfLeerItems(){
+  return [...document.querySelectorAll('#pf_items .pf-row')].map(r=>{
+    const desc = r.querySelector('.pf-desc').value.trim();
+    const cant = Math.max(1, parseInt(r.querySelector('.pf-cant').value,10) || 1);
+    const precio = parseFloat(r.querySelector('.pf-precio').value) || 0;
+    return {desc, cant, precio, sub: cant*precio, row:r};
+  }).filter(it=>it.desc || it.precio);
+}
+function pfCalcular(){
+  const items = pfLeerItems();
+  const subtotal = items.reduce((s,it)=>s+it.sub, 0);
+  const dVal = parseFloat(document.getElementById('pf_descuento').value) || 0;
+  const tipo = document.getElementById('pf_descuento_tipo').value;
+  let descuento = tipo==='pct' ? subtotal * Math.min(dVal,100) / 100 : dVal;
+  descuento = Math.min(Math.max(descuento,0), subtotal);
+  return {items, subtotal, descuento, total: subtotal - descuento, dVal, tipo};
+}
+function pfActualizarTotal(){
+  document.querySelectorAll('#pf_items .pf-row').forEach(r=>{
+    const cant = Math.max(1, parseInt(r.querySelector('.pf-cant').value,10) || 1);
+    const precio = parseFloat(r.querySelector('.pf-precio').value) || 0;
+    r.querySelector('.pf-sub').textContent = fmt(cant*precio);
+  });
+  const c = pfCalcular();
+  document.getElementById('pf_total_preview').innerHTML = c.descuento > 0
+    ? `Subtotal: ${fmt(c.subtotal)} · Descuento: −${fmt(c.descuento)} · <b>Total: ${fmt(c.total)}</b>`
+    : `<b>Total: ${fmt(c.total)}</b>`;
+}
+document.getElementById('pf_curso').addEventListener('change', ()=>{
+  const curso = document.getElementById('pf_curso').value;
+  document.getElementById('pf_items').innerHTML = '';
+  if(!curso){ pfActualizarTotal(); return; }
+  const items = (typeof itemsDeOrdenado === 'function') ? itemsDeOrdenado(curso) : itemsDe(curso);
+  if(!items.length){ pfAgregarFila(curso, 1, ''); return; }
+  items.forEach(it=>pfAgregarFila(items.length===1 && /pago\s*[úu]nico/i.test(it.modulo) ? curso : it.modulo, 1, it.precio));
+});
+document.getElementById('btn_pf_add_item').addEventListener('click', ()=>pfAgregarFila('', 1, ''));
+['pf_descuento','pf_descuento_tipo'].forEach(id=>document.getElementById(id).addEventListener('input', pfActualizarTotal));
+document.getElementById('pf_descuento_tipo').addEventListener('change', pfActualizarTotal);
+document.getElementById('pf_condiciones').addEventListener('change', ()=>pfSet(PF_COND_KEY, document.getElementById('pf_condiciones').value));
+document.getElementById('btn_pf_copiar_form').addEventListener('click', ()=>{
+  const v = id=>document.getElementById(id).value;
+  document.getElementById('pf_cliente').value = v('m_estudiante');
+  document.getElementById('pf_cedula').value = v('m_cedula');
+  document.getElementById('pf_correo').value = v('m_correo');
+  document.getElementById('pf_telefono').value = v('m_telefono');
+  document.getElementById('pf_asesor').value = v('m_asesor');
+  const curso = v('m_curso');
+  if(curso && curso !== document.getElementById('pf_curso').value){
+    document.getElementById('pf_curso').value = curso;
+    document.getElementById('pf_curso').dispatchEvent(new Event('change'));
+  }
+  showToast('Datos copiados del formulario de matrícula.');
+});
+function pfLimpiar(){
+  ['pf_cliente','pf_cedula','pf_correo','pf_telefono','pf_descuento'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pf_asesor').value = '';
+  document.getElementById('pf_curso').value = '';
+  document.getElementById('pf_validez').value = 15;
+  document.getElementById('pf_fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('pf_items').innerHTML = '';
+  pfActualizarTotal();
+}
+document.getElementById('btn_pf_limpiar').addEventListener('click', pfLimpiar);
+function pfFechaLarga(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return `${d} de ${meses[m-1]} de ${y}`;
+}
+document.getElementById('btn_pf_generar').addEventListener('click', ()=>{
+  const cliente = document.getElementById('pf_cliente').value.trim();
+  const c = pfCalcular();
+  if(!cliente){ showToast('Escribe el nombre del cliente.'); return; }
+  if(!c.items.length){ showToast('Agrega al menos un concepto.'); return; }
+  pfSet(PF_COND_KEY, document.getElementById('pf_condiciones').value);
+  const fechaIso = document.getElementById('pf_fecha').value || new Date().toISOString().slice(0,10);
+  const dias = Math.max(1, parseInt(document.getElementById('pf_validez').value,10) || 15);
+  const vence = new Date(fechaIso + 'T12:00:00'); vence.setDate(vence.getDate() + dias);
+  const venceIso = vence.toISOString().slice(0,10);
+  const anio = fechaIso.slice(0,4);
+  let cont = {};
+  try{ cont = JSON.parse(pfGet(PF_CONT_KEY) || '{}'); }catch(e){}
+  cont[anio] = (cont[anio] || 0) + 1;
+  pfSet(PF_CONT_KEY, JSON.stringify(cont));
+  const numero = `PF-${anio}-${String(cont[anio]).padStart(4,'0')}`;
+  const curso = document.getElementById('pf_curso').value;
+  const asesor = document.getElementById('pf_asesor').value;
+  const datoCli = (lbl, id)=>{ const val = document.getElementById(id).value.trim(); return val ? `<div><b>${lbl}</b>${escHtml(val)}</div>` : ''; };
+  const filas = c.items.map((it,i)=>`<tr><td>${i+1}</td><td>${escHtml(it.desc)}</td><td class="r">${it.cant}</td><td class="r">${fmt(it.precio)}</td><td class="r">${fmt(it.sub)}</td></tr>`).join('');
+  const cond = document.getElementById('pf_condiciones').value.trim();
+  const logoHtml = PF_LOGO_SRC ? `<img src="${PF_LOGO_SRC}" alt="Ceprocenter">` : `<div class="pf-brand">Ceprocenter</div>`;
+  const html = `<div class="pf-doc">
+    <div class="pf-head">
+      <div>${logoHtml}</div>
+      <div class="pf-num"><div class="t">PROFORMA</div><div class="n">N° ${numero}<br>Fecha: ${pfFechaLarga(fechaIso)}<br>Válida hasta: ${pfFechaLarga(venceIso)}</div></div>
+    </div>
+    <div class="pf-cliente">
+      <div><b>Cliente</b>${escHtml(cliente)}</div>
+      ${datoCli('Cédula / RUC','pf_cedula')}${datoCli('Correo','pf_correo')}${datoCli('Teléfono','pf_telefono')}
+      ${curso ? `<div><b>Programa</b>${escHtml(curso)}</div>` : ''}
+      ${asesor && asesor !== 'Directo' ? `<div><b>Asesor</b>${escHtml(asesor)}</div>` : ''}
+    </div>
+    <table><thead><tr><th style="width:36px;">#</th><th>Concepto</th><th class="r" style="width:60px;">Cant.</th><th class="r" style="width:100px;">P. Unit.</th><th class="r" style="width:100px;">Subtotal</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="pf-totales">
+      <div><span>Subtotal</span><span>${fmt(c.subtotal)}</span></div>
+      ${c.descuento > 0 ? `<div><span>Descuento${c.tipo==='pct' ? ' ('+c.dVal+'%)' : ''}</span><span>−${fmt(c.descuento)}</span></div>` : ''}
+      <div class="tot"><span>TOTAL</span><span>${fmt(c.total)}</span></div>
+    </div>
+    ${cond ? `<div class="pf-cond"><b>Formas de pago y condiciones</b><br>${escHtml(cond)}</div>` : ''}
+    <div class="pf-pie">Documento informativo, no constituye factura. Valores expresados en dólares de los Estados Unidos (USD).<br>Ceprocenter · Guayaquil, Ecuador</div>
+  </div>`;
+  document.getElementById('print_orientation_override').textContent = '@page{ size: portrait; margin: 14mm; }';
+  // El nombre del PDF al guardar se toma del título de la página.
+  const tituloOriginal = document.title;
+  document.title = `${numero} ${cliente}`;
+  const restaurar = ()=>{ document.title = tituloOriginal; document.getElementById('btn_cerrar_modal').removeEventListener('click', restaurar); };
+  document.getElementById('btn_cerrar_modal').addEventListener('click', restaurar);
+  abrirModalDoc(html);
+});
+document.getElementById('pf_fecha').value = new Date().toISOString().slice(0,10);
+document.getElementById('pf_condiciones').value = pfGet(PF_COND_KEY);
+pfCargarLogo();
+pfActualizarTotal();
 // ---------- TABS ----------
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
