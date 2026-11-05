@@ -414,7 +414,7 @@ document.getElementById('btn_guardar_todo').addEventListener('click', async ()=>
       });
       const json = await res.json();
       if(json.error) throw new Error(json.error);
-      guardadasOk.push({estudiante:item.estudiante, nota:item.nota, tipo:item.tipo});
+      guardadasOk.push({estudiante:item.estudiante, nota:item.nota, tipo:item.tipo, retroalimentacion:item.retro});
 
       const idxExistente = CALIFICACIONES.findIndex(c => c.curso===curso && c.modulo===modulo && normalizarNombre(c.estudiante||'')===normalizarNombre(item.estudiante));
       const registro = {curso, modulo, estudiante:item.estudiante, tipo:item.tipo, nota:item.nota};
