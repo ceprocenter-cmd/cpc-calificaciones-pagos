@@ -397,7 +397,7 @@
         <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>Nombre y Apellido</th></tr></thead>
+            <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
             <tbody id="tabla_nomina_estudiantes"></tbody>
           </table>
         </div>
@@ -1390,13 +1390,14 @@ function renderSolicitudes(){
         <div class="field"><label>Ciudad</label><input class="sol-ciudad" value="${s.ciudad||''}"></div>
         <div class="field"><label>Profesión</label><input class="sol-profesion" value="${s.profesion||''}"></div>
         <div class="field"><label>Usuario de Instagram</label><input class="sol-instagram" value="${s.instagram||''}"></div>
-        <div class="field"><label>Certificado a Nombre de</label><input class="sol-certificado" value="${s.certificado||''}"></div>
+        <div class="field"><label>Certificado a Nombre de <span style="color:var(--danger);">*</span></label><input class="sol-certificado" value="${s.certificado||''}" placeholder='Ej. "Lic. María Pérez" o solo el nombre'></div>
         <div class="field campo-destacado"><label>⚠ Monto Acordado a Cobrar Mensual ($)</label><input class="sol-monto-mensual" type="number" step="0.01" min="0" value="${s.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
-        <div class="field"><label>¿Quién le atendió? (dice el cliente)</label>
+        <div class="field"><label>Asesor <span style="color:var(--danger);">*</span> <span style="font-weight:400;text-transform:none;letter-spacing:0;">(el cliente dijo: ${s.asesorMencionado==='Jose'||s.asesorMencionado==='Sara' ? s.asesorMencionado : 'no estoy seguro / otro'})</span></label>
           <select class="sol-asesor">
+            <option value="" ${(s.asesorMencionado!=='Jose'&&s.asesorMencionado!=='Sara')?'selected':''}>Selecciona el asesor</option>
             <option value="Jose" ${s.asesorMencionado==='Jose'?'selected':''}>Jose</option>
             <option value="Sara" ${s.asesorMencionado==='Sara'?'selected':''}>Sara</option>
-            <option value="Directo" ${(s.asesorMencionado!=='Jose'&&s.asesorMencionado!=='Sara')?'selected':''}>Otro / Directo</option>
+            <option value="Directo">Otro / Directo</option>
           </select>
         </div>
         <div class="field"><label>Método de Pago</label>
@@ -1491,6 +1492,8 @@ window.confirmarSolicitud = async function(solId){
   const referenciaPago = card.querySelector('.sol-referencia-pago').value.trim();
   if(!curso){ showToast('Selecciona un curso válido.'); return; }
   if(!estudiante){ showToast('Falta el nombre del estudiante.'); return; }
+  if(!asesor){ showToast('Selecciona el asesor que atendió esta venta.'); card.querySelector('.sol-asesor').focus(); return; }
+  if(!certificado){ showToast('Falta "Certificado a Nombre de". Escríbelo con su título (Lic., Psic., Dr.…) o solo el nombre si no tiene.'); card.querySelector('.sol-certificado').focus(); return; }
   if(!metodoPago){ showToast('Selecciona el método de pago.'); return; }
   if((metodoPago==='Transferencia Bancaria'||metodoPago==='Depósito') && !cuentaDestino){ showToast('Selecciona a cuál cuenta llegó el pago.'); return; }
   const modulosPagados = [];
@@ -1553,15 +1556,59 @@ function renderSelectsCurso(){
   }
   renderTablaNominaEstudiantes();
 }
+// ---------- NOMBRE EN LA NÓMINA (con el título que el estudiante pidió para su certificado) ----------
+// Usa la respuesta de "¿Cómo deseas que aparezca tu nombre en el certificado?" de la solicitud
+// (o "Certificado a Nombre de" en Matricular). Puede venir completa ("Lic. María Pérez") o solo el
+// título ("Lic", "Psi"): en ese caso se pone delante del nombre. Si está vacía, va solo el nombre.
+const TITULOS_EN_NOMBRE = ['psic','psi','cl','lic','licda','lcdo','lcda','dr','dra','ing','mgs','mg','mgtr','msc','phd','prof','ab','abg','tec','tlgo','tlga','tnlgo','tnlga','flgo','flga','odont','sr','sra','srta'];
+function sinTildesMin(t){ return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+function nombreParaNomina(nombre, certificado){
+  const c = String(certificado||'').replace(/\s+/g,' ').trim();
+  if(!c || /^(no|n\/a|na|ninguno|ninguna|-|—)$/i.test(c)) return nombre;
+  const limpiar = t => sinTildesMin(t).replace(/[.,]/g,'');
+  const tokensNombre = new Set(limpiar(nombre).split(' ').filter(t=>t.length>2 && !TITULOS_EN_NOMBRE.includes(t)));
+  const tokensCert = limpiar(c).split(' ').filter(Boolean);
+  // Escribió su nombre completo con el título → se respeta tal cual.
+  if(tokensCert.some(t=>tokensNombre.has(t))) return c;
+  // Escribió solo el título ("Lic", "Psi", "Dra.") → va delante del nombre, sin repetir títulos.
+  if(tokensCert.length <= 3){
+    const titulo = c.split(' ').map(w=> /[.]$/.test(w) || w.length>6 ? w : w+'.').join(' ');
+    let partes = String(nombre||'').trim().split(/\s+/).filter(Boolean);
+    while(partes.length > 1 && TITULOS_EN_NOMBRE.includes(limpiar(partes[0]))) partes = partes.slice(1);
+    return `${titulo} ${partes.join(' ')}`;
+  }
+  return c;
+}
 // ---------- NÓMINA DE ESTUDIANTES ----------
 function nominaDelCurso(curso, incluirInactivos){
   const registros = NOMINA.filter(n=>n.curso===curso);
   const nombres = [...new Set(registros.map(n=>n.estudiante))].sort();
   const estudiantes = nombres.map(est=>{
     const reg = registros.find(n=>n.estudiante===est) || {};
-    return { nombre: est, activo: reg.activo!==false };
+    return { nombre: est, profesion: profesionDeEstudiante(curso, est, reg.identificador), certificado: datoDeEstudiante('certificado', curso, est, reg.identificador, false), activo: reg.activo!==false };
   });
   return incluirInactivos ? estudiantes : estudiantes.filter(e=>e.activo);
+}
+// Busca la profesión del estudiante. Primero en su matrícula de ese curso; si no la tiene (transferidos,
+// agregados a mano a la nómina, nombre escrito distinto), en cualquier otra matrícula suya (por cédula o por
+// nombre sin títulos/acentos) y por último en el Historial de ex-alumnos.
+function profesionDeEstudiante(curso, estudiante, identificador){
+  return datoDeEstudiante('profesion', curso, estudiante, identificador, true) || '—';
+}
+function datoDeEstudiante(campo, curso, estudiante, identificador, buscarEnHistorial){
+  const tiene = x => x && String(x[campo]||'').trim();
+  const exacta = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante && tiene(m)).slice(-1)[0];
+  if(exacta) return String(exacta[campo]).trim();
+  const nombreNorm = normalizarNombreEst(estudiante);
+  const ced = String(identificador||'').replace(/\s+/g,'').trim();
+  const coincide = (nombre, cedula) => (ced && String(cedula||'').replace(/\s+/g,'').trim()===ced) || (nombreNorm && normalizarNombreEst(nombre)===nombreNorm);
+  const otraMat = MATRICULAS.filter(m=>tiene(m) && coincide(m.estudiante, m.cedula)).slice(-1)[0];
+  if(otraMat) return String(otraMat[campo]).trim();
+  if(buscarEnHistorial){
+    const exal = (EXALUMNOS||[]).filter(e=>tiene(e) && coincide(e.nombre, e.cedula)).slice(-1)[0];
+    if(exal) return String(exal[campo]).trim();
+  }
+  return '';
 }
 function renderTablaNominaEstudiantes(){
   const sel = document.getElementById('nomina_curso_sel');
@@ -1594,7 +1641,8 @@ function renderTablaNominaEstudiantes(){
   tbody.innerHTML = estudiantes.map((e,i)=>`
     <tr title="${e.activo?'Activo':'No continuó'}">
       <td style="user-select:none;">${i+1}</td>
-      <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${e.nombre}</td>
+      <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${nombreParaNomina(e.nombre, e.certificado)}</td>
+      <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${e.profesion}</td>
     </tr>
   `).join('');
 }
@@ -1617,7 +1665,7 @@ document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
   const estudiantes = nominaDelCurso(curso, incluirInactivos);
   const noContinuaron = estudiantes.filter(e=>!e.activo).length;
   const filasHtml = estudiantes.map((e,i)=>`
-    <tr><td style="user-select:none;">${i+1}</td><td${e.activo?'':' style="opacity:0.55;"'}>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td></tr>
+    <tr><td style="user-select:none;">${i+1}</td><td${e.activo?'':' style="opacity:0.55;"'}>${nombreParaNomina(e.nombre, e.certificado)}${e.activo?'':' — <i>no continuó</i>'}</td><td${e.activo?'':' style="opacity:0.55;"'}>${e.profesion}</td></tr>
   `).join('');
   const html = `
     <div class="doc-header">
@@ -1625,7 +1673,7 @@ document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
       <div class="title">Nómina de Estudiantes — ${curso}</div>
     </div>
     <div class="hint" style="margin-bottom:14px;">Total: <b>${estudiantes.length}</b> estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0?` (${estudiantes.length-noContinuaron} activos, ${noContinuaron} no continuaron)`:''}</div>
-    <table class="doc-table"><thead><tr><th>#</th><th>Nombre y Apellido</th></tr></thead><tbody>${filasHtml || '<tr><td colspan="2">Sin estudiantes registrados en este curso.</td></tr>'}</tbody></table>
+    <table class="doc-table"><thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead><tbody>${filasHtml || '<tr><td colspan="3">Sin estudiantes registrados en este curso.</td></tr>'}</tbody></table>
   `;
   abrirModalDoc(html);
 });

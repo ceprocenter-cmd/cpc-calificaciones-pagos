@@ -72,12 +72,12 @@
     <div class="field"><label>Profesión <span class="req">*</span></label><input id="f_profesion" placeholder="Profesión"></div>
     <div class="field"><label>Usuario de Instagram</label><input id="f_instagram" placeholder="@usuario"></div>
     <div class="field">
-      <label>¿Cómo deseas que aparezca tu nombre en el certificado?</label>
+      <label>¿Cómo deseas que aparezca tu nombre en el certificado? <span class="req">*</span></label>
       <input id="f_certificado" placeholder='Ej. "Lic. María Pérez", o solo tu nombre'>
-      <div class="hint">Déjalo vacío si no aplica ningún título.</div>
+      <div class="hint">Escríbelo con tu título si tienes uno (Lic., Psic., Dr., etc.). Si no tienes título, escribe solo tu nombre completo.</div>
     </div>
     <div class="field">
-      <label>¿Quién te atendió?</label>
+      <label>¿Quién te atendió? <span class="req">*</span></label>
       <select id="f_asesor">
         <option value="">Selecciona una opción</option>
         <option value="Jose">Jose</option>
@@ -262,8 +262,11 @@ document.getElementById('btn_enviar').addEventListener('click', async ()=>{
   const cuentaDestino = document.getElementById('f_cuenta_destino_wrap').style.display !== 'none' ? document.getElementById('f_cuenta_destino').value : '';
   const referenciaPago = document.getElementById('f_referencia_pago').value.trim();
 
-  if(!curso || !estudiante || !cedula || !correo || !telefono || !pais || !ciudad || !profesion){
-    showToast('Por favor completa todos los campos marcados con *.');
+  if(!curso || !estudiante || !cedula || !correo || !telefono || !pais || !ciudad || !profesion || !certificado){
+    showToast(!certificado && curso && estudiante && cedula && correo && telefono && pais && ciudad && profesion
+      ? 'Indica cómo deseas que aparezca tu nombre en el certificado.'
+      : 'Por favor completa todos los campos marcados con *.');
+    if(!certificado) document.getElementById('f_certificado').focus();
     return;
   }
   if(!asesorMencionado){ showToast('Selecciona quién te atendió.'); return; }

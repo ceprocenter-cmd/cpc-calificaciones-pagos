@@ -518,10 +518,50 @@ function nominaDelCurso(curso, incluirInactivos){
   const nombres = [...new Set(registros.map(n=>n.estudiante))].sort();
   const estudiantes = nombres.map(est=>{
     const registroNomina = registros.find(n=>n.estudiante===est) || {};
-    const registro = MATRICULAS_TUTOR.filter(m=>m.curso===curso && m.estudiante===est).slice(-1)[0] || {};
-    return { nombre: est, profesion: registro.profesion || '—', activo: estaActivoNomina(registroNomina) };
+    return { nombre: est, profesion: datoDeEstudianteCal('profesion', curso, est, registroNomina.identificador) || '—', certificado: datoDeEstudianteCal('certificado', curso, est, registroNomina.identificador), activo: estaActivoNomina(registroNomina) };
   });
   return incluirInactivos ? estudiantes : estudiantes.filter(e=>e.activo);
+}
+// Profesión del estudiante: su matrícula en ese curso; si no la tiene (transferido, agregado a mano, nombre
+// escrito distinto), cualquier otra matrícula suya por cédula o por nombre sin títulos/acentos.
+function normNombreCal(t){
+  let s = String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+  const tits = ['psic','psicologo','psicologa','dr','dra','lic','ing','mgs','msc','phd','prof','sr','sra','srta'];
+  let cambio = true;
+  while(cambio){ cambio = false; for(const t of tits){ const re = new RegExp('^'+t+'\\.?\\s+'); if(re.test(s)){ s = s.replace(re,'').trim(); cambio = true; } } }
+  return s;
+}
+function datoDeEstudianteCal(campo, curso, estudiante, identificador){
+  const tiene = x => x && String(x[campo]||'').trim();
+  const exacta = MATRICULAS_TUTOR.filter(m=>m.curso===curso && m.estudiante===estudiante && tiene(m)).slice(-1)[0];
+  if(exacta) return String(exacta[campo]).trim();
+  const nombreNorm = normNombreCal(estudiante);
+  const ced = String(identificador||'').replace(/\s+/g,'').trim();
+  const otra = MATRICULAS_TUTOR.filter(m=>tiene(m) && ((ced && String(m.cedula||'').replace(/\s+/g,'').trim()===ced) || (nombreNorm && normNombreCal(m.estudiante)===nombreNorm))).slice(-1)[0];
+  return otra ? String(otra[campo]).trim() : '';
+}
+// ---------- NOMBRE EN LA NÓMINA (con el título que el estudiante pidió para su certificado) ----------
+// Usa la respuesta de "¿Cómo deseas que aparezca tu nombre en el certificado?" de la solicitud
+// (o "Certificado a Nombre de" en Matricular). Puede venir completa ("Lic. María Pérez") o solo el
+// título ("Lic", "Psi"): en ese caso se pone delante del nombre. Si está vacía, va solo el nombre.
+const TITULOS_EN_NOMBRE = ['psic','psi','cl','lic','licda','lcdo','lcda','dr','dra','ing','mgs','mg','mgtr','msc','phd','prof','ab','abg','tec','tlgo','tlga','tnlgo','tnlga','flgo','flga','odont','sr','sra','srta'];
+function sinTildesMin(t){ return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+function nombreParaNomina(nombre, certificado){
+  const c = String(certificado||'').replace(/\s+/g,' ').trim();
+  if(!c || /^(no|n\/a|na|ninguno|ninguna|-|—)$/i.test(c)) return nombre;
+  const limpiar = t => sinTildesMin(t).replace(/[.,]/g,'');
+  const tokensNombre = new Set(limpiar(nombre).split(' ').filter(t=>t.length>2 && !TITULOS_EN_NOMBRE.includes(t)));
+  const tokensCert = limpiar(c).split(' ').filter(Boolean);
+  // Escribió su nombre completo con el título → se respeta tal cual.
+  if(tokensCert.some(t=>tokensNombre.has(t))) return c;
+  // Escribió solo el título ("Lic", "Psi", "Dra.") → va delante del nombre, sin repetir títulos.
+  if(tokensCert.length <= 3){
+    const titulo = c.split(' ').map(w=> /[.]$/.test(w) || w.length>6 ? w : w+'.').join(' ');
+    let partes = String(nombre||'').trim().split(/\s+/).filter(Boolean);
+    while(partes.length > 1 && TITULOS_EN_NOMBRE.includes(limpiar(partes[0]))) partes = partes.slice(1);
+    return `${titulo} ${partes.join(' ')}`;
+  }
+  return c;
 }
 // ---------- TABS ----------
 const NOMBRES_TABS = ['calendario','mensual','registrar','tutor','honorarios','tareas'];
@@ -1543,7 +1583,7 @@ window.verNominaCurso = function(curso, incluirInactivos){
   const estudiantes = nominaDelCurso(curso, incluirInactivos);
   const noContinuaron = estudiantes.filter(e=>!e.activo).length;
   const filasHtml = estudiantes.map((e,i)=>`
-    <tr${e.activo?'':' style="opacity:0.55;"'}><td>${i+1}</td><td>${e.nombre}${e.activo?'':' — <i>no continuó</i>'}</td><td>${e.profesion}</td></tr>
+    <tr${e.activo?'':' style="opacity:0.55;"'}><td>${i+1}</td><td>${nombreParaNomina(e.nombre, e.certificado)}${e.activo?'':' — <i>no continuó</i>'}</td><td>${e.profesion}</td></tr>
   `).join('');
   const html = `
     <!DOCTYPE html>
