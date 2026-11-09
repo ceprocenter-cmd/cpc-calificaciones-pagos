@@ -397,7 +397,7 @@
         <div class="hint" id="nomina_contador" style="margin:6px 0 12px;"></div>
         <div class="table-scroll">
           <table>
-            <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th></tr></thead>
+            <thead><tr><th>#</th><th>Nombre y Apellido</th><th>Profesión</th><th></th></tr></thead>
             <tbody id="tabla_nomina_estudiantes"></tbody>
           </table>
         </div>
@@ -405,6 +405,8 @@
         <div class="actions">
           <button class="btn btn-ghost btn-sm" id="btn_refrescar_nomina">🔄 Actualizar</button>
           <button class="btn btn-ghost btn-sm" id="btn_imprimir_nomina">Imprimir / Guardar PDF</button>
+          <button class="btn btn-ghost btn-sm" id="btn_copiar_nombres_nomina">📋 Copiar nombres</button>
+          <button class="btn btn-ghost btn-sm" id="btn_copiar_profesiones_nomina">📋 Copiar profesiones</button>
         </div>
       </div>
     </div>
@@ -1099,6 +1101,7 @@ function renderAll(){
   renderTicker(); renderTickerReporte(); renderCategoriasCursos(); renderTablaCursos(); renderSelectsCurso(); renderChipsConceptos();
   renderSolicitudes(); renderCXC(); renderResumenGeneralDeudores(); renderReporteMensual(); renderBaseEstudiantes();
   renderDiagnosticoNomina();
+  renderTablaNominaEstudiantes(); // para que la nómina muestre al instante lo editado con ✏️
 }
 function renderTickerReporte(){
   const box = document.getElementById('ticker_reporte');
@@ -1637,25 +1640,50 @@ function renderTablaNominaEstudiantes(){
   const totalActivos = nominaDelCurso(curso, false).length;
   const totalTodos = nominaDelCurso(curso, true).length;
   const noContinuaron = totalTodos - totalActivos;
-  contador.textContent = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`;
+  const sinCert = estudiantes.filter(e=>!e.certificado).length;
+  const sinProf = estudiantes.filter(e=>!e.profesion || e.profesion==='—').length;
+  const faltantes = [sinCert ? `${sinCert} sin "Certificado a Nombre de" (salen sin título)` : '', sinProf ? `${sinProf} sin profesión` : ''].filter(Boolean).join(' y ');
+  contador.innerHTML = `Total: ${estudiantes.length} estudiante${estudiantes.length!==1?'s':''}${noContinuaron>0 ? ` (${totalActivos} activos, ${noContinuaron} no continuaron)` : ''}`
+    + (faltantes ? `<br><span style="color:var(--danger);font-weight:600;">⚠ ${faltantes}. Complétalos con ✏️ Editar en su fila (marcados en rojo).</span>` : '');
+  const cursoJs = curso.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   tbody.innerHTML = estudiantes.map((e,i)=>`
     <tr title="${e.activo?'Activo':'No continuó'}">
       <td style="user-select:none;">${i+1}</td>
       <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${nombreParaNomina(e.nombre, e.certificado)}</td>
-      <td${e.activo?'':' style="opacity:0.5;background:var(--panel-2);"'}>${e.profesion}</td>
+      <td style="user-select:none;-webkit-user-select:none;${e.activo?'':'opacity:0.5;background:var(--panel-2);'}">${e.profesion}</td>
+      <td style="white-space:nowrap;user-select:none;-webkit-user-select:none;">${(!e.certificado || !e.profesion || e.profesion==='—') ? '<span style="color:var(--danger);" title="Le faltan datos">⚠</span> ' : ''}<button class="btn btn-ghost btn-sm" onclick="abrirEditarEstudiante('${cursoJs}','${e.nombre.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">✏️ Editar</button></td>
     </tr>
   `).join('');
 }
 // Vuelve a pedir la hoja Nomina al Sheets y redibuja (al abrir la pestaña o con el botón 🔄 Actualizar).
 async function refrescarNominaDesdeSheets(avisar){
   if(!API_URL) return;
-  await refrescarHojas(['Nomina']);
+  await refrescarHojas(['Nomina','Matriculas']); // Matriculas también: de ahí salen profesión y título
   renderTicker();
   renderTablaNominaEstudiantes();
   renderDiagnosticoNomina();
   if(avisar) showToast('Nómina actualizada.');
 }
 document.getElementById('nomina_curso_sel').addEventListener('change', renderTablaNominaEstudiantes);
+// Copia UNA sola columna de la nómina (un dato por línea), lista para pegar en Excel, Word o WhatsApp.
+async function copiarColumnaNomina(columna){
+  const curso = document.getElementById('nomina_curso_sel').value;
+  if(!curso){ showToast('Selecciona un curso primero.'); return; }
+  const incluirInactivos = document.getElementById('nomina_mostrar_inactivos').checked;
+  const estudiantes = nominaDelCurso(curso, incluirInactivos);
+  if(!estudiantes.length){ showToast('Este curso no tiene estudiantes.'); return; }
+  const lineas = estudiantes.map(e=> columna==='nombres' ? nombreParaNomina(e.nombre, e.certificado) : (e.profesion==='—' ? '' : e.profesion));
+  const texto = lineas.join('\n');
+  try{
+    await navigator.clipboard.writeText(texto);
+  }catch(err){
+    const ta = document.createElement('textarea'); ta.value = texto; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  showToast(`${lineas.length} ${columna==='nombres'?'nombres':'profesiones'} copiados. Ya puedes pegarlos.`);
+}
+document.getElementById('btn_copiar_nombres_nomina').addEventListener('click', ()=>copiarColumnaNomina('nombres'));
+document.getElementById('btn_copiar_profesiones_nomina').addEventListener('click', ()=>copiarColumnaNomina('profesiones'));
 document.getElementById('nomina_mostrar_inactivos').addEventListener('change', renderTablaNominaEstudiantes);
 document.getElementById('btn_refrescar_nomina').addEventListener('click', ()=>refrescarNominaDesdeSheets(true));
 document.getElementById('btn_imprimir_nomina').addEventListener('click', ()=>{
@@ -2644,6 +2672,8 @@ window.confirmarTransferirEstudiante = async function(){
 };
 window.abrirEditarEstudiante = function(curso, estudiante){
   const registro = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudiante).slice(-1)[0] || {};
+  const asesorActualEdit = asesorDeEstudiante(curso, estudiante);
+  const tieneMatriculaEdit = MATRICULAS.some(m=>m.curso===curso && m.estudiante===estudiante);
   const html = `
     <h3 style="margin-top:0;">Editar Datos — ${estudiante}</h3>
     <p class="hint">Curso: <b>${curso}</b>. El historial de pagos no se puede tocar aquí — solo datos de contacto, perfil y el monto acordado. Si corriges el nombre, se actualiza en Matrículas, Pagos, Nómina y el Historial de Estudiantes.</p>
@@ -2658,6 +2688,13 @@ window.abrirEditarEstudiante = function(curso, estudiante){
       <div class="field"><label>Usuario de Instagram</label><input id="edit_instagram" value="${registro.instagram||''}"></div>
       <div class="field"><label>Certificado a Nombre de</label><input id="edit_certificado" value="${registro.certificado||''}"></div>
       <div class="field"><label>Monto Acordado ($)</label><input id="edit_monto_mensual" type="number" step="0.01" min="0" value="${registro.montoMensual||''}" placeholder="Dejar vacío si paga precio normal"></div>
+      <div class="field"><label>Asesor${asesorActualEdit?'':' <span style="color:var(--danger);">(sin asignar)</span>'}</label>
+        <select id="edit_asesor">
+          ${asesorActualEdit ? '' : '<option value="" selected>Sin asesor — selecciona uno</option>'}
+          ${[...new Set(['Jose','Sara','Directo', asesorActualEdit].filter(Boolean))].map(a=>`<option value="${escHtml(a)}" ${a===asesorActualEdit?'selected':''}>${a==='Directo'?'Otro / Directo':escHtml(a)}</option>`).join('')}
+        </select>
+        ${tieneMatriculaEdit ? '' : '<div class="hint" style="color:var(--danger);">Este estudiante no tiene matrícula registrada en este curso, así que el asesor no se puede guardar aquí.</div>'}
+      </div>
     </div>
     <div class="actions"><button class="btn btn-primary" onclick="guardarEdicionEstudiante('${curso.replace(/'/g,"\\'")}','${estudiante.replace(/'/g,"\\'")}')">Guardar Cambios</button></div>
   `;
@@ -2677,6 +2714,11 @@ window.guardarEdicionEstudiante = async function(curso, estudianteOriginal){
     certificado: document.getElementById('edit_certificado').value.trim(),
     montoMensual: Number(document.getElementById('edit_monto_mensual').value)||0,
   };
+  const asesorNuevo = document.getElementById('edit_asesor').value;
+  const asesorAnterior = asesorDeEstudiante(curso, estudianteOriginal);
+  // Las filas de matrícula de este estudiante en este curso (se toman ANTES de un posible cambio de nombre; el id no cambia).
+  const filasMatriculaCurso = MATRICULAS.filter(m=>m.curso===curso && m.estudiante===estudianteOriginal);
+  if(asesorNuevo !== asesorAnterior && asesorAnterior && !confirm(`¿Cambiar el asesor de "${estudianteOriginal}" de ${asesorAnterior} a ${asesorNuevo==='Directo'?'Otro / Directo':asesorNuevo}? Esto cambia a quién se le cuenta esta venta para las comisiones.`)) return;
   try{
     let estudianteFinal = estudianteOriginal;
     if(nombreNuevo !== estudianteOriginal){
@@ -2698,7 +2740,19 @@ window.guardarEdicionEstudiante = async function(curso, estudianteOriginal){
       estudianteFinal = nombreNuevo;
     }
     await apiActualizarEstudiante(curso, estudianteFinal, data);
-    showToast('Datos actualizados correctamente.');
+    let avisoAsesor = '';
+    if(asesorNuevo && asesorNuevo !== asesorAnterior){
+      if(filasMatriculaCurso.length===0){
+        avisoAsesor = ' (El asesor no se guardó: no tiene matrícula en este curso.)';
+      }else{
+        let fallaron = 0;
+        for(const m of filasMatriculaCurso){
+          try{ await apiPost('Matriculas','update',{id:m.id, data:{asesor:asesorNuevo}}); }catch(err){ fallaron++; }
+        }
+        avisoAsesor = fallaron ? ` (Asesor: ${fallaron} fila(s) no se pudieron actualizar, revísalas en el Sheets.)` : ` Asesor: ${asesorNuevo==='Directo'?'Otro / Directo':asesorNuevo}.`;
+      }
+    }
+    showToast('Datos actualizados correctamente.' + avisoAsesor);
     document.getElementById('modal_overlay').classList.remove('show');
     await refrescarHojas(['Nomina','Matriculas','Pagos','ExAlumnos']);
     renderAll();
