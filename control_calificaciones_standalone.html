@@ -1601,10 +1601,18 @@ function cargarLogoPDF(){
     img.crossOrigin = 'anonymous';
     img.onload = ()=>{
       try{
+        // Se reduce el logo (máx. 700 px de ancho) y se pasa a JPEG sobre fondo
+        // blanco UNA sola vez. Un PNG grande hacía que jsPDF tardara muchísimo por
+        // cada reporte y la página se congelaba ("La página no responde").
+        const escala = Math.min(1, 700/img.naturalWidth);
+        const w = Math.max(1, Math.round(img.naturalWidth*escala));
+        const h = Math.max(1, Math.round(img.naturalHeight*escala));
         const c = document.createElement('canvas');
-        c.width = img.naturalWidth; c.height = img.naturalHeight;
-        c.getContext('2d').drawImage(img,0,0);
-        LOGO_PDF = {data:c.toDataURL('image/png'), w:img.naturalWidth, h:img.naturalHeight};
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img,0,0,w,h);
+        LOGO_PDF = {data:c.toDataURL('image/jpeg',0.92), w, h};
       }catch(e){ LOGO_PDF = false; }
       res(LOGO_PDF);
     };
@@ -1620,7 +1628,7 @@ function dibujarReporteCalificaciones(doc, d){
   if(d.logo){
     let w = 62, h = w*d.logo.h/d.logo.w;
     if(h>30){ h = 30; w = h*d.logo.w/d.logo.h; }
-    doc.addImage(d.logo.data,'PNG',(W-w)/2,y,w,h);
+    doc.addImage(d.logo.data,'JPEG',(W-w)/2,y,w,h,'cpclogo','FAST');
     y += h + 14;
   }else{
     doc.setFont('courier','bold'); doc.setFontSize(20);
@@ -1667,15 +1675,23 @@ function libreriasPdfListas(){
   if(!window.jspdf || !window.jspdf.jsPDF){ showToast('No se pudo cargar el generador de PDF. Revisa tu conexión a internet y recarga la página.'); return false; }
   return true;
 }
-async function crearPdfReportes(estudiantes){
+// Pequeña pausa para que el navegador pueda refrescar la pantalla entre reporte y reporte.
+const pausaUI = ()=>new Promise(r=>setTimeout(r,0));
+async function crearPdfReportes(estudiantes, alAvanzar){
   const logo = await cargarLogoPDF();
-  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
-  estudiantes.forEach((est,i)=>{
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4', compress:true});
+  for(let i=0;i<estudiantes.length;i++){
+    const est = estudiantes[i];
     if(i>0) doc.addPage();
     const {filas, prom} = datosReporteEstudiante(est);
     dibujarReporteCalificaciones(doc, {estudiante:est, curso:CURSO_ACTUAL, cohorte:cohorteActual(), filas, prom, logo});
-  });
+    if(alAvanzar){ alAvanzar(i+1); await pausaUI(); }
+  }
   return doc;
+}
+function mostrarProgreso(texto){
+  const t = document.getElementById('toast');
+  t.textContent = texto; t.classList.add('show');
 }
 function nombreArchivoSeguro(t){
   return String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toUpperCase();
@@ -1708,11 +1724,17 @@ document.getElementById('btn_pdf_todos_zip').addEventListener('click', async e=>
   showToast(`Generando ${lista.length} reportes...`);
   try{
     const zip = new JSZip();
-    for(const est of lista){
+    for(let i=0;i<lista.length;i++){
+      const est = lista[i];
+      mostrarProgreso(`Generando reporte ${i+1} de ${lista.length}...`);
+      await pausaUI();
       const doc = await crearPdfReportes([est]);
       zip.file(`Reporte_Calificaciones_${nombreArchivoSeguro(est)}.pdf`, doc.output('blob'));
     }
-    const blob = await zip.generateAsync({type:'blob'});
+    mostrarProgreso('Comprimiendo ZIP...');
+    await pausaUI();
+    // STORE = sin recomprimir (los PDF ya vienen comprimidos), es mucho más rápido.
+    const blob = await zip.generateAsync({type:'blob', compression:'STORE'});
     descargarBlob(blob, `Reportes_Calificaciones_${nombreArchivoSeguro(CURSO_ACTUAL).slice(0,60)}.zip`);
     showToast(`${lista.length} reportes descargados en un ZIP.`);
   }catch(err){ showToast('Error al generar los reportes: '+err.message); }
@@ -1724,7 +1746,7 @@ document.getElementById('btn_pdf_todos_uno').addEventListener('click', async e=>
   if(lista.length===0){ showToast('No hay estudiantes activos con notas para generar reportes.'); return; }
   const btn = e.currentTarget; btn.disabled = true;
   try{
-    const doc = await crearPdfReportes(lista);
+    const doc = await crearPdfReportes(lista, n=>mostrarProgreso(`Generando reporte ${n} de ${lista.length}...`));
     doc.save(`Reportes_Calificaciones_${nombreArchivoSeguro(CURSO_ACTUAL).slice(0,60)}.pdf`);
     showToast(`PDF con ${lista.length} reportes descargado (uno por página).`);
   }catch(err){ showToast('Error al generar el PDF: '+err.message); }
