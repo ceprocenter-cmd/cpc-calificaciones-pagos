@@ -108,6 +108,10 @@
   .doc-header[style*="center"] .brand img{margin:0 auto;}
 </style>
 <style id="print_orientation_override"></style>
+<!-- Generador de PDF directo (sin encabezado/pie del navegador) + ZIP para descarga masiva -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -345,7 +349,12 @@
             <tbody id="tabla_resumen_curso"></tbody>
           </table>
         </div>
+        <div class="grid cols3" style="margin-top:18px;">
+          <div class="field"><label>Cohorte (opcional — sale en el reporte)</label><input id="rep_cohorte" placeholder="Ej. 2026-01"></div>
+        </div>
         <div class="actions">
+          <button class="btn btn-primary btn-sm" id="btn_pdf_todos_zip">⬇ Descargar Todos los Reportes (PDFs en ZIP)</button>
+          <button class="btn btn-ghost btn-sm" id="btn_pdf_todos_uno">⬇ Todos en un solo PDF</button>
           <button class="btn btn-ghost btn-sm" id="btn_copiar_reporte">Copiar Reporte de Texto</button>
         </div>
       </div>
@@ -789,6 +798,7 @@ window.abrirCurso = function(curso){
   if(chatPrevio) chatPrevio.value = '';
   if(resultadoPrevio){ resultadoPrevio.style.display='none'; resultadoPrevio.innerHTML=''; }
   MODULO_SELECCIONADO_EVALUACION = null;
+  cargarCohorteCurso();
   poblarSelectEstudiantes();
   poblarSelectModulos();
   renderAllCurso();
@@ -1545,44 +1555,181 @@ window.eliminarNota = async function(id){
   await refrescarHojas(['Calificaciones']);
   renderAllCurso();
 };
-// ---------- REPORTE INDIVIDUAL DESCARGABLE ----------
-// Muestra TODOS los módulos del curso: los que tienen nota con su valor, y los
-// que no tienen nota con "—" (no cuentan para el promedio).
-window.descargarReporteIndividual = function(estudiante){
+// ---------- REPORTE INDIVIDUAL EN PDF (formato formal) ----------
+// El PDF se genera directamente con jsPDF (ya no con "Imprimir" del navegador),
+// así NO salen la fecha/hora arriba ni el link de la página abajo.
+// Solo se listan los módulos cuyo nombre empieza con "Módulo" (se omiten
+// Inscripción, Graduación, etc.). Si un curso no tiene ningún módulo que empiece
+// así (cursos antiguos con otros nombres), se muestran todos menos Inscripción y
+// Graduación. El promedio se calcula solo con los módulos que salen en el reporte.
+const REPORTE_FIRMA = ['AUTORIZADO Y REVISADO POR', 'LCDA. KINLLER M. SEGURA M.', 'GERENTE GENERAL CEPROCENTER S.A.S'];
+const REPORTE_AZUL = [11,79,150];
+function esModuloDelReporte(m){ return /^m[oó]dulo/i.test(String(m||'').trim()); }
+function modulosParaReporte(){
+  const todos = modulosDelCurso();
+  const soloModulos = todos.filter(esModuloDelReporte);
+  if(soloModulos.length>0) return soloModulos;
+  return todos.filter(m=>!/^(inscripci[oó]n|graduaci[oó]n)$/i.test(String(m).trim()));
+}
+function datosReporteEstudiante(estudiante){
   const vig = notasVigentesCurso().filter(v=>v.estudiante===estudiante);
-  if(vig.length===0){ showToast('No hay notas para este estudiante.'); return; }
-  const prom = vig.reduce((s,v)=>s+v.nota,0)/vig.length;
-  const aprobado = prom >= NOTA_MINIMA;
-  const filasHtml = modulosDelCurso().map(m=>{
+  const filas = modulosParaReporte().map(m=>{
     const v = vig.find(x=>x.modulo===m);
-    if(!v) return `<tr><td>${m}</td><td>—</td><td style="text-align:right;">—</td></tr>`;
-    return `<tr><td>${m}</td><td>${v.tipo==='Recuperativa'?'Recuperativa':'Regular'}</td><td style="text-align:right;">${v.nota.toFixed(1)}</td></tr>`;
-  }).join('');
-  document.getElementById('print_individual_content').innerHTML = `
-    <div class="doc-header">
-      <div class="brand">${cpcLogoHtml(52)}</div>
-      <div class="title">Reporte de Calificaciones Individual</div>
-    </div>
-    <div class="doc-meta">
-      <div><b>Estudiante</b>${estudiante}</div>
-      <div><b>Curso / Diplomado</b>${CURSO_ACTUAL}</div>
-      <div><b>Fecha de Emisión</b>${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
-      <div><b>Nota Mínima de Aprobación</b>${NOTA_MINIMA} / 10</div>
-    </div>
-    <table class="doc-table">
-      <thead><tr><th>Módulo / Evaluación</th><th>Tipo</th><th style="text-align:right;">Nota</th></tr></thead>
-      <tbody>${filasHtml}</tbody>
-    </table>
-    <div class="doc-footer">
-      <div>
-        <div class="lbl">Promedio Final</div>
-        <div class="prom" style="color:${aprobado?'var(--accent)':'var(--danger)'}">${prom.toFixed(1)} / 10</div>
-      </div>
-      <div class="pill ${aprobado?'ok':'fail'}" style="font-size:14px;padding:8px 18px;">${aprobado?'Aprobado':'Reprobado'}</div>
-    </div>
-  `;
-  document.getElementById('modal_overlay').classList.add('show');
+    return {modulo:m, nota: v ? v.nota : null};
+  });
+  const conNota = filas.filter(f=>f.nota!==null);
+  const prom = conNota.length ? conNota.reduce((s,f)=>s+f.nota,0)/conNota.length : null;
+  return {filas, prom};
+}
+function formatoNotaReporte(n){ return n===null ? '-' : n.toFixed(2).replace('.',','); }
+function cohorteActual(){
+  const inp = document.getElementById('rep_cohorte');
+  return inp ? inp.value.trim() : '';
+}
+document.getElementById('rep_cohorte').addEventListener('input', e=>{
+  try{ localStorage.setItem('cepro_cohorte_'+CURSO_ACTUAL, e.target.value.trim()); }catch(err){}
+});
+function cargarCohorteCurso(){
+  let v=''; try{ v = localStorage.getItem('cepro_cohorte_'+CURSO_ACTUAL) || ''; }catch(e){}
+  document.getElementById('rep_cohorte').value = v;
+}
+let LOGO_PDF = null; // null = sin cargar, false = no disponible
+function cargarLogoPDF(){
+  if(LOGO_PDF!==null) return Promise.resolve(LOGO_PDF);
+  return new Promise(res=>{
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = ()=>{
+      try{
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        LOGO_PDF = {data:c.toDataURL('image/png'), w:img.naturalWidth, h:img.naturalHeight};
+      }catch(e){ LOGO_PDF = false; }
+      res(LOGO_PDF);
+    };
+    img.onerror = ()=>{ LOGO_PDF = false; res(false); };
+    img.src = CPC_LOGO_URL;
+  });
+}
+function dibujarReporteCalificaciones(doc, d){
+  // d = {estudiante, curso, cohorte, filas:[{modulo,nota}], prom, logo}
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const M = 18;
+  let y = 16;
+  if(d.logo){
+    let w = 62, h = w*d.logo.h/d.logo.w;
+    if(h>30){ h = 30; w = h*d.logo.w/d.logo.h; }
+    doc.addImage(d.logo.data,'PNG',(W-w)/2,y,w,h);
+    y += h + 14;
+  }else{
+    doc.setFont('courier','bold'); doc.setFontSize(20);
+    doc.text('CEPROCENTER', W/2, y+10, {align:'center'});
+    y += 26;
+  }
+  doc.setTextColor(20,20,20);
+  doc.setFont('courier','bold'); doc.setFontSize(11);
+  doc.text('REPORTE DE CALIFICACIONES', W/2, y, {align:'center'});
+  y += 14;
+  const campo = (etiqueta, valor)=>{
+    doc.setFont('courier','bold'); doc.setFontSize(9.5);
+    const lw = doc.getTextWidth(etiqueta+' ');
+    doc.text(etiqueta, M, y);
+    doc.setFont('courier','normal');
+    const lineas = doc.splitTextToSize(String(valor), W-2*M-lw);
+    doc.text(lineas, M+lw, y);
+    y += lineas.length*4.4 + 4;
+  };
+  campo('PROGRAMA:', d.curso.toUpperCase());
+  if(d.cohorte) campo('COHORTE:', d.cohorte);
+  campo('ESTUDIANTE:', d.estudiante.toUpperCase());
+  y += 4;
+  const body = d.filas.map(f=>[f.modulo.toUpperCase(), formatoNotaReporte(f.nota)]);
+  body.push([
+    {content:'PROMEDIO FINAL', styles:{halign:'right', fontStyle:'bold'}},
+    {content:formatoNotaReporte(d.prom), styles:{fillColor:REPORTE_AZUL, textColor:255, fontStyle:'bold', halign:'center'}}
+  ]);
+  doc.autoTable({
+    startY:y, margin:{left:M, right:M}, theme:'grid',
+    head:[[{content:'MÓDULOS', styles:{halign:'center'}}, {content:'CALIFICACIÓN', styles:{halign:'center'}}]],
+    body,
+    styles:{font:'courier', fontSize:8.5, textColor:20, lineColor:[140,140,140], lineWidth:0.2, cellPadding:2.6, valign:'middle'},
+    headStyles:{fillColor:REPORTE_AZUL, textColor:255, fontStyle:'bold', fontSize:9},
+    columnStyles:{0:{fontStyle:'bold'}, 1:{halign:'center', cellWidth:32}}
+  });
+  // Espacio en blanco sobre la firma para poder firmar electrónicamente después.
+  let fy = doc.lastAutoTable.finalY + 48;
+  if(fy + 18 > H - 15){ doc.addPage(); fy = 70; }
+  doc.setFont('courier','normal'); doc.setFontSize(9.5); doc.setTextColor(20,20,20);
+  REPORTE_FIRMA.forEach((t,i)=>doc.text(t, W/2, fy + i*7, {align:'center'}));
+}
+function libreriasPdfListas(){
+  if(!window.jspdf || !window.jspdf.jsPDF){ showToast('No se pudo cargar el generador de PDF. Revisa tu conexión a internet y recarga la página.'); return false; }
+  return true;
+}
+async function crearPdfReportes(estudiantes){
+  const logo = await cargarLogoPDF();
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
+  estudiantes.forEach((est,i)=>{
+    if(i>0) doc.addPage();
+    const {filas, prom} = datosReporteEstudiante(est);
+    dibujarReporteCalificaciones(doc, {estudiante:est, curso:CURSO_ACTUAL, cohorte:cohorteActual(), filas, prom, logo});
+  });
+  return doc;
+}
+function nombreArchivoSeguro(t){
+  return String(t).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').toUpperCase();
+}
+function descargarBlob(blob, nombre){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+// Estudiantes activos (sin "No continuó") con al menos una nota en los módulos del reporte.
+function estudiantesConReporte(){
+  return estudiantesActivosDelCurso()
+    .filter(est=>datosReporteEstudiante(est).prom!==null)
+    .sort((a,b)=>a.localeCompare(b));
+}
+window.descargarReporteIndividual = async function(estudiante){
+  if(!libreriasPdfListas()) return;
+  if(datosReporteEstudiante(estudiante).prom===null){ showToast('Este estudiante no tiene notas en los módulos.'); return; }
+  const doc = await crearPdfReportes([estudiante]);
+  doc.save(`Reporte_Calificaciones_${nombreArchivoSeguro(estudiante)}.pdf`);
+  showToast('Reporte descargado.');
 };
+document.getElementById('btn_pdf_todos_zip').addEventListener('click', async e=>{
+  if(!libreriasPdfListas()) return;
+  if(!window.JSZip){ showToast('No se pudo cargar el compresor ZIP. Usa "Todos en un solo PDF".'); return; }
+  const lista = estudiantesConReporte();
+  if(lista.length===0){ showToast('No hay estudiantes activos con notas para generar reportes.'); return; }
+  const btn = e.currentTarget; btn.disabled = true;
+  showToast(`Generando ${lista.length} reportes...`);
+  try{
+    const zip = new JSZip();
+    for(const est of lista){
+      const doc = await crearPdfReportes([est]);
+      zip.file(`Reporte_Calificaciones_${nombreArchivoSeguro(est)}.pdf`, doc.output('blob'));
+    }
+    const blob = await zip.generateAsync({type:'blob'});
+    descargarBlob(blob, `Reportes_Calificaciones_${nombreArchivoSeguro(CURSO_ACTUAL).slice(0,60)}.zip`);
+    showToast(`${lista.length} reportes descargados en un ZIP.`);
+  }catch(err){ showToast('Error al generar los reportes: '+err.message); }
+  finally{ btn.disabled = false; }
+});
+document.getElementById('btn_pdf_todos_uno').addEventListener('click', async e=>{
+  if(!libreriasPdfListas()) return;
+  const lista = estudiantesConReporte();
+  if(lista.length===0){ showToast('No hay estudiantes activos con notas para generar reportes.'); return; }
+  const btn = e.currentTarget; btn.disabled = true;
+  try{
+    const doc = await crearPdfReportes(lista);
+    doc.save(`Reportes_Calificaciones_${nombreArchivoSeguro(CURSO_ACTUAL).slice(0,60)}.pdf`);
+    showToast(`PDF con ${lista.length} reportes descargado (uno por página).`);
+  }catch(err){ showToast('Error al generar el PDF: '+err.message); }
+  finally{ btn.disabled = false; }
+});
 document.getElementById('btn_cerrar_modal').addEventListener('click', ()=>{
   document.getElementById('modal_overlay').classList.remove('show');
 });
